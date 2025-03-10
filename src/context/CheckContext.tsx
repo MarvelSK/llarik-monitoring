@@ -102,27 +102,29 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
               status: ping.status as CheckPing["status"],
             }));
             
-            return {
+            // Create a valid Check object with all required properties
+            const checkData: Check = {
               id: check.id,
               name: check.name,
               description: check.description,
-              status: calculateCheckStatus({
-                ...check,
-                lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
-                nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
-              }),
+              status: "up", // Will be recalculated below
               tags: check.tags || [],
               environments: check.environments || [],
               period: check.period,
               grace: check.grace,
               lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
               nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
-              pings,
+              pings: pings,
               cronExpression: check.cron_expression,
               createdAt: new Date(check.created_at),
               lastDuration: check.last_duration,
               companyId: check.company_id,
-            } as Check;
+            };
+            
+            // Calculate the correct status
+            checkData.status = calculateCheckStatus(checkData);
+            
+            return checkData;
           }));
           
           setChecks(checksWithPings);

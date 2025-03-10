@@ -3,7 +3,8 @@ export interface Company {
   id: string;
   name: string;
   description?: string;
-  created_at: string | Date;
+  createdAt?: Date;
+  created_at?: string | Date; // Include both for compatibility
 }
 
 export interface User {
