@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -15,21 +14,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { CheckboxGroup, CheckboxItem } from "../ui/checkbox-group";
-
-// Create a new component for checkbox group
-const CheckboxGroup = ({ children, className, ...props }: { children: React.ReactNode, className?: string }) => {
-  return <div className={`space-y-2 ${className || ''}`} {...props}>{children}</div>;
-};
-
-const CheckboxItem = ({ children, ...props }: { children: React.ReactNode }) => {
-  return (
-    <div className="flex items-center space-x-2">
-      <Switch {...props} />
-      <span>{children}</span>
-    </div>
-  );
-};
 
 interface IntegrationsPanelProps {
   checkId: string;
