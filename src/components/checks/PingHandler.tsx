@@ -40,6 +40,7 @@ const PingHandler = () => {
         // Mark this ping as processed for this session
         sessionStorage.setItem(pingKey, "true");
         setProcessed(true);
+        setError(false); // Make sure error is set to false on success
       } catch (error) {
         console.error("Error processing ping:", error);
         setError(true);
@@ -63,7 +64,8 @@ const PingHandler = () => {
     );
   }
 
-  if (error) {
+  // Only show error state if error is true AND we're not in a processed state
+  if (error && !processed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center p-8 max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -82,6 +84,7 @@ const PingHandler = () => {
     );
   }
 
+  // Show success state when processed is true
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="text-center p-8 max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-md">
