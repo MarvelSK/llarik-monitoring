@@ -46,6 +46,28 @@ const PingsList = ({ checkId }: PingsListProps) => {
     if (checkId) {
       fetchPings();
     }
+
+    // Set up real-time subscription for new pings
+    const channel = supabase
+      .channel('public:check_pings')
+      .on('postgres_changes', {
+        event: 'INSERT', 
+        schema: 'public',
+        table: 'check_pings',
+        filter: `check_id=eq.${checkId}`
+      }, (payload) => {
+        const newPing: CheckPing = {
+          id: payload.new.id,
+          timestamp: new Date(payload.new.timestamp),
+          status: payload.new.status as CheckPing['status'],
+        };
+        setPings(prev => [newPing, ...prev].slice(0, 50));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [checkId]);
 
   const getPingIcon = (status: CheckPing["status"]) => {

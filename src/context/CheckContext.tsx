@@ -1,7 +1,5 @@
-
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { addMinutes, isBefore, isPast, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
@@ -10,8 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface CheckContextType {
   checks: Check[];
   getCheck: (id: string) => Check | undefined;
-  createCheck: (check: Partial<Check>) => Check;
-  updateCheck: (id: string, check: Partial<Check>) => Check | undefined;
+  createCheck: (check: Partial<Check>) => Promise<Check>;
+  updateCheck: (id: string, check: Partial<Check>) => Promise<Check | undefined>;
   deleteCheck: (id: string) => void;
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
@@ -45,7 +43,7 @@ function convertDatesToObjects(check: any): Check {
 
 // Helper to convert Date objects to ISO strings for Supabase
 function prepareCheckForSupabase(check: Partial<Check>) {
-  const dbCheck: any = {
+  return {
     name: check.name,
     description: check.description,
     status: check.status,
@@ -55,17 +53,9 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     environments: check.environments,
     cron_expression: check.cronExpression,
     last_duration: check.lastDuration,
+    last_ping: check.lastPing?.toISOString(),
+    next_ping_due: check.nextPingDue?.toISOString(),
   };
-
-  if (check.lastPing) {
-    dbCheck.last_ping = check.lastPing.toISOString();
-  }
-
-  if (check.nextPingDue) {
-    dbCheck.next_ping_due = check.nextPingDue.toISOString();
-  }
-
-  return dbCheck;
 }
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
@@ -110,8 +100,35 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
 
     fetchChecks();
+
+    // Set up real-time subscription to checks table for updates
+    const channel = supabase
+      .channel('public:checks')
+      .on('postgres_changes', {
+        event: '*', 
+        schema: 'public',
+        table: 'checks'
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newCheck = convertDatesToObjects(payload.new);
+          setChecks(prev => [newCheck, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedCheck = convertDatesToObjects(payload.new);
+          setChecks(prev => prev.map(check => 
+            check.id === updatedCheck.id ? updatedCheck : check
+          ));
+        } else if (payload.eventType === 'DELETE') {
+          setChecks(prev => prev.filter(check => check.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  // Status check interval
   useEffect(() => {
     const intervalId = setInterval(() => {
       setChecks((currentChecks) =>
@@ -263,7 +280,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       }
 
       const newCheck = convertDatesToObjects(data);
-      setChecks((prev) => [newCheck, ...prev]);
       toast.success('Check created successfully');
       return newCheck;
     } catch (error) {
@@ -320,27 +336,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
 
-      // Update local state
-      const newPing: CheckPing = {
-        id: uuidv4(), // This will be replaced when we fetch pings next time
-        timestamp: now,
-        status,
-      };
-
-      setChecks(prevChecks => 
-        prevChecks.map(c => 
-          c.id === id 
-            ? {
-                ...c,
-                lastPing: now,
-                nextPingDue,
-                status: "up",
-                pings: [newPing, ...c.pings].slice(0, 100),
-              }
-            : c
-        )
-      );
-
       toast.success('Ping received successfully');
       
       // If status changed from down to up, trigger integrations
@@ -380,10 +375,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }),
       };
 
-      const updatedChecks = [...checks];
-      updatedChecks[checkIndex] = updatedCheck;
-
-      setChecks(updatedChecks);
       toast.success('Check updated successfully');
       return updatedCheck;
     } catch (error) {

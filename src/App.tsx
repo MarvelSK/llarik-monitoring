@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import CompanyList from "./pages/admin/CompanyList";
 import CompanyDetail from "./pages/admin/CompanyDetail";
 import CompanyCreate from "./pages/admin/CompanyCreate";
+import PingHandler from "./components/checks/PingHandler";
 
 const queryClient = new QueryClient();
 
@@ -76,7 +77,7 @@ const App = () => (
                 </RequireAuth>
               } />
               
-              <Route path="/ping/:id" element={<div>Ping received successfully</div>} />
+              <Route path="/ping/:id" element={<PingHandler />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
