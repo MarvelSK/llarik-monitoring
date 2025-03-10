@@ -17,7 +17,6 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import CompanyList from "./pages/admin/CompanyList";
 import CompanyDetail from "./pages/admin/CompanyDetail";
 import CompanyCreate from "./pages/admin/CompanyCreate";
-import CompanySetup from "./pages/CompanySetup";
 
 const queryClient = new QueryClient();
 
@@ -32,13 +31,6 @@ const App = () => (
             <Routes>
               {/* Public route */}
               <Route path="/login" element={<Login />} />
-              
-              {/* Company setup route - requires auth but not company */}
-              <Route path="/setup" element={
-                <RequireAuth requireCompany={false}>
-                  <CompanySetup />
-                </RequireAuth>
-              } />
               
               {/* Protected routes */}
               <Route path="/" element={

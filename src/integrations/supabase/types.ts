@@ -106,21 +106,18 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          owner_id: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
           name: string
-          owner_id?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
           name?: string
-          owner_id?: string | null
         }
         Relationships: []
       }
@@ -164,10 +161,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_profile: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
