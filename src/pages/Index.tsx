@@ -94,7 +94,7 @@ const Index = () => {
               pulseAnimation={lateChecks.length > 0}
             />
             <StatusCard 
-              title="Porucha"
+              title="V Poruche"
               count={downChecks.length} 
               icon={<AlertCircle className="w-5 h-5" />}
               color="bg-danger"
@@ -105,10 +105,10 @@ const Index = () => {
 
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="gap-1">
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">Všetky kontroly</TabsTrigger>
+            <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">Všetky Kontroly</TabsTrigger>
             <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Aktívne</TabsTrigger>
             <TabsTrigger value="grace" className="data-[state=active]:bg-warning/10">Meškajúce</TabsTrigger>
-            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Neaktívne</TabsTrigger>
+            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">V Poruche</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
             <CheckTable checks={allChecks} />
