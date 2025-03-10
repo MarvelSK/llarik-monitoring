@@ -13,8 +13,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { InfoCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -27,14 +25,8 @@ const environmentOptions: CheckEnvironment[] = ["prod", "sandbox", "worker", "db
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  period: z.coerce
-    .number()
-    .min(1, "Period must be at least 1 minute")
-    .max(1440, "Period must be at most 24 hours (1440 minutes)"),
-  grace: z.coerce
-    .number()
-    .min(1, "Grace period must be at least 1 minute")
-    .max(1440, "Grace period must be at most 24 hours (1440 minutes)"),
+  period: z.coerce.number().min(1, "Period must be at least 1 minute"),
+  grace: z.coerce.number().min(1, "Grace period must be at least 1 minute"),
   tags: z.string().optional(),
   environments: z.array(z.string()).optional(),
   cronExpression: z.string().optional(),
@@ -153,26 +145,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     name="period"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-1">
-                          <span>Period (minutes)</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-help text-gray-500">
-                                  <InfoCircle className="h-3.5 w-3.5" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p>This is how often your check should receive a ping. For example, if set to 60, your task should ping every 60 minutes.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </FormLabel>
+                        <FormLabel>Period (minutes)</FormLabel>
                         <FormControl>
-                          <Input type="number" min={1} max={1440} {...field} />
+                          <Input type="number" min={1} {...field} />
                         </FormControl>
                         <FormDescription>
-                          Expected time between pings (1-1440 minutes)
+                          Expected time between pings
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -184,26 +162,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     name="grace"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-1">
-                          <span>Grace Period (minutes)</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="cursor-help text-gray-500">
-                                  <InfoCircle className="h-3.5 w-3.5" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p>Additional time allowed after the period before a check is marked DOWN. If period is 60 and grace is 30, a check will be "Running Late" after 60 minutes, then "Down" after 90 minutes total.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </FormLabel>
+                        <FormLabel>Grace Period (minutes)</FormLabel>
                         <FormControl>
-                          <Input type="number" min={1} max={1440} {...field} />
+                          <Input type="number" min={1} {...field} />
                         </FormControl>
                         <FormDescription>
-                          How long to wait before alerting (1-1440 minutes)
+                          How long to wait before alerting
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -234,26 +198,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   name="grace"
                   render={({ field }) => (
                     <FormItem className="mt-4">
-                      <FormLabel className="flex items-center gap-1">
-                        <span>Grace Period (minutes)</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help text-gray-500">
-                                <InfoCircle className="h-3.5 w-3.5" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p>Additional time allowed after the expected run time before a check is marked DOWN.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </FormLabel>
+                      <FormLabel>Grace Period (minutes)</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} max={1440} {...field} />
+                        <Input type="number" min={1} {...field} />
                       </FormControl>
                       <FormDescription>
-                        How long to wait before alerting (1-1440 minutes)
+                        How long to wait before alerting
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
