@@ -18,7 +18,7 @@ const Layout = ({ children }: LayoutProps) => {
       <footer className="py-4 border-t border-gray-200 dark:border-gray-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            HealthBeat - Monitor your scheduled tasks with ease
+              © 2025 LLarik Monitoring. Všetky práva vyhradené.
           </p>
         </div>
       </footer>

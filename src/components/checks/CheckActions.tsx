@@ -64,7 +64,7 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
       <div className="flex items-center space-x-2">
         <Button onClick={() => handlePing('success')} className="bg-healthy text-white hover:bg-opacity-90">
           <Play className="w-4 h-4 mr-2" />
-          Ping teraz
+          Pingnúť manuálne
         </Button>
         
         <DropdownMenu>
@@ -80,15 +80,11 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePing('success')}>
               <Play className="w-4 h-4 mr-2" />
-              Ping úspešný
+              Pingnúť úspech
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePing('failure')}>
               <AlertCircle className="w-4 h-4 mr-2" />
-              Ping zlyhaný
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={copyCheckUrl}>
-              <Copy className="w-4 h-4 mr-2" />
-              Kopírovať URL pingu
+              Pingnúť chybu
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600" onClick={handleDelete}>

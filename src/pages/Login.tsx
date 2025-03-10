@@ -12,8 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
 const formSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Nesprávna emailová adresa"),
+  password: z.string().min(6, "Heslo musí mať aspoň 6 znakov"),
 });
 
 const Login = () => {
@@ -41,7 +41,7 @@ const Login = () => {
         });
         
         if (response.error) throw response.error;
-        toast.success("Account created successfully! Please check your email to verify your account.");
+        toast.success("Registrácia bola úspešná! Potvrdzovací email bol odoslaný na emailovú adresu.");
       } else {
         response = await supabase.auth.signInWithPassword({
           email: values.email,
@@ -49,11 +49,11 @@ const Login = () => {
         });
         
         if (response.error) throw response.error;
-        toast.success("Logged in successfully!");
+        toast.success("Prihlásenie bolo úspešné!");
         navigate("/");
       }
     } catch (error: any) {
-      toast.error(error.message || "An error occurred");
+      toast.error(error.message || "Nastala chyba v systéme");
     } finally {
       setIsLoading(false);
     }
@@ -79,9 +79,9 @@ const Login = () => {
               </svg>
             </div>
           </div>
-          <CardTitle className="text-2xl text-center">HealthBeat</CardTitle>
+          <CardTitle className="text-2xl text-center">LLarik Monitoring</CardTitle>
           <CardDescription className="text-center">
-            {isSignUp ? "Create an account" : "Sign in to your account"}
+            {isSignUp ? "Registrácia do systému" : "Prihlásenie do systému"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -94,7 +94,7 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" {...field} />
+                      <Input placeholder="email@email.sk" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -105,7 +105,7 @@ const Login = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Heslo</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
@@ -114,7 +114,7 @@ const Login = () => {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Loading..." : (isSignUp ? "Sign Up" : "Sign In")}
+                {isLoading ? "Načítavam ..." : (isSignUp ? "Registrovať sa" : "Prihlásiť sa")}
               </Button>
             </form>
           </Form>
@@ -125,7 +125,7 @@ const Login = () => {
             className="w-full"
             onClick={() => setIsSignUp(!isSignUp)}
           >
-            {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            {isSignUp ? "Už máte účet ? Prihláste sa" : "Ešte nemáte účet ? Registrujte sa"}
           </Button>
         </CardFooter>
       </Card>

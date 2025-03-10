@@ -139,13 +139,13 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           
           if (newStatus !== prevStatus) {
             if (newStatus === 'grace') {
-              toast.warning(`Check "${check.name}" is running late`);
+              toast.warning(`Úloha "${check.name}" sa oneskorila`);
               triggerIntegrations(check.id, 'grace');
             } else if (newStatus === 'down') {
-              toast.error(`Check "${check.name}" is down`);
+              toast.error(`Úloha "${check.name}" je v poruche`);
               triggerIntegrations(check.id, 'down');
             } else if (newStatus === 'up' && prevStatus !== 'new') {
-              toast.success(`Check "${check.name}" is up`);
+              toast.success(`Úloha "${check.name}" je aktívna`);
               triggerIntegrations(check.id, 'up');
             }
 
@@ -337,7 +337,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
 
-      toast.success('Ping received successfully');
+      toast.success('Pingnutie prebehlo úspešne');
       
       // If status changed from down to up, trigger integrations
       if (prevStatus === 'down' || prevStatus === 'grace') {
@@ -345,7 +345,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       }
     } catch (error) {
       console.error('Error in pingCheck:', error);
-      toast.error('Failed to process ping');
+      toast.error('Nepodarilo sa pingnúť kontrolu');
     }
   };
 
@@ -363,7 +363,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error) {
         console.error('Error updating check:', error);
-        toast.error('Failed to update check');
+        toast.error('Nepodarilo sa pingnúť kontrolu');
         return undefined;
       }
 
@@ -376,7 +376,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }),
       };
 
-      toast.success('Check updated successfully');
+      toast.success('Pingnutie prebehlo úspešne');
       return updatedCheck;
     } catch (error) {
       console.error('Error in updateCheck:', error);

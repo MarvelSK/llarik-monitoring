@@ -33,7 +33,7 @@ const Header = () => {
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
             </div>
-            <span className="font-bold text-xl text-gray-900 dark:text-white">ZdravieTep</span>
+            <span className="font-bold text-xl text-gray-900 dark:text-white">LLarik Monitoring</span>
           </a>
 
           {currentUser?.isAdmin && companies.length > 0 && (

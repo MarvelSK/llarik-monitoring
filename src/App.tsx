@@ -13,10 +13,6 @@ import CheckEdit from "./pages/CheckEdit";
 import Login from "./pages/Login";
 import { CompanyProvider } from "./context/CompanyContext";
 import RequireAuth from "./components/auth/RequireAuth";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import CompanyList from "./pages/admin/CompanyList";
-import CompanyDetail from "./pages/admin/CompanyDetail";
-import CompanyCreate from "./pages/admin/CompanyCreate";
 import PingHandler from "./components/checks/PingHandler";
 
 const queryClient = new QueryClient();
@@ -54,29 +50,6 @@ const App = () => (
                   <CheckEdit />
                 </RequireAuth>
               } />
-              
-              {/* Admin routes */}
-              <Route path="/admin" element={
-                <RequireAuth requireAdmin>
-                  <AdminDashboard />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies" element={
-                <RequireAuth requireAdmin>
-                  <CompanyList />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies/new" element={
-                <RequireAuth requireAdmin>
-                  <CompanyCreate />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies/:id" element={
-                <RequireAuth requireAdmin>
-                  <CompanyDetail />
-                </RequireAuth>
-              } />
-              
               <Route path="/ping/:id" element={<PingHandler />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

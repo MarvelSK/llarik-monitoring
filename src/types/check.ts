@@ -1,6 +1,6 @@
 
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
-export type CheckEnvironment = 'prod' | 'sandbox' | 'worker' | 'db-backups';
+export type CheckEnvironment = 'produkcia' | 'test' | 'manuál';
 
 export interface CheckPing {
   id: string;

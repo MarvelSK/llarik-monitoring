@@ -168,7 +168,7 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Integrations</h3>
+        <h3 className="text-lg font-medium">Integrácie</h3>
         <Button 
           variant="outline" 
           size="sm" 
@@ -176,14 +176,14 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
           className="gap-1"
         >
           <PlusCircle className="h-4 w-4" />
-          Add Integration
+          Nová integrácia
         </Button>
       </div>
       
       {isAdding && (
         <Card>
           <CardHeader>
-            <CardTitle>Add Integration</CardTitle>
+            <CardTitle>Nová integrácia</CardTitle>
             <CardDescription>
               Get notified when your check changes status.
             </CardDescription>
@@ -268,7 +268,7 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
                   <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Add Integration</Button>
+                  <Button type="submit">Nová integrácia</Button>
                 </div>
               </form>
             </Form>

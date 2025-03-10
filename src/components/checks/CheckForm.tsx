@@ -21,7 +21,7 @@ interface CheckFormProps {
   isEdit?: boolean;
 }
 
-const environmentOptions: CheckEnvironment[] = ["prod", "sandbox", "worker", "db-backups"];
+const environmentOptions: CheckEnvironment[] = ["produkcia", "test", "manuál"];
 
 const formSchema = z.object({
   name: z.string().min(1, "Názov je povinný"),
@@ -60,10 +60,9 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
 
   const getEnvironmentColor = (env: CheckEnvironment) => {
     switch(env) {
-      case 'prod': return 'bg-amber-500 text-white';
-      case 'sandbox': return 'bg-rose-500 text-white';
-      case 'worker': return 'bg-slate-500 text-white';
-      case 'db-backups': return 'bg-blue-500 text-white';
+      case 'produkcia': return 'bg-amber-500 text-white';
+      case 'test': return 'bg-rose-500 text-white';
+      case 'manuál': return 'bg-blue-500 text-white';
       default: return 'bg-gray-200 text-gray-800';
     }
   };
@@ -249,7 +248,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                 <FormItem>
                   <FormLabel>Značky</FormLabel>
                   <FormControl>
-                    <Input placeholder="napr., produkcia, databáza, záloha" {...field} />
+                    <Input placeholder="napr. Firma s.r.o." {...field} />
                   </FormControl>
                   <FormDescription>
                     Čiarkou oddelené značky na kategorizáciu vašich kontrol

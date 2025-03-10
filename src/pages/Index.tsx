@@ -36,7 +36,7 @@ const Index = () => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Nástenka</h1>
             <p className="text-muted-foreground">
-              Monitorovanie naplánovaných úloh a cron jobov
+              Monitorovanie systémových úloh
             </p>
           </div>
           <div className="flex gap-2">
@@ -81,20 +81,20 @@ const Index = () => {
               color="bg-primary"
             />
             <StatusCard 
-              title="Fungujúce" 
+              title="Aktívne"
               count={upChecks.length} 
               icon={<Activity className="w-5 h-5" />}
               color="bg-healthy"
             />
             <StatusCard 
-              title="Meškajúce" 
+              title="Meškajúce"
               count={lateChecks.length} 
               icon={<Clock className="w-5 h-5" />}
               color="bg-warning"
               pulseAnimation={lateChecks.length > 0}
             />
             <StatusCard 
-              title="Nefungujúce" 
+              title="Porucha"
               count={downChecks.length} 
               icon={<AlertCircle className="w-5 h-5" />}
               color="bg-danger"
@@ -106,9 +106,9 @@ const Index = () => {
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="gap-1">
             <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">Všetky kontroly</TabsTrigger>
-            <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Fungujúce</TabsTrigger>
+            <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Aktívne</TabsTrigger>
             <TabsTrigger value="grace" className="data-[state=active]:bg-warning/10">Meškajúce</TabsTrigger>
-            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Nefungujúce</TabsTrigger>
+            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Neaktívne</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
             <CheckTable checks={allChecks} />
