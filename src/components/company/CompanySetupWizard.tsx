@@ -44,7 +44,7 @@ const CompanySetupWizard = () => {
         throw new Error("You must be logged in to create a company");
       }
       
-      // First create the company in Supabase
+      // First create the company in Supabase with owner_id
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .insert({
@@ -57,7 +57,7 @@ const CompanySetupWizard = () => {
       
       if (companyError) throw companyError;
       
-      // Then update the user's profile to link them to this company
+      // Then update the user's profile to link them to this company using a direct update
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ company_id: companyData.id })

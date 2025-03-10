@@ -39,13 +39,29 @@ const CheckCreate = () => {
         checkData.companyId = companyId;
       } else if (currentUser?.companyId) {
         checkData.companyId = currentUser.companyId;
+      } else {
+        throw new Error("No company associated with this check");
       }
       
       // Create check in Supabase first
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
         // This is where we would add code to save to Supabase checks table
-        // For now, we'll just use local state
+        const { error } = await supabase
+          .from('checks')
+          .insert({
+            name: checkData.name,
+            description: checkData.description,
+            company_id: checkData.companyId,
+            status: checkData.status || 'up',
+            period: checkData.period || 3600,
+            grace: checkData.grace || 300,
+            tags: checkData.tags || []
+          });
+          
+        if (error) throw error;
+        
+        // Update local state
         createCheck(checkData);
       
         if (companyId) {
@@ -84,7 +100,7 @@ const CheckCreate = () => {
           </div>
         </div>
 
-        <CheckForm onSubmit={handleSubmit} />
+        <CheckForm onSubmit={handleSubmit} isLoading={isLoading} />
       </div>
     </Layout>
   );
