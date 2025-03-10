@@ -34,7 +34,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        console.log("Auth state changed", _event, session);
         setSession(session);
         
         if (session) {
@@ -46,6 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
           if (error) {
             console.error("Error fetching user profile:", error);
+            setLoading(false);
             return;
           }
           
@@ -66,6 +66,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         } else {
           setUser(null);
+          
+          // If not authenticated and not on login page, redirect to login
+          if (window.location.pathname !== '/login') {
+            navigate('/login');
+          }
         }
         
         setLoading(false);
@@ -86,6 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
         if (error) {
           console.error("Error fetching user profile:", error);
+          setLoading(false);
           return;
         }
         
@@ -103,6 +109,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             navigate('/');
           }
         }
+      } else {
+        // If not authenticated and not on login page, redirect to login
+        if (window.location.pathname !== '/login' && 
+            !window.location.pathname.startsWith('/ping/')) {
+          navigate('/login');
+        }
       }
       
       setLoading(false);
@@ -117,6 +129,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -132,11 +145,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error("Error signing in:", error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
         toast.error(error.message);
@@ -148,6 +164,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error("Error signing out:", error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

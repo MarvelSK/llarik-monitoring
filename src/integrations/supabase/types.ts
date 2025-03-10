@@ -9,6 +9,97 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      check_pings: {
+        Row: {
+          check_id: string | null
+          duration: number | null
+          id: string
+          status: string
+          timestamp: string
+        }
+        Insert: {
+          check_id?: string | null
+          duration?: number | null
+          id?: string
+          status: string
+          timestamp?: string
+        }
+        Update: {
+          check_id?: string | null
+          duration?: number | null
+          id?: string
+          status?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_pings_check_id_fkey"
+            columns: ["check_id"]
+            isOneToOne: false
+            referencedRelation: "checks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checks: {
+        Row: {
+          company_id: string
+          created_at: string
+          cron_expression: string | null
+          description: string | null
+          environments: string[] | null
+          grace: number
+          id: string
+          last_duration: number | null
+          last_ping: string | null
+          name: string
+          next_ping_due: string | null
+          period: number
+          status: string
+          tags: string[] | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          cron_expression?: string | null
+          description?: string | null
+          environments?: string[] | null
+          grace: number
+          id?: string
+          last_duration?: number | null
+          last_ping?: string | null
+          name: string
+          next_ping_due?: string | null
+          period: number
+          status: string
+          tags?: string[] | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          cron_expression?: string | null
+          description?: string | null
+          environments?: string[] | null
+          grace?: number
+          id?: string
+          last_duration?: number | null
+          last_ping?: string | null
+          name?: string
+          next_ping_due?: string | null
+          period?: number
+          status?: string
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
@@ -16,7 +16,7 @@ const formSchema = z.object({
 });
 
 const Login = () => {
-  const { signIn, user } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,16 +36,26 @@ const Login = () => {
   });
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (isSubmitting) return;
+    
     try {
       setIsSubmitting(true);
       await signIn(values.email, values.password);
-      // The navigation is now handled in the AuthContext after successful login
+      // Navigation handled in AuthContext
     } catch (error) {
       console.error("Login failed:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
@@ -101,21 +111,12 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
                 {isSubmitting ? "Signing In..." : "Sign In"}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-gray-500">
-            <p>Demo Accounts:</p>
-            <p>Admin: admin@example.com</p>
-            <p>Company 1: john@acme.com</p>
-            <p>Company 2: jane@globex.com</p>
-            <p>(Password: password123)</p>
-          </div>
-        </CardFooter>
       </Card>
     </div>
   );

@@ -22,9 +22,15 @@ const RequireAuth = ({ children, requireAdmin = false }: RequireAuthProps) => {
     }
   }, [user, navigate, requireAdmin, loading]);
 
-  // Show nothing while checking authentication
+  // Show loading indicator while checking authentication
   if (loading) {
-    return null;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-xl">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   // Not authenticated
