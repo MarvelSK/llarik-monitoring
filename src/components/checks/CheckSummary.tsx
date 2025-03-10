@@ -1,17 +1,26 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, formatDistance } from "date-fns";
-import { Clock, Calendar, Tag } from "lucide-react";
+import { Clock, Calendar, Tag, Link as LinkIcon, Copy } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { useChecks } from "@/context/CheckContext";
+import { toast } from "sonner";
 
 interface CheckSummaryProps {
   check: Check;
 }
 
 const CheckSummary = ({ check }: CheckSummaryProps) => {
+  const { getPingUrl } = useChecks();
+  
+  const copyPingUrl = () => {
+    navigator.clipboard.writeText(getPingUrl(check.id));
+    toast.success('Ping URL copied to clipboard');
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -82,6 +91,26 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
                 </span>
               </div>
             )}
+          </div>
+
+          <div className="flex flex-col gap-2 p-3 bg-muted/50 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <LinkIcon className="w-4 h-4 text-gray-500" />
+                <span className="font-medium">Ping URL</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={copyPingUrl}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <code className="text-xs bg-background p-2 rounded break-all">
+              {getPingUrl(check.id)}
+            </code>
           </div>
 
           {check.tags && check.tags.length > 0 && (

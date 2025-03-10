@@ -1,8 +1,8 @@
-
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { addMinutes, isBefore, isPast, parseISO } from "date-fns";
+import { addMinutes, isBefore, isPast } from "date-fns";
+import { toast } from "sonner";
 
 interface CheckContextType {
   checks: Check[];
@@ -11,6 +11,7 @@ interface CheckContextType {
   updateCheck: (id: string, check: Partial<Check>) => Check | undefined;
   deleteCheck: (id: string) => void;
   pingCheck: (id: string, status: CheckPing["status"]) => void;
+  getPingUrl: (id: string) => string;
 }
 
 const CheckContext = createContext<CheckContextType | undefined>(undefined);
@@ -137,7 +138,6 @@ const initialChecks: Check[] = [
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
   const [checks, setChecks] = useState<Check[]>(() => {
-    // Try to load from localStorage
     const savedChecks = localStorage.getItem("healthbeat-checks");
     return savedChecks ? JSON.parse(savedChecks, dateReviver) : initialChecks;
   });
@@ -154,30 +154,37 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   }
 
   useEffect(() => {
-    // Save to localStorage whenever checks change
     localStorage.setItem("healthbeat-checks", JSON.stringify(checks));
   }, [checks]);
 
   useEffect(() => {
-    // Update check statuses every minute
     const intervalId = setInterval(() => {
       setChecks((currentChecks) =>
-        currentChecks.map((check) => ({
-          ...check,
-          status: calculateCheckStatus(check),
-        }))
+        currentChecks.map((check) => {
+          const newStatus = calculateCheckStatus(check);
+          if (newStatus !== check.status) {
+            if (newStatus === 'grace') {
+              toast.warning(`Check "${check.name}" is running late`);
+            } else if (newStatus === 'down') {
+              toast.error(`Check "${check.name}" is down`);
+            }
+          }
+          return {
+            ...check,
+            status: newStatus
+          };
+        })
       );
     }, 60 * 1000); // 1 minute
 
     return () => clearInterval(intervalId);
   }, []);
 
-  // Calculate the status of a check based on its last ping and due time
   const calculateCheckStatus = (check: Check): CheckStatus => {
     if (!check.lastPing) return "new";
-    
-    const now = new Date();
     if (!check.nextPingDue) return "up";
+
+    const now = new Date();
     
     if (isPast(check.nextPingDue)) {
       // Past due, check if within grace period
@@ -191,20 +198,25 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return "up";
   };
 
+  const getPingUrl = (id: string): string => {
+    return `${window.location.origin}/ping/${id}`;
+  };
+
   const getCheck = (id: string) => {
     return checks.find((check) => check.id === id);
   };
 
   const createCheck = (checkData: Partial<Check>) => {
     const now = new Date();
+    const id = uuidv4();
     
     const newCheck: Check = {
-      id: uuidv4(),
+      id,
       name: checkData.name || "Untitled Check",
       description: checkData.description,
       status: "new",
-      period: checkData.period || 60, // Default to 60 minutes
-      grace: checkData.grace || 30, // Default to 30 minutes
+      period: checkData.period || 60,
+      grace: checkData.grace || 30,
       tags: checkData.tags || [],
       environments: checkData.environments || [],
       cronExpression: checkData.cronExpression,
@@ -213,7 +225,38 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     };
 
     setChecks((prev) => [...prev, newCheck]);
+    toast.success('Check created successfully');
     return newCheck;
+  };
+
+  const pingCheck = (id: string, status: CheckPing["status"]) => {
+    const checkIndex = checks.findIndex((c) => c.id === id);
+    if (checkIndex === -1) return;
+
+    const now = new Date();
+    const check = checks[checkIndex];
+    
+    const newPing: CheckPing = {
+      id: uuidv4(),
+      timestamp: now,
+      status,
+    };
+
+    const nextPingDue = addMinutes(now, check.period);
+
+    const updatedCheck: Check = {
+      ...check,
+      lastPing: now,
+      nextPingDue,
+      status: "up",
+      pings: [newPing, ...check.pings].slice(0, 100),
+    };
+
+    const updatedChecks = [...checks];
+    updatedChecks[checkIndex] = updatedCheck;
+
+    setChecks(updatedChecks);
+    toast.success('Ping received successfully');
   };
 
   const updateCheck = (id: string, checkData: Partial<Check>) => {
@@ -240,35 +283,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     setChecks((prev) => prev.filter((check) => check.id !== id));
   };
 
-  const pingCheck = (id: string, status: CheckPing["status"]) => {
-    const checkIndex = checks.findIndex((c) => c.id === id);
-    if (checkIndex === -1) return;
-
-    const now = new Date();
-    const check = checks[checkIndex];
-    
-    const newPing: CheckPing = {
-      id: uuidv4(),
-      timestamp: now,
-      status,
-    };
-
-    const nextPingDue = addMinutes(now, check.period);
-
-    const updatedCheck: Check = {
-      ...check,
-      lastPing: now,
-      nextPingDue,
-      status: "up", // Reset to up on a new ping
-      pings: [newPing, ...check.pings].slice(0, 100), // Keep last 100 pings
-    };
-
-    const updatedChecks = [...checks];
-    updatedChecks[checkIndex] = updatedCheck;
-
-    setChecks(updatedChecks);
-  };
-
   return (
     <CheckContext.Provider
       value={{
@@ -278,6 +292,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         updateCheck,
         deleteCheck,
         pingCheck,
+        getPingUrl,
       }}
     >
       {children}
