@@ -43,7 +43,6 @@ export type Database = {
       }
       checks: {
         Row: {
-          company_id: string
           created_at: string
           cron_expression: string | null
           description: string | null
@@ -59,7 +58,6 @@ export type Database = {
           tags: string[] | null
         }
         Insert: {
-          company_id: string
           created_at?: string
           cron_expression?: string | null
           description?: string | null
@@ -75,7 +73,6 @@ export type Database = {
           tags?: string[] | null
         }
         Update: {
-          company_id?: string
           created_at?: string
           cron_expression?: string | null
           description?: string | null
@@ -90,40 +87,10 @@ export type Database = {
           status?: string
           tags?: string[] | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "checks_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      companies: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-        }
         Relationships: []
       }
       profiles: {
         Row: {
-          company_id: string | null
           created_at: string
           email: string
           id: string
@@ -131,7 +98,6 @@ export type Database = {
           name: string
         }
         Insert: {
-          company_id?: string | null
           created_at?: string
           email: string
           id: string
@@ -139,29 +105,23 @@ export type Database = {
           name: string
         }
         Update: {
-          company_id?: string | null
           created_at?: string
           email?: string
           id?: string
           is_admin?: boolean
           name?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

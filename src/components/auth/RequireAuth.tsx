@@ -1,7 +1,6 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompanies } from "@/context/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -11,7 +10,6 @@ interface RequireAuthProps {
 }
 
 const RequireAuth = ({ children, requireAdmin = false }: RequireAuthProps) => {
-  const { currentUser } = useCompanies();
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,24 +33,16 @@ const RequireAuth = ({ children, requireAdmin = false }: RequireAuthProps) => {
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        navigate("/login");
-      } else if (requireAdmin && !currentUser?.isAdmin) {
-        navigate("/");
-      }
+    if (!loading && !user) {
+      navigate("/login");
     }
-  }, [user, currentUser, navigate, requireAdmin, loading]);
+  }, [user, navigate, loading]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   if (!user) {
-    return null;
-  }
-
-  if (requireAdmin && !currentUser?.isAdmin) {
     return null;
   }
 
