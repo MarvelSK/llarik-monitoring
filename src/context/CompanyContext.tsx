@@ -15,6 +15,7 @@ interface CompanyContextType {
   deleteCompany: (id: string) => Promise<void>;
   setCurrentCompany: (companyId: string) => void;
   loading: boolean;
+  user: User | null;
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -211,7 +212,8 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
         updateCompany,
         deleteCompany,
         setCurrentCompany: handleSetCurrentCompany,
-        loading
+        loading,
+        user
       }}
     >
       {children}

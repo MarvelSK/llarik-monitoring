@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
 import { useCompanies } from "@/context/CompanyContext";
-import { Activity, AlertCircle, Clock, PlusCircle, ShieldAlert } from "lucide-react";
+import { Activity, AlertCircle, Clock, PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { checks } = useChecks();
-  const { currentCompany, currentUser } = useCompanies();
+  const { currentCompany, user } = useCompanies();
   const navigate = useNavigate();
 
   const allChecks = checks;
@@ -26,12 +26,12 @@ const Index = () => {
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             {currentCompany && (
               <p className="text-muted-foreground">
-                {currentUser?.isAdmin 
+                {user?.is_admin 
                   ? `Viewing ${currentCompany.name}'s checks` 
                   : `Welcome to ${currentCompany.name}`}
               </p>
             )}
-            {currentUser?.isAdmin && !currentCompany && (
+            {user?.is_admin && !currentCompany && (
               <p className="text-muted-foreground">
                 Viewing all checks across companies
               </p>

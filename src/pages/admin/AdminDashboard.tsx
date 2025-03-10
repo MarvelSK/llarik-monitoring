@@ -1,4 +1,3 @@
-
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCompanies } from "@/context/CompanyContext";
@@ -66,7 +65,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
-                  Created {formatDistanceToNow(company.createdAt, { addSuffix: true })}
+                  Created {formatDistanceToNow(company.created_at, { addSuffix: true })}
                 </div>
                 <div className="text-sm mt-2">
                   {checks.filter(check => check.companyId === company.id).length} checks

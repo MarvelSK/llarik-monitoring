@@ -52,7 +52,7 @@ const CompanyList = () => {
                 <TableRow key={company.id}>
                   <TableCell className="font-medium">{company.name}</TableCell>
                   <TableCell>{company.description || "-"}</TableCell>
-                  <TableCell>{formatDistanceToNow(company.createdAt, { addSuffix: true })}</TableCell>
+                  <TableCell>{formatDistanceToNow(company.created_at, { addSuffix: true })}</TableCell>
                   <TableCell>{checks.filter(check => check.companyId === company.id).length}</TableCell>
                   <TableCell>
                     <Button

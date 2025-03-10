@@ -146,7 +146,7 @@ const initialChecks: Check[] = [
 ];
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
-  const { currentCompany, currentUser } = useCompanies();
+  const { currentCompany, user } = useCompanies();
   
   const [checks, setChecks] = useState<Check[]>(() => {
     const savedChecks = localStorage.getItem("healthbeat-checks");
@@ -375,7 +375,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   return (
     <CheckContext.Provider
       value={{
-        checks: currentUser?.isAdmin 
+        checks: user?.is_admin 
           ? checks 
           : (currentCompany 
               ? checks.filter(check => check.companyId === currentCompany.id) 
