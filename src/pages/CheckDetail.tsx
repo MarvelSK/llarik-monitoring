@@ -3,10 +3,12 @@ import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
 import Layout from "@/components/layout/Layout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { CheckPing } from "@/types/check";
-import { ArrowLeft } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
 const CheckDetail = () => {
@@ -31,12 +33,23 @@ const CheckDetail = () => {
     );
   }
 
+  const getEnvironmentColor = (env: string) => {
+    switch(env) {
+      case 'prod': return 'bg-amber-500 text-white';
+      case 'sandbox': return 'bg-rose-500 text-white';
+      case 'worker': return 'bg-slate-500 text-white';
+      case 'db-backups': return 'bg-blue-500 text-white';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
+
   const handlePing = (status: CheckPing["status"]) => {
     pingCheck(check.id, status);
   };
 
   const handleDelete = () => {
     deleteCheck(check.id);
+    navigate("/");
   };
 
   return (
@@ -51,7 +64,26 @@ const CheckDetail = () => {
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-2xl font-bold">{check.name}</h1>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                {check.name}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => navigate(`/checks/${check.id}/edit`)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </h1>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {check.environments?.map((env) => (
+                  <Badge key={env} className={`${getEnvironmentColor(env)}`}>
+                    {env}
+                  </Badge>
+                ))}
+              </div>
+            </div>
           </div>
           
           <CheckActions 

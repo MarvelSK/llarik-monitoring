@@ -4,13 +4,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Check } from "@/types/check";
+import { Check, CheckEnvironment } from "@/types/check";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -18,12 +20,15 @@ interface CheckFormProps {
   isEdit?: boolean;
 }
 
+const environmentOptions: CheckEnvironment[] = ["prod", "sandbox", "worker", "db-backups"];
+
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   period: z.coerce.number().min(1, "Period must be at least 1 minute"),
   grace: z.coerce.number().min(1, "Grace period must be at least 1 minute"),
   tags: z.string().optional(),
+  environments: z.array(z.string()).optional(),
   cronExpression: z.string().optional(),
 });
 
@@ -38,9 +43,29 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       period: defaultValues?.period || 5,
       grace: defaultValues?.grace || 5,
       tags: defaultValues?.tags?.join(", ") || "",
+      environments: defaultValues?.environments || [],
       cronExpression: defaultValues?.cronExpression || "",
     },
   });
+
+  const toggleEnvironment = (env: CheckEnvironment) => {
+    const currentEnvs = form.getValues().environments || [];
+    if (currentEnvs.includes(env)) {
+      form.setValue('environments', currentEnvs.filter(e => e !== env));
+    } else {
+      form.setValue('environments', [...currentEnvs, env]);
+    }
+  };
+
+  const getEnvironmentColor = (env: CheckEnvironment) => {
+    switch(env) {
+      case 'prod': return 'bg-amber-500 text-white';
+      case 'sandbox': return 'bg-rose-500 text-white';
+      case 'worker': return 'bg-slate-500 text-white';
+      case 'db-backups': return 'bg-blue-500 text-white';
+      default: return 'bg-gray-200 text-gray-800';
+    }
+  };
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const tags = values.tags ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) : undefined;
@@ -107,53 +132,108 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
 
             <Separator />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="period"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Period (minutes)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Expected time between pings
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <Tabs defaultValue="simple">
+              <TabsList className="mb-4">
+                <TabsTrigger value="simple">Simple</TabsTrigger>
+                <TabsTrigger value="cron">Cron</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="simple">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="period"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Period (minutes)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Expected time between pings
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="grace"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Grace Period (minutes)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      How long to wait before alerting
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  <FormField
+                    control={form.control}
+                    name="grace"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Grace Period (minutes)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          How long to wait before alerting
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="cron">
+                <FormField
+                  control={form.control}
+                  name="cronExpression"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cron Expression</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 0 3 * * *" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Specify a cron schedule (e.g., "0 3 * * *" for every day at 3am)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="grace"
+                  render={({ field }) => (
+                    <FormItem className="mt-4">
+                      <FormLabel>Grace Period (minutes)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        How long to wait before alerting
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            </Tabs>
 
             <FormField
               control={form.control}
-              name="cronExpression"
-              render={({ field }) => (
+              name="environments"
+              render={() => (
                 <FormItem>
-                  <FormLabel>Cron Expression (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., 0 3 * * *" {...field} />
-                  </FormControl>
+                  <FormLabel>Environments</FormLabel>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {environmentOptions.map((env) => {
+                      const isSelected = form.getValues().environments?.includes(env) || false;
+                      return (
+                        <Badge 
+                          key={env}
+                          className={`${isSelected ? getEnvironmentColor(env) : 'bg-muted'} cursor-pointer`}
+                          onClick={() => toggleEnvironment(env)}
+                        >
+                          {env}
+                        </Badge>
+                      );
+                    })}
+                  </div>
                   <FormDescription>
-                    Alternative to period: specify a cron schedule
+                    Select environment tags for this check
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -1,5 +1,6 @@
 
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
+export type CheckEnvironment = 'prod' | 'sandbox' | 'worker' | string;
 
 export interface CheckPing {
   id: string;
@@ -13,6 +14,7 @@ export interface Check {
   description?: string;
   status: CheckStatus;
   tags?: string[];
+  environments?: CheckEnvironment[];
   period: number; // in minutes
   grace: number; // in minutes
   lastPing?: Date;
@@ -20,4 +22,5 @@ export interface Check {
   pings: CheckPing[];
   cronExpression?: string;
   createdAt: Date;
+  lastDuration?: number; // in seconds, for showing execution time
 }

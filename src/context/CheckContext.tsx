@@ -30,77 +30,108 @@ interface CheckProviderProps {
 // Sample data for initial state
 const initialChecks: Check[] = [
   {
-    id: "1",
-    name: "Database Backup",
-    description: "Daily PostgreSQL database backup job",
-    status: "up",
+    id: "ae69168c-2d1a-4d4a-babe-cf0f150320c9",
+    name: "/opt backups",
+    description: "Daily system backup of /opt directory",
+    status: "down",
     period: 60 * 24, // 24 hours in minutes
-    grace: 30, // 30 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
-    nextPingDue: new Date(Date.now() + 1000 * 60 * 60 * 12), // 12 hours from now
-    tags: ["database", "production"],
+    grace: 15, // 15 minutes
+    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
+    nextPingDue: new Date(Date.now() - 1000 * 60 * 60 * 24 * 59), // 59 days ago (overdue)
+    tags: ["backup", "system"],
+    environments: ["sandbox"],
     pings: [
       {
         id: "p1",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12),
-        status: "success",
-      },
-      {
-        id: "p2",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 36),
-        status: "success",
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
-  },
-  {
-    id: "2",
-    name: "Log Rotation",
-    description: "Weekly log rotation and cleanup",
-    status: "down",
-    period: 60 * 24 * 7, // 7 days in minutes
-    grace: 60, // 60 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8), // 8 days ago
-    nextPingDue: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago (overdue)
-    tags: ["logs", "maintenance"],
-    pings: [
-      {
-        id: "p3",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8), 
-        status: "success",
-      },
-      {
-        id: "p4",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
         status: "success",
       },
     ],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90), // 90 days ago
   },
   {
-    id: "3",
-    name: "API Health Check",
-    description: "Monitors the API status every 5 minutes",
+    id: "ffc143c9-6aea-44fa-b299-599739d8cb6d",
+    name: "Product Sync",
+    description: "Syncs product data from API to database",
     status: "grace",
     period: 5, // 5 minutes
-    grace: 3, // 3 minutes
+    grace: 20, // 20 minutes
     lastPing: new Date(Date.now() - 1000 * 60 * 6), // 6 minutes ago
     nextPingDue: new Date(Date.now() - 1000 * 60), // 1 minute ago (in grace period)
-    tags: ["api", "monitoring", "critical"],
+    tags: ["sync", "api", "database"],
+    environments: ["prod"],
+    lastDuration: 22, // 22 seconds
     pings: [
       {
-        id: "p5",
+        id: "p2",
         timestamp: new Date(Date.now() - 1000 * 60 * 6),
         status: "success",
       },
+    ],
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
+  },
+  {
+    id: "7c934798-b3f5-4fc4-a373-418ae184c899",
+    name: "DB Backups",
+    description: "Daily database backup jobs",
+    status: "up",
+    period: 60 * 24, // 24 hours in minutes
+    grace: 60, // 60 minutes
+    lastPing: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
+    nextPingDue: new Date(Date.now() + 1000 * 60 * 60 * 23), // 23 hours from now
+    tags: ["database", "backup"],
+    environments: ["prod", "db-backups"],
+    lastDuration: 134, // 134 seconds
+    pings: [
       {
-        id: "p6",
-        timestamp: new Date(Date.now() - 1000 * 60 * 11),
+        id: "p3",
+        timestamp: new Date(Date.now() - 1000 * 60 * 25),
         status: "success",
       },
     ],
-    cronExpression: "*/5 * * * *", // Every 5 minutes
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // 10 days ago
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
+  },
+  {
+    id: "fe68e83b-aa2a-43a2-97d5-afbe607fa485",
+    name: "Weekly Reports",
+    description: "Generate weekly business reports",
+    status: "up",
+    period: 60 * 24 * 7, // 7 days in minutes
+    grace: 30, // 30 minutes
+    lastPing: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
+    nextPingDue: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6), // 6 days from now
+    tags: ["reports", "business"],
+    environments: ["prod", "worker"],
+    lastDuration: 45, // 45 seconds
+    pings: [
+      {
+        id: "p4",
+        timestamp: new Date(Date.now() - 1000 * 60 * 25),
+        status: "success",
+      },
+    ],
+    cronExpression: "0 9 * * 1", // Every Monday at 9am
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120), // 120 days ago
+  },
+  {
+    id: "1bed143e-5d06-4ec1-ab52-55e262131b5",
+    name: "Clean Uploads",
+    description: "Cleanup temporary uploaded files",
+    status: "down",
+    period: 60 * 24, // 24 hours in minutes
+    grace: 60, // 60 minutes
+    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 24 * 200), // 200 days ago
+    nextPingDue: new Date(Date.now() - 1000 * 60 * 60 * 24 * 199), // 199 days ago (overdue)
+    tags: ["cleanup", "maintenance"],
+    environments: ["sandbox"],
+    pings: [
+      {
+        id: "p5",
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 200),
+        status: "success",
+      },
+    ],
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 210), // 210 days ago
   },
 ];
 
@@ -175,6 +206,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       period: checkData.period || 60, // Default to 60 minutes
       grace: checkData.grace || 30, // Default to 30 minutes
       tags: checkData.tags || [],
+      environments: checkData.environments || [],
       cronExpression: checkData.cronExpression,
       pings: [],
       createdAt: now,

@@ -1,13 +1,15 @@
 
-import CheckList from "@/components/checks/CheckList";
+import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
-import { Activity, AlertCircle, Clock } from "lucide-react";
+import { Activity, AlertCircle, Clock, PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { checks } = useChecks();
+  const navigate = useNavigate();
 
   const allChecks = checks;
   const upChecks = checks.filter((check) => check.status === "up");
@@ -19,6 +21,13 @@ const Index = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <Button 
+            onClick={() => navigate("/checks/new")}
+            className="gap-2"
+          >
+            <PlusCircle className="w-4 h-4" />
+            New Check
+          </Button>
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -56,16 +65,16 @@ const Index = () => {
             <TabsTrigger value="down">Down</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
-            <CheckList checks={allChecks} />
+            <CheckTable checks={allChecks} />
           </TabsContent>
           <TabsContent value="up">
-            <CheckList checks={upChecks} />
+            <CheckTable checks={upChecks} />
           </TabsContent>
           <TabsContent value="grace">
-            <CheckList checks={lateChecks} />
+            <CheckTable checks={lateChecks} />
           </TabsContent>
           <TabsContent value="down">
-            <CheckList checks={downChecks} />
+            <CheckTable checks={downChecks} />
           </TabsContent>
         </Tabs>
       </div>
