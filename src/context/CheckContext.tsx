@@ -2,9 +2,10 @@
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { addMinutes, isBefore, isPast } from "date-fns";
+import { addMinutes, isBefore, isPast, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CheckContextType {
   checks: Check[];
@@ -14,6 +15,7 @@ interface CheckContextType {
   deleteCheck: (id: string) => void;
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
+  loading: boolean;
 }
 
 const CheckContext = createContext<CheckContextType | undefined>(undefined);
@@ -30,119 +32,45 @@ interface CheckProviderProps {
   children: ReactNode;
 }
 
-// Sample data for initial state
-const initialChecks: Check[] = [
-  {
-    id: "ae69168c-2d1a-4d4a-babe-cf0f150320c9",
-    name: "/opt backups",
-    description: "Daily system backup of /opt directory",
-    status: "down",
-    period: 60 * 24, // 24 hours in minutes
-    grace: 15, // 15 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
-    nextPingDue: new Date(Date.now() - 1000 * 60 * 60 * 24 * 59), // 59 days ago (overdue)
-    tags: ["backup", "system"],
-    environments: ["sandbox"],
-    pings: [
-      {
-        id: "p1",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60),
-        status: "success",
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90), // 90 days ago
-  },
-  {
-    id: "ffc143c9-6aea-44fa-b299-599739d8cb6d",
-    name: "Product Sync",
-    description: "Syncs product data from API to database",
-    status: "grace",
-    period: 5, // 5 minutes
-    grace: 20, // 20 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 6), // 6 minutes ago
-    nextPingDue: new Date(Date.now() - 1000 * 60), // 1 minute ago (in grace period)
-    tags: ["sync", "api", "database"],
-    environments: ["prod"],
-    lastDuration: 22, // 22 seconds
-    pings: [
-      {
-        id: "p2",
-        timestamp: new Date(Date.now() - 1000 * 60 * 6),
-        status: "success",
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
-  },
-  {
-    id: "7c934798-b3f5-4fc4-a373-418ae184c899",
-    name: "DB Backups",
-    description: "Daily database backup jobs",
-    status: "up",
-    period: 60 * 24, // 24 hours in minutes
-    grace: 60, // 60 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
-    nextPingDue: new Date(Date.now() + 1000 * 60 * 60 * 23), // 23 hours from now
-    tags: ["database", "backup"],
-    environments: ["prod", "db-backups"],
-    lastDuration: 134, // 134 seconds
-    pings: [
-      {
-        id: "p3",
-        timestamp: new Date(Date.now() - 1000 * 60 * 25),
-        status: "success",
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
-  },
-  {
-    id: "fe68e83b-aa2a-43a2-97d5-afbe607fa485",
-    name: "Weekly Reports",
-    description: "Generate weekly business reports",
-    status: "up",
-    period: 60 * 24 * 7, // 7 days in minutes
-    grace: 30, // 30 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
-    nextPingDue: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6), // 6 days from now
-    tags: ["reports", "business"],
-    environments: ["prod", "worker"],
-    lastDuration: 45, // 45 seconds
-    pings: [
-      {
-        id: "p4",
-        timestamp: new Date(Date.now() - 1000 * 60 * 25),
-        status: "success",
-      },
-    ],
-    cronExpression: "0 9 * * 1", // Every Monday at 9am
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120), // 120 days ago
-  },
-  {
-    id: "1bed143e-5d06-4ec1-ab52-55e262131b5",
-    name: "Clean Uploads",
-    description: "Cleanup temporary uploaded files",
-    status: "down",
-    period: 60 * 24, // 24 hours in minutes
-    grace: 60, // 60 minutes
-    lastPing: new Date(Date.now() - 1000 * 60 * 60 * 24 * 200), // 200 days ago
-    nextPingDue: new Date(Date.now() - 1000 * 60 * 60 * 24 * 199), // 199 days ago (overdue)
-    tags: ["cleanup", "maintenance"],
-    environments: ["sandbox"],
-    pings: [
-      {
-        id: "p5",
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 200),
-        status: "success",
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 210), // 210 days ago
-  },
-];
+// Helper to convert Supabase date strings to Date objects
+function convertDatesToObjects(check: any): Check {
+  return {
+    ...check,
+    lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
+    nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
+    createdAt: new Date(check.created_at),
+    pings: [], // We'll load pings separately as needed
+  };
+}
+
+// Helper to convert Date objects to ISO strings for Supabase
+function prepareCheckForSupabase(check: Partial<Check>) {
+  const dbCheck: any = {
+    name: check.name,
+    description: check.description,
+    status: check.status,
+    period: check.period,
+    grace: check.grace,
+    tags: check.tags,
+    environments: check.environments,
+    cron_expression: check.cronExpression,
+    last_duration: check.lastDuration,
+  };
+
+  if (check.lastPing) {
+    dbCheck.last_ping = check.lastPing.toISOString();
+  }
+
+  if (check.nextPingDue) {
+    dbCheck.next_ping_due = check.nextPingDue.toISOString();
+  }
+
+  return dbCheck;
+}
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
-  const [checks, setChecks] = useState<Check[]>(() => {
-    const savedChecks = localStorage.getItem("healthbeat-checks");
-    return savedChecks ? JSON.parse(savedChecks, dateReviver) : initialChecks;
-  });
+  const [checks, setChecks] = useState<Check[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Helper to revive dates when parsing JSON
   function dateReviver(_key: string, value: any) {
@@ -155,9 +83,34 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return value;
   }
 
+  // Load checks from Supabase
   useEffect(() => {
-    localStorage.setItem("healthbeat-checks", JSON.stringify(checks));
-  }, [checks]);
+    async function fetchChecks() {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('checks')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching checks:', error);
+          toast.error('Failed to load checks');
+          return;
+        }
+
+        const checksWithDates = data.map(convertDatesToObjects);
+        setChecks(checksWithDates);
+      } catch (err) {
+        console.error('Error in fetchChecks:', err);
+        toast.error('Failed to load checks');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchChecks();
+  }, []);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -177,6 +130,17 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
               toast.success(`Check "${check.name}" is up`);
               triggerIntegrations(check.id, 'up');
             }
+
+            // Update status in Supabase
+            supabase
+              .from('checks')
+              .update({ status: newStatus })
+              .eq('id', check.id)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('Error updating check status:', error);
+                }
+              });
           }
           
           return {
@@ -270,87 +234,184 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return checks.find((check) => check.id === id);
   };
 
-  const createCheck = (checkData: Partial<Check>) => {
-    const now = new Date();
-    const id = uuidv4();
-    
-    const newCheck: Check = {
-      id,
-      name: checkData.name || "Untitled Check",
-      description: checkData.description,
-      status: "new",
-      period: checkData.period || 60,
-      grace: checkData.grace || 30,
-      tags: checkData.tags || [],
-      environments: checkData.environments || [],
-      cronExpression: checkData.cronExpression,
-      pings: [],
-      createdAt: now,
-    };
+  const createCheck = async (checkData: Partial<Check>) => {
+    try {
+      const now = new Date();
+      
+      const newCheckData = {
+        name: checkData.name || "Untitled Check",
+        description: checkData.description,
+        status: "new" as CheckStatus,
+        period: checkData.period || 60,
+        grace: checkData.grace || 30,
+        tags: checkData.tags || [],
+        environments: checkData.environments || [],
+        cron_expression: checkData.cronExpression,
+        created_at: now.toISOString()
+      };
 
-    setChecks((prev) => [...prev, newCheck]);
-    toast.success('Check created successfully');
-    return newCheck;
-  };
+      const { data, error } = await supabase
+        .from('checks')
+        .insert(newCheckData)
+        .select('*')
+        .single();
 
-  const pingCheck = (id: string, status: CheckPing["status"]) => {
-    const checkIndex = checks.findIndex((c) => c.id === id);
-    if (checkIndex === -1) return;
+      if (error) {
+        console.error('Error creating check:', error);
+        toast.error('Failed to create check');
+        throw error;
+      }
 
-    const now = new Date();
-    const check = checks[checkIndex];
-    const prevStatus = check.status;
-    
-    const newPing: CheckPing = {
-      id: uuidv4(),
-      timestamp: now,
-      status,
-    };
-
-    const nextPingDue = addMinutes(now, check.period);
-
-    const updatedCheck: Check = {
-      ...check,
-      lastPing: now,
-      nextPingDue,
-      status: "up",
-      pings: [newPing, ...check.pings].slice(0, 100),
-    };
-
-    const updatedChecks = [...checks];
-    updatedChecks[checkIndex] = updatedCheck;
-
-    setChecks(updatedChecks);
-    toast.success('Ping received successfully');
-    
-    // If status changed from down to up, trigger integrations
-    if (prevStatus === 'down' || prevStatus === 'grace') {
-      triggerIntegrations(id, 'up');
+      const newCheck = convertDatesToObjects(data);
+      setChecks((prev) => [newCheck, ...prev]);
+      toast.success('Check created successfully');
+      return newCheck;
+    } catch (error) {
+      console.error('Error in createCheck:', error);
+      toast.error('Failed to create check');
+      throw error;
     }
   };
 
-  const updateCheck = (id: string, checkData: Partial<Check>) => {
-    const checkIndex = checks.findIndex((c) => c.id === id);
-    if (checkIndex === -1) return undefined;
+  const pingCheck = async (id: string, status: CheckPing["status"]) => {
+    try {
+      const check = getCheck(id);
+      if (!check) {
+        toast.error('Check not found');
+        return;
+      }
 
-    const updatedCheck = {
-      ...checks[checkIndex],
-      ...checkData,
-      status: calculateCheckStatus({
-        ...checks[checkIndex],
-        ...checkData,
-      }),
-    };
+      const now = new Date();
+      const prevStatus = check.status;
+      const nextPingDue = addMinutes(now, check.period);
 
-    const updatedChecks = [...checks];
-    updatedChecks[checkIndex] = updatedCheck;
+      // Add a new ping
+      const pingData = {
+        check_id: id,
+        status,
+        timestamp: now.toISOString()
+      };
 
-    setChecks(updatedChecks);
-    return updatedCheck;
+      const { error: pingError } = await supabase
+        .from('check_pings')
+        .insert(pingData);
+
+      if (pingError) {
+        console.error('Error adding ping:', pingError);
+        toast.error('Failed to record ping');
+        return;
+      }
+
+      // Update the check
+      const updateData = {
+        last_ping: now.toISOString(),
+        next_ping_due: nextPingDue.toISOString(),
+        status: "up"
+      };
+
+      const { error: checkError } = await supabase
+        .from('checks')
+        .update(updateData)
+        .eq('id', id);
+
+      if (checkError) {
+        console.error('Error updating check after ping:', checkError);
+        toast.error('Failed to update check status');
+        return;
+      }
+
+      // Update local state
+      const newPing: CheckPing = {
+        id: uuidv4(), // This will be replaced when we fetch pings next time
+        timestamp: now,
+        status,
+      };
+
+      setChecks(prevChecks => 
+        prevChecks.map(c => 
+          c.id === id 
+            ? {
+                ...c,
+                lastPing: now,
+                nextPingDue,
+                status: "up",
+                pings: [newPing, ...c.pings].slice(0, 100),
+              }
+            : c
+        )
+      );
+
+      toast.success('Ping received successfully');
+      
+      // If status changed from down to up, trigger integrations
+      if (prevStatus === 'down' || prevStatus === 'grace') {
+        triggerIntegrations(id, 'up');
+      }
+    } catch (error) {
+      console.error('Error in pingCheck:', error);
+      toast.error('Failed to process ping');
+    }
   };
 
-  const deleteCheck = (id: string) => {
-    setChecks((prev) => prev.filter((check) => check.id !== id));
+  const updateCheck = async (id: string, checkData: Partial<Check>) => {
+    try {
+      const checkIndex = checks.findIndex((c) => c.id === id);
+      if (checkIndex === -1) return undefined;
+
+      const dbCheckData = prepareCheckForSupabase(checkData);
+      
+      const { error } = await supabase
+        .from('checks')
+        .update(dbCheckData)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating check:', error);
+        toast.error('Failed to update check');
+        return undefined;
+      }
+
+      const updatedCheck = {
+        ...checks[checkIndex],
+        ...checkData,
+        status: calculateCheckStatus({
+          ...checks[checkIndex],
+          ...checkData,
+        }),
+      };
+
+      const updatedChecks = [...checks];
+      updatedChecks[checkIndex] = updatedCheck;
+
+      setChecks(updatedChecks);
+      toast.success('Check updated successfully');
+      return updatedCheck;
+    } catch (error) {
+      console.error('Error in updateCheck:', error);
+      toast.error('Failed to update check');
+      return undefined;
+    }
+  };
+
+  const deleteCheck = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('checks')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting check:', error);
+        toast.error('Failed to delete check');
+        return;
+      }
+
+      setChecks((prev) => prev.filter((check) => check.id !== id));
+      toast.success('Check deleted successfully');
+    } catch (error) {
+      console.error('Error in deleteCheck:', error);
+      toast.error('Failed to delete check');
+    }
   };
 
   return (
@@ -363,6 +424,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         deleteCheck,
         pingCheck,
         getPingUrl,
+        loading,
       }}
     >
       {children}

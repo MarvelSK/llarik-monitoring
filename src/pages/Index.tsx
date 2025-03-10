@@ -4,13 +4,12 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
-import { useCompanies } from "@/context/CompanyContext";
 import { Activity, AlertCircle, Clock, PlusCircle, ShieldAlert } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
-  const { checks } = useChecks();
-  const { currentCompany, currentUser } = useCompanies();
+  const { checks, loading } = useChecks();
   const navigate = useNavigate();
 
   const allChecks = checks;
@@ -24,18 +23,9 @@ const Index = () => {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            {currentCompany && (
-              <p className="text-muted-foreground">
-                {currentUser?.isAdmin 
-                  ? `Viewing ${currentCompany.name}'s checks` 
-                  : `Welcome to ${currentCompany.name}`}
-              </p>
-            )}
-            {currentUser?.isAdmin && !currentCompany && (
-              <p className="text-muted-foreground">
-                Viewing all checks across companies
-              </p>
-            )}
+            <p className="text-muted-foreground">
+              Monitor your scheduled tasks and cron jobs
+            </p>
           </div>
           <Button 
             onClick={() => navigate("/checks/new")}
@@ -46,32 +36,48 @@ const Index = () => {
           </Button>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <StatusCard 
-            title="Total Checks" 
-            count={allChecks.length} 
-            icon={<Activity className="w-5 h-5" />}
-            color="bg-primary"
-          />
-          <StatusCard 
-            title="Up" 
-            count={upChecks.length} 
-            icon={<Activity className="w-5 h-5" />}
-            color="bg-healthy"
-          />
-          <StatusCard 
-            title="Running Late" 
-            count={lateChecks.length} 
-            icon={<Clock className="w-5 h-5" />}
-            color="bg-warning"
-          />
-          <StatusCard 
-            title="Down" 
-            count={downChecks.length} 
-            icon={<AlertCircle className="w-5 h-5" />}
-            color="bg-danger"
-          />
-        </div>
+        {loading ? (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {Array(4).fill(0).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center">
+                  <Skeleton className="w-12 h-12 rounded-full mr-4" />
+                  <div>
+                    <Skeleton className="h-4 w-28 mb-2" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <StatusCard 
+              title="Total Checks" 
+              count={allChecks.length} 
+              icon={<Activity className="w-5 h-5" />}
+              color="bg-primary"
+            />
+            <StatusCard 
+              title="Up" 
+              count={upChecks.length} 
+              icon={<Activity className="w-5 h-5" />}
+              color="bg-healthy"
+            />
+            <StatusCard 
+              title="Running Late" 
+              count={lateChecks.length} 
+              icon={<Clock className="w-5 h-5" />}
+              color="bg-warning"
+            />
+            <StatusCard 
+              title="Down" 
+              count={downChecks.length} 
+              icon={<AlertCircle className="w-5 h-5" />}
+              color="bg-danger"
+            />
+          </div>
+        )}
 
         <Tabs defaultValue="all" className="w-full">
           <TabsList>

@@ -1,3 +1,4 @@
+
 import { Check, CheckEnvironment } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { toast } from "sonner";
+import { Skeleton } from "../ui/skeleton";
 
 interface CheckTableProps {
   checks: Check[];
@@ -24,7 +26,7 @@ interface CheckTableProps {
 const CheckTable = ({ checks }: CheckTableProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { getPingUrl } = useChecks();
+  const { getPingUrl, loading } = useChecks();
 
   const filteredChecks = checks.filter(check => 
     check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,6 +52,65 @@ const CheckTable = ({ checks }: CheckTableProps) => {
       default: return 'bg-gray-200 text-gray-800';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Input
+            className="pl-10"
+            placeholder="Filter by check name..."
+            disabled
+          />
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Status</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="hidden md:table-cell">UUID</TableHead>
+                <TableHead className="hidden lg:table-cell">Period / Grace</TableHead>
+                <TableHead className="hidden md:table-cell">Last Ping</TableHead>
+                <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array(5).fill(0).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell className="py-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-40 mb-2" />
+                    <Skeleton className="h-4 w-20" />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-4 w-36" />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Skeleton className="h-4 w-28" />
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Skeleton className="h-8 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
