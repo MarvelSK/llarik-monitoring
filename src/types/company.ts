@@ -3,8 +3,8 @@ export interface Company {
   id: string;
   name: string;
   description?: string;
-  createdAt?: Date;
-  created_at?: string | Date; // Include both for compatibility
+  createdAt?: Date;  // camelCase for client-side use
+  created_at: string | Date; // snake_case from database
 }
 
 export interface User {

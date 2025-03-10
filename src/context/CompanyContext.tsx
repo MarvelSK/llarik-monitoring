@@ -43,7 +43,8 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
   const convertDates = (data: any): Company => {
     return {
       ...data,
-      created_at: new Date(data.created_at)
+      created_at: data.created_at,
+      createdAt: new Date(data.created_at)
     };
   };
 
@@ -51,6 +52,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
   useEffect(() => {
     const fetchCompanies = async () => {
       if (!user) {
+        console.log("No user, skipping company fetch");
         setCompanies([]);
         setCurrentCompany(null);
         setLoading(false);
@@ -58,11 +60,17 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
       }
 
       try {
+        console.log("Fetching companies for user:", user.id, "admin:", user.is_admin);
         setLoading(true);
         let query = supabase.from('companies').select('*');
         
         // If user is not admin, only fetch their company
         if (!user.is_admin) {
+          if (!user.company_id) {
+            console.log("User is not admin and has no company_id");
+            setLoading(false);
+            return;
+          }
           query = query.eq('id', user.company_id);
         }
         
@@ -71,8 +79,11 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
         if (error) {
           console.error("Error fetching companies:", error);
           toast.error("Failed to load companies");
+          setLoading(false);
           return;
         }
+        
+        console.log("Companies loaded:", data?.length || 0, data);
         
         const companiesWithDates = data.map(convertDates);
         setCompanies(companiesWithDates);
@@ -81,12 +92,20 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
         if (!user.is_admin && user.company_id) {
           const userCompany = companiesWithDates.find(c => c.id === user.company_id);
           if (userCompany) {
+            console.log("Setting current company to user's company:", userCompany.name);
             setCurrentCompany(userCompany);
+          } else {
+            console.log("User's company not found in loaded companies");
           }
+        } else if (companiesWithDates.length > 0) {
+          // For admin users, default to the first company if none is selected
+          console.log("Admin user, setting first company as current:", companiesWithDates[0].name);
+          setCurrentCompany(companiesWithDates[0]);
         }
+        
+        setLoading(false);
       } catch (error) {
         console.error("Error in fetchCompanies:", error);
-      } finally {
         setLoading(false);
       }
     };

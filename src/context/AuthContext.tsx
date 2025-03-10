@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, currentSession) => {
+        console.log("Auth state changed:", _event, currentSession?.user?.id);
         setSession(currentSession);
         
         if (currentSession) {
@@ -53,6 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Ensure dates are properly converted
             if (data) {
+              console.log("Profile data loaded:", data);
               setUser({
                 id: data.id,
                 name: data.name,
@@ -60,12 +62,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 company_id: data.company_id,
                 is_admin: data.is_admin
               });
+            } else {
+              console.log("No profile data found for user");
+              setUser(null);
             }
           } catch (err) {
             console.error("Error processing authentication:", err);
             setUser(null);
           }
         } else {
+          console.log("No session, clearing user");
           setUser(null);
         }
         
@@ -77,10 +83,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const getInitialSession = async () => {
       try {
         setLoading(true);
+        console.log("Getting initial session");
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         
         if (session) {
+          console.log("Initial session found, fetching profile");
           const { data, error } = await supabase
             .from('profiles')
             .select('*')
@@ -94,6 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
           
           if (data) {
+            console.log("Initial profile data loaded:", data);
             setUser({
               id: data.id,
               name: data.name,
@@ -101,7 +110,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               company_id: data.company_id,
               is_admin: data.is_admin
             });
+          } else {
+            console.log("No initial profile data found");
           }
+        } else {
+          console.log("No initial session found");
         }
       } catch (error) {
         console.error("Error checking initial session:", error);

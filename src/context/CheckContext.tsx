@@ -61,6 +61,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       try {
         setLoading(true);
+        console.log("Fetching checks for user:", authUser.id, "company:", currentCompany?.id || authUser.company_id);
         
         let query = supabase.from('checks').select('*');
         
@@ -80,6 +81,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           setLoading(false);
           return;
         }
+        
+        console.log("Checks loaded:", data?.length || 0);
         
         if (data) {
           // Fetch pings for each check
