@@ -1,7 +1,6 @@
 
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
@@ -102,7 +101,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
               status: ping.status as CheckPing["status"],
             }));
             
-            // Create a valid Check object with all required properties
+            // Create a properly mapped Check object
             const checkData: Check = {
               id: check.id,
               name: check.name,
@@ -277,7 +276,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
     
     try {
-      const now = new Date();
       const companyId = checkData.companyId || (currentCompany ? currentCompany.id : '');
       
       // Insert into Supabase
@@ -307,6 +305,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         throw new Error("No data returned from check creation");
       }
       
+      // Map DB fields to Check type fields
       const newCheck: Check = {
         id: data.id,
         name: data.name,
@@ -320,6 +319,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         pings: [],
         createdAt: new Date(data.created_at),
         companyId: data.company_id,
+        lastDuration: data.last_duration,
       };
 
       setChecks((prev) => [...prev, newCheck]);

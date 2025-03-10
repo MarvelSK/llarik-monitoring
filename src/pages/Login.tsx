@@ -52,7 +52,10 @@ const Login = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">Loading...</div>
+        <div className="text-center">
+          <div className="mb-4 h-6 w-6 animate-spin rounded-full border-b-2 border-gray-900 mx-auto"></div>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
