@@ -72,7 +72,7 @@ const CompanyDetail = () => {
               <div>
                 <div className="font-medium">Created</div>
                 <div className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(company.created_at, { addSuffix: true })}
+                  {formatDistanceToNow(company.createdAt, { addSuffix: true })}
                 </div>
               </div>
               <div>

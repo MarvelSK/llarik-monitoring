@@ -66,7 +66,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
-                  Created {formatDistanceToNow(new Date(company.created_at), { addSuffix: true })}
+                  Created {formatDistanceToNow(company.createdAt, { addSuffix: true })}
                 </div>
                 <div className="text-sm mt-2">
                   {checks.filter(check => check.companyId === company.id).length} checks

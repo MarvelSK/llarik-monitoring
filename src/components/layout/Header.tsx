@@ -4,15 +4,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useCompanies } from "@/context/CompanyContext";
 import { Building, ChevronDown, LogOut, PlusIcon, Settings, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
 
 const Header = () => {
   const navigate = useNavigate();
-  const { currentCompany, companies, setCurrentCompany } = useCompanies();
-  const { user, signOut } = useAuth();
+  const { currentUser, currentCompany, companies, setCurrentCompany, logout } = useCompanies();
 
   const handleLogout = () => {
-    signOut();
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -37,7 +36,7 @@ const Header = () => {
             <span className="font-bold text-xl text-gray-900 dark:text-white">HealthBeat</span>
           </a>
 
-          {user?.is_admin && companies.length > 0 && (
+          {currentUser?.isAdmin && companies.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="ml-4 gap-1">
@@ -63,7 +62,7 @@ const Header = () => {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          {user && (
+          {currentUser && (
             <>
               <Button 
                 onClick={() => navigate('/checks/new')} 
@@ -80,7 +79,7 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {user.is_admin && (
+                  {currentUser.isAdmin && (
                     <DropdownMenuItem onClick={() => navigate("/admin")}>
                       <Settings className="w-4 h-4 mr-2" />
                       Admin Dashboard

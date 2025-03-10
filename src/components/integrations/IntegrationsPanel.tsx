@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -17,7 +16,6 @@ import { v4 as uuidv4 } from "uuid";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CheckboxGroup, CheckboxItem } from "../ui/checkbox-group";
-import { useCompanies } from "@/context/CompanyContext";
 
 interface IntegrationsPanelProps {
   checkId: string;
@@ -35,7 +33,6 @@ const formSchema = z.object({
 
 export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
   const { toast } = useToast();
-  const { currentCompany } = useCompanies();
   const [integrations, setIntegrations] = useState<Integration[]>(() => {
     const savedIntegrations = localStorage.getItem(`integrations-${checkId}`);
     return savedIntegrations ? JSON.parse(savedIntegrations, dateReviver) : [];
@@ -66,15 +63,6 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!currentCompany) {
-      toast({
-        title: "Error",
-        description: "No company selected. Cannot create integration.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const newIntegration: Integration = {
       id: uuidv4(),
       type: values.type,
@@ -83,7 +71,6 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
       enabled: true,
       notifyOn: values.notifyOn,
       createdAt: new Date(),
-      companyId: currentCompany.id,
     };
 
     const updatedIntegrations = [...integrations, newIntegration];

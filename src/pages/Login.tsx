@@ -5,10 +5,10 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCompanies } from "@/context/CompanyContext";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -16,16 +16,8 @@ const formSchema = z.object({
 });
 
 const Login = () => {
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { setCurrentUser } = useCompanies();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    // Redirect if already logged in
-    if (user) {
-      navigate("/");
-    }
-  }, [user, navigate]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -35,30 +27,20 @@ const Login = () => {
     },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (isSubmitting) return;
-    
-    try {
-      setIsSubmitting(true);
-      await signIn(values.email, values.password);
-      // Navigation handled in AuthContext
-    } catch (error) {
-      console.error("Login failed:", error);
-    } finally {
-      setIsSubmitting(false);
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    // This is just a mock authentication - in a real app, you would call an API
+    const users = JSON.parse(localStorage.getItem("healthbeat-users") || "[]");
+    const user = users.find((u: any) => u.email === values.email);
+
+    if (user) {
+      // In a real app, you would verify the password here
+      setCurrentUser(user);
+      toast.success(`Welcome back, ${user.name}!`);
+      navigate("/");
+    } else {
+      toast.error("Invalid email or password");
     }
   };
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="mb-4 h-6 w-6 animate-spin rounded-full border-b-2 border-gray-900 mx-auto"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
@@ -114,12 +96,19 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSubmitting || authLoading}>
-                {isSubmitting ? "Signing In..." : "Sign In"}
-              </Button>
+              <Button type="submit" className="w-full">Sign In</Button>
             </form>
           </Form>
         </CardContent>
+        <CardFooter className="flex flex-col space-y-4">
+          <div className="text-sm text-center text-gray-500">
+            <p>Demo Accounts:</p>
+            <p>Admin: admin@example.com</p>
+            <p>Company 1: john@acme.com</p>
+            <p>Company 2: jane@globex.com</p>
+            <p>(Any password will work)</p>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );
