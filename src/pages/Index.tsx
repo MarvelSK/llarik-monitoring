@@ -4,18 +4,30 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
-import { Activity, AlertCircle, Clock, PlusCircle, ShieldAlert } from "lucide-react";
+import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const Index = () => {
   const { checks, loading } = useChecks();
   const navigate = useNavigate();
+  const [refreshing, setRefreshing] = useState(false);
 
   const allChecks = checks;
   const upChecks = checks.filter((check) => check.status === "up");
   const downChecks = checks.filter((check) => check.status === "down");
   const lateChecks = checks.filter((check) => check.status === "grace");
+
+  // Function to handle manual refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh with a delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setRefreshing(false);
+    toast.success("Dashboard refreshed");
+  };
 
   return (
     <Layout>
@@ -27,13 +39,23 @@ const Index = () => {
               Monitor your scheduled tasks and cron jobs
             </p>
           </div>
-          <Button 
-            onClick={() => navigate("/checks/new")}
-            className="gap-2"
-          >
-            <PlusCircle className="w-4 h-4" />
-            New Check
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button 
+              onClick={() => navigate("/checks/new")}
+              className="gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              New Check
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -69,22 +91,24 @@ const Index = () => {
               count={lateChecks.length} 
               icon={<Clock className="w-5 h-5" />}
               color="bg-warning"
+              pulseAnimation={lateChecks.length > 0}
             />
             <StatusCard 
               title="Down" 
               count={downChecks.length} 
               icon={<AlertCircle className="w-5 h-5" />}
               color="bg-danger"
+              pulseAnimation={downChecks.length > 0}
             />
           </div>
         )}
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList>
-            <TabsTrigger value="all">All Checks</TabsTrigger>
-            <TabsTrigger value="up">Up</TabsTrigger>
-            <TabsTrigger value="grace">Running Late</TabsTrigger>
-            <TabsTrigger value="down">Down</TabsTrigger>
+          <TabsList className="gap-1">
+            <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">All Checks</TabsTrigger>
+            <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Up</TabsTrigger>
+            <TabsTrigger value="grace" className="data-[state=active]:bg-warning/10">Running Late</TabsTrigger>
+            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Down</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
             <CheckTable checks={allChecks} />
@@ -109,13 +133,14 @@ interface StatusCardProps {
   count: number;
   icon: React.ReactNode;
   color: string;
+  pulseAnimation?: boolean;
 }
 
-const StatusCard = ({ title, count, icon, color }: StatusCardProps) => {
+const StatusCard = ({ title, count, icon, color, pulseAnimation = false }: StatusCardProps) => {
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
       <div className="flex items-center">
-        <div className={`${color} p-3 rounded-full mr-4 text-white`}>
+        <div className={`${color} p-3 rounded-full mr-4 text-white ${pulseAnimation ? 'animate-pulse' : ''}`}>
           {icon}
         </div>
         <div>

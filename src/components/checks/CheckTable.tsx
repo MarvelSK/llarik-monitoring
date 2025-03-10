@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, MoreHorizontal, Copy, Link } from "lucide-react";
-import { useState } from "react";
+import { Search, MoreHorizontal, Copy, ArrowUpDown } from "lucide-react";
+import { useState, useMemo } from "react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -27,12 +27,67 @@ const CheckTable = ({ checks }: CheckTableProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { getPingUrl, loading } = useChecks();
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof Check | 'lastPingFormatted';
+    direction: 'ascending' | 'descending';
+  }>({
+    key: 'lastPing',
+    direction: 'descending'
+  });
 
-  const filteredChecks = checks.filter(check => 
-    check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (check.description && check.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (check.tags && check.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  // Sort and filter checks
+  const processedChecks = useMemo(() => {
+    // First filter
+    let result = checks.filter(check => 
+      check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (check.description && check.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (check.tags && check.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
+    );
+    
+    // Then sort
+    result.sort((a, b) => {
+      if (sortConfig.key === 'lastPingFormatted') {
+        // Sort by lastPing date
+        const dateA = a.lastPing || new Date(0);
+        const dateB = b.lastPing || new Date(0);
+        
+        return sortConfig.direction === 'ascending' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      } else if (sortConfig.key === 'name') {
+        return sortConfig.direction === 'ascending'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      } else if (sortConfig.key === 'status') {
+        return sortConfig.direction === 'ascending'
+          ? a.status.localeCompare(b.status)
+          : b.status.localeCompare(a.status);
+      } else if (sortConfig.key === 'period') {
+        return sortConfig.direction === 'ascending'
+          ? a.period - b.period
+          : b.period - a.period;
+      } else {
+        // Default sort by lastPing
+        const dateA = a.lastPing || new Date(0);
+        const dateB = b.lastPing || new Date(0);
+        
+        return sortConfig.direction === 'ascending' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      }
+    });
+    
+    return result;
+  }, [checks, searchTerm, sortConfig]);
+
+  const handleSort = (key: keyof Check | 'lastPingFormatted') => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'ascending' 
+        ? 'descending' 
+        : 'ascending'
+    }));
+  };
 
   const handleRowClick = (id: string) => {
     navigate(`/checks/${id}`);
@@ -70,7 +125,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
               <TableRow>
                 <TableHead className="w-12">Status</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">UUID</TableHead>
                 <TableHead className="hidden lg:table-cell">Period / Grace</TableHead>
                 <TableHead className="hidden md:table-cell">Last Ping</TableHead>
                 <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
@@ -86,9 +140,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                   <TableCell>
                     <Skeleton className="h-5 w-40 mb-2" />
                     <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Skeleton className="h-4 w-32" />
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <Skeleton className="h-4 w-24 mb-2" />
@@ -124,7 +175,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
         />
       </div>
       
-      {filteredChecks.length === 0 ? (
+      {processedChecks.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
           <p className="text-gray-500 dark:text-gray-400">
             {checks.length === 0 
@@ -137,17 +188,52 @@ const CheckTable = ({ checks }: CheckTableProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">Status</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">UUID</TableHead>
-                <TableHead className="hidden lg:table-cell">Period / Grace</TableHead>
-                <TableHead className="hidden md:table-cell">Last Ping</TableHead>
+                <TableHead className="w-12">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleSort('status')} 
+                    className="h-8 px-2"
+                  >
+                    Status
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleSort('name')} 
+                    className="h-8 px-2 text-left"
+                  >
+                    Name
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleSort('period')} 
+                    className="h-8 px-2"
+                  >
+                    Period / Grace
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => handleSort('lastPingFormatted')} 
+                    className="h-8 px-2"
+                  >
+                    Last Ping
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
                 <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredChecks.map((check) => (
+              {processedChecks.map((check) => (
                 <TableRow 
                   key={check.id} 
                   className="cursor-pointer hover:bg-muted/50"
@@ -165,9 +251,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                         </Badge>
                       ))}
                     </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground hidden md:table-cell">
-                    {check.id}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <div>{check.period} minutes</div>
