@@ -1,6 +1,6 @@
 
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
-export type CheckEnvironment = 'prod' | 'sandbox' | 'worker' | string;
+export type CheckEnvironment = 'prod' | 'sandbox' | 'worker' | 'db-backups';
 
 export interface CheckPing {
   id: string;
@@ -23,5 +23,5 @@ export interface Check {
   cronExpression?: string;
   createdAt: Date;
   lastDuration?: number; // in seconds, for showing execution time
+  companyId?: string;
 }
-

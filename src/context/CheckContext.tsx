@@ -14,6 +14,7 @@ interface CheckContextType {
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
   loading: boolean;
+  getChecksByCompany: (companyId: string) => Check[];
 }
 
 const CheckContext = createContext<CheckContextType | undefined>(undefined);
@@ -405,6 +406,10 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
+  const getChecksByCompany = (companyId: string) => {
+    return checks.filter(check => check.companyId === companyId);
+  };
+
   return (
     <CheckContext.Provider
       value={{
@@ -416,6 +421,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         pingCheck,
         getPingUrl,
         loading,
+        getChecksByCompany,
       }}
     >
       {children}

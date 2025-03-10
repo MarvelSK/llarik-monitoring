@@ -15,10 +15,20 @@ const PingHandler = () => {
   useEffect(() => {
     if (!id) return;
 
+    // Check if this ping has already been processed in this session
+    const pingKey = `ping-${id}-${new Date().toDateString()}`;
+    if (sessionStorage.getItem(pingKey)) {
+      setProcessed(true);
+      setLoading(false);
+      return;
+    }
+
     const processPing = async () => {
       try {
         setLoading(true);
         await pingCheck(id, "success");
+        // Mark this ping as processed for this session
+        sessionStorage.setItem(pingKey, "true");
         setProcessed(true);
       } catch (error) {
         console.error("Error processing ping:", error);
