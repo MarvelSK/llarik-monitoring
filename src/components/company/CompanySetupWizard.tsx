@@ -37,16 +37,39 @@ const CompanySetupWizard = () => {
     try {
       setIsLoading(true);
       
-      // First create the company in the context (for local state)
-      const company = createCompany(data);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("You must be logged in to create a company");
+      }
+      
+      // First create the company in Supabase
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .insert({
+          name: data.name,
+          description: data.description || "",
+          owner_id: user.id
+        })
+        .select()
+        .single();
+      
+      if (companyError) throw companyError;
       
       // Then update the user's profile to link them to this company
-      const { error } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({ company_id: company.id })
-        .eq('id', (await supabase.auth.getUser()).data.user?.id || '');
+        .update({ company_id: companyData.id })
+        .eq('id', user.id);
       
-      if (error) throw error;
+      if (profileError) throw profileError;
+      
+      // Update local state
+      const company = createCompany({
+        ...data,
+        id: companyData.id,
+      });
       
       setCurrentCompany(company.id);
       toast.success("Company created successfully!");
