@@ -6,18 +6,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCompanies } from "@/context/CompanyContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const Login = () => {
-  const { setCurrentUser } = useCompanies();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -27,18 +29,33 @@ const Login = () => {
     },
   });
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    // This is just a mock authentication - in a real app, you would call an API
-    const users = JSON.parse(localStorage.getItem("healthbeat-users") || "[]");
-    const user = users.find((u: any) => u.email === values.email);
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsLoading(true);
+      let response;
 
-    if (user) {
-      // In a real app, you would verify the password here
-      setCurrentUser(user);
-      toast.success(`Welcome back, ${user.name}!`);
-      navigate("/");
-    } else {
-      toast.error("Invalid email or password");
+      if (isSignUp) {
+        response = await supabase.auth.signUp({
+          email: values.email,
+          password: values.password,
+        });
+        
+        if (response.error) throw response.error;
+        toast.success("Account created successfully! Please check your email to verify your account.");
+      } else {
+        response = await supabase.auth.signInWithPassword({
+          email: values.email,
+          password: values.password,
+        });
+        
+        if (response.error) throw response.error;
+        toast.success("Logged in successfully!");
+        navigate("/");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,7 +81,7 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl text-center">HealthBeat</CardTitle>
           <CardDescription className="text-center">
-            Enter your credentials to access your account
+            {isSignUp ? "Create an account" : "Sign in to your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,18 +113,20 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">Sign In</Button>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Loading..." : (isSignUp ? "Sign Up" : "Sign In")}
+              </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-gray-500">
-            <p>Demo Accounts:</p>
-            <p>Admin: admin@example.com</p>
-            <p>Company 1: john@acme.com</p>
-            <p>Company 2: jane@globex.com</p>
-            <p>(Any password will work)</p>
-          </div>
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={() => setIsSignUp(!isSignUp)}
+          >
+            {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+          </Button>
         </CardFooter>
       </Card>
     </div>
