@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from "uuid";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
-import { useCompanies } from "./CompanyContext";
 
 interface CheckContextType {
   checks: Check[];
@@ -15,7 +14,6 @@ interface CheckContextType {
   deleteCheck: (id: string) => void;
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
-  getChecksByCompany: (companyId: string) => Check[];
 }
 
 const CheckContext = createContext<CheckContextType | undefined>(undefined);
@@ -53,7 +51,6 @@ const initialChecks: Check[] = [
       },
     ],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 90), // 90 days ago
-    companyId: "c1",
   },
   {
     id: "ffc143c9-6aea-44fa-b299-599739d8cb6d",
@@ -75,7 +72,6 @@ const initialChecks: Check[] = [
       },
     ],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30), // 30 days ago
-    companyId: "c1",
   },
   {
     id: "7c934798-b3f5-4fc4-a373-418ae184c899",
@@ -97,7 +93,6 @@ const initialChecks: Check[] = [
       },
     ],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60), // 60 days ago
-    companyId: "c2",
   },
   {
     id: "fe68e83b-aa2a-43a2-97d5-afbe607fa485",
@@ -120,7 +115,6 @@ const initialChecks: Check[] = [
     ],
     cronExpression: "0 9 * * 1", // Every Monday at 9am
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120), // 120 days ago
-    companyId: "c2",
   },
   {
     id: "1bed143e-5d06-4ec1-ab52-55e262131b5",
@@ -141,13 +135,10 @@ const initialChecks: Check[] = [
       },
     ],
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 210), // 210 days ago
-    companyId: "c1",
   },
 ];
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
-  const { currentCompany, currentUser } = useCompanies();
-  
   const [checks, setChecks] = useState<Check[]>(() => {
     const savedChecks = localStorage.getItem("healthbeat-checks");
     return savedChecks ? JSON.parse(savedChecks, dateReviver) : initialChecks;
@@ -279,16 +270,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return checks.find((check) => check.id === id);
   };
 
-  const getChecksByCompany = (companyId: string) => {
-    return checks.filter((check) => check.companyId === companyId);
-  };
-
   const createCheck = (checkData: Partial<Check>) => {
-    if (!currentCompany && !checkData.companyId) {
-      toast.error('No company selected for this check');
-      throw new Error('No company selected for this check');
-    }
-    
     const now = new Date();
     const id = uuidv4();
     
@@ -304,7 +286,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       cronExpression: checkData.cronExpression,
       pings: [],
       createdAt: now,
-      companyId: checkData.companyId || (currentCompany ? currentCompany.id : ''),
     };
 
     setChecks((prev) => [...prev, newCheck]);
@@ -375,18 +356,13 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   return (
     <CheckContext.Provider
       value={{
-        checks: currentUser?.isAdmin 
-          ? checks 
-          : (currentCompany 
-              ? checks.filter(check => check.companyId === currentCompany.id) 
-              : []),
+        checks,
         getCheck,
         createCheck,
         updateCheck,
         deleteCheck,
         pingCheck,
         getPingUrl,
-        getChecksByCompany,
       }}
     >
       {children}
