@@ -1,16 +1,17 @@
 
 export type IntegrationType = 'email' | 'webhook' | 'slack' | 'discord';
+export type NotifyOn = 'up' | 'down' | 'grace';
 
 export interface Integration {
   id: string;
   type: IntegrationType;
   name: string;
   config: {
-    url?: string;
     email?: string;
+    url?: string;
   };
   enabled: boolean;
-  notifyOn: ('up' | 'down' | 'grace')[];
+  notifyOn: NotifyOn[];
   createdAt: Date;
-  companyId: string;
+  companyId?: string;
 }

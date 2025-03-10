@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const CheckCreate = () => {
   const { createCheck } = useChecks();
-  const { currentCompany } = useCompanies();
+  const { currentCompany, currentUser } = useCompanies();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -19,9 +19,14 @@ const CheckCreate = () => {
 
   const handleSubmit = (data: Partial<Check>) => {
     const checkData = { ...data };
+    
+    // Use companyId from state, or current user's company
     if (companyId) {
       checkData.companyId = companyId;
+    } else if (currentUser?.companyId) {
+      checkData.companyId = currentUser.companyId;
     }
+    
     createCheck(checkData);
     
     if (companyId) {
