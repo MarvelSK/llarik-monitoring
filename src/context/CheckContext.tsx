@@ -1,8 +1,10 @@
+
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { toast } from "sonner";
+import { Integration } from "@/types/integration";
 
 interface CheckContextType {
   checks: Check[];
@@ -161,14 +163,22 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     const intervalId = setInterval(() => {
       setChecks((currentChecks) =>
         currentChecks.map((check) => {
+          const prevStatus = check.status;
           const newStatus = calculateCheckStatus(check);
-          if (newStatus !== check.status) {
+          
+          if (newStatus !== prevStatus) {
             if (newStatus === 'grace') {
               toast.warning(`Check "${check.name}" is running late`);
+              triggerIntegrations(check.id, 'grace');
             } else if (newStatus === 'down') {
               toast.error(`Check "${check.name}" is down`);
+              triggerIntegrations(check.id, 'down');
+            } else if (newStatus === 'up' && prevStatus !== 'new') {
+              toast.success(`Check "${check.name}" is up`);
+              triggerIntegrations(check.id, 'up');
             }
           }
+          
           return {
             ...check,
             status: newStatus
@@ -179,6 +189,60 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  const triggerIntegrations = (checkId: string, status: 'up' | 'down' | 'grace') => {
+    const savedIntegrations = localStorage.getItem(`integrations-${checkId}`);
+    if (!savedIntegrations) return;
+    
+    const integrations: Integration[] = JSON.parse(savedIntegrations, dateReviver);
+    const activeIntegrations = integrations.filter(
+      integration => integration.enabled && integration.notifyOn.includes(status)
+    );
+    
+    if (activeIntegrations.length === 0) return;
+    
+    const check = getCheck(checkId);
+    if (!check) return;
+    
+    activeIntegrations.forEach(integration => {
+      const payload = {
+        check: {
+          id: check.id,
+          name: check.name,
+          status,
+          url: getPingUrl(check.id)
+        },
+        integration: {
+          id: integration.id,
+          name: integration.name,
+          type: integration.type
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      if (integration.type === 'webhook' && integration.config.url) {
+        try {
+          fetch(integration.config.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            mode: 'no-cors'
+          });
+          
+          console.log(`Triggered ${integration.type} integration "${integration.name}" for status "${status}"`);
+        } catch (error) {
+          console.error('Failed to trigger webhook integration:', error);
+        }
+      }
+      
+      if (integration.type === 'email' && integration.config.email) {
+        console.log(`Would send email to ${integration.config.email} for status "${status}"`);
+        // In a real app, you would call an API to send an email
+      }
+    });
+  };
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
     if (!check.lastPing) return "new";
@@ -235,6 +299,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
     const now = new Date();
     const check = checks[checkIndex];
+    const prevStatus = check.status;
     
     const newPing: CheckPing = {
       id: uuidv4(),
@@ -257,6 +322,11 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
     setChecks(updatedChecks);
     toast.success('Ping received successfully');
+    
+    // If status changed from down to up, trigger integrations
+    if (prevStatus === 'down' || prevStatus === 'grace') {
+      triggerIntegrations(id, 'up');
+    }
   };
 
   const updateCheck = (id: string, checkData: Partial<Check>) => {

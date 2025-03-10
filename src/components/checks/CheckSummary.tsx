@@ -1,13 +1,16 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, formatDistance } from "date-fns";
-import { Clock, Calendar, Tag, Link as LinkIcon, Copy } from "lucide-react";
+import { Clock, Calendar, Tag, Link as LinkIcon, Copy, Bell } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { toast } from "sonner";
+import { useState } from "react";
+import { IntegrationsPanel } from "../integrations/IntegrationsPanel";
 
 interface CheckSummaryProps {
   check: Check;
@@ -15,6 +18,7 @@ interface CheckSummaryProps {
 
 const CheckSummary = ({ check }: CheckSummaryProps) => {
   const { getPingUrl } = useChecks();
+  const [showIntegrations, setShowIntegrations] = useState(false);
   
   const copyPingUrl = () => {
     navigator.clipboard.writeText(getPingUrl(check.id));
@@ -112,6 +116,19 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
               {getPingUrl(check.id)}
             </code>
           </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full flex items-center gap-2"
+            onClick={() => setShowIntegrations(!showIntegrations)}
+          >
+            <Bell className="h-4 w-4" />
+            {showIntegrations ? "Hide Integrations" : "Show Integrations"}
+          </Button>
+
+          {showIntegrations && (
+            <IntegrationsPanel checkId={check.id} />
+          )}
 
           {check.tags && check.tags.length > 0 && (
             <>

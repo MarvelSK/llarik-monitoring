@@ -1,4 +1,3 @@
-
 import { Check, CheckEnvironment } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { formatDistanceToNow } from "date-fns";
@@ -6,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, MoreHorizontal } from "lucide-react";
+import { Search, MoreHorizontal, Copy, Link } from "lucide-react";
 import { useState } from "react";
 import { 
   DropdownMenu, 
@@ -15,6 +14,8 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useChecks } from "@/context/CheckContext";
+import { toast } from "sonner";
 
 interface CheckTableProps {
   checks: Check[];
@@ -23,6 +24,7 @@ interface CheckTableProps {
 const CheckTable = ({ checks }: CheckTableProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const { getPingUrl } = useChecks();
 
   const filteredChecks = checks.filter(check => 
     check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -32,6 +34,12 @@ const CheckTable = ({ checks }: CheckTableProps) => {
 
   const handleRowClick = (id: string) => {
     navigate(`/checks/${id}`);
+  };
+
+  const copyPingUrl = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(getPingUrl(id));
+    toast.success('Ping URL copied to clipboard');
   };
 
   const getEnvironmentColor = (env: CheckEnvironment) => {
@@ -73,6 +81,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                 <TableHead className="hidden md:table-cell">UUID</TableHead>
                 <TableHead className="hidden lg:table-cell">Period / Grace</TableHead>
                 <TableHead className="hidden md:table-cell">Last Ping</TableHead>
+                <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -114,6 +123,17 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                         {check.lastDuration}s
                       </div>
                     )}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={(e) => copyPingUrl(check.id, e)}
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Copy URL</span>
+                    </Button>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
