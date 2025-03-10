@@ -12,4 +12,5 @@ export interface Integration {
   enabled: boolean;
   notifyOn: ('up' | 'down' | 'grace')[];
   createdAt: Date;
+  companyId: string;
 }

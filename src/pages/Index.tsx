@@ -4,11 +4,13 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
-import { Activity, AlertCircle, Clock, PlusCircle } from "lucide-react";
+import { useCompanies } from "@/context/CompanyContext";
+import { Activity, AlertCircle, Clock, PlusCircle, ShieldAlert } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { checks } = useChecks();
+  const { currentCompany, currentUser } = useCompanies();
   const navigate = useNavigate();
 
   const allChecks = checks;
@@ -20,7 +22,21 @@ const Index = () => {
     <Layout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            {currentCompany && (
+              <p className="text-muted-foreground">
+                {currentUser?.isAdmin 
+                  ? `Viewing ${currentCompany.name}'s checks` 
+                  : `Welcome to ${currentCompany.name}`}
+              </p>
+            )}
+            {currentUser?.isAdmin && !currentCompany && (
+              <p className="text-muted-foreground">
+                Viewing all checks across companies
+              </p>
+            )}
+          </div>
           <Button 
             onClick={() => navigate("/checks/new")}
             className="gap-2"

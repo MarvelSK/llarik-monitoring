@@ -1,10 +1,18 @@
 
 import { Button } from "@/components/ui/button";
-import { PlusIcon } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useCompanies } from "@/context/CompanyContext";
+import { Building, ChevronDown, LogOut, PlusIcon, Settings, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Header = () => {
   const navigate = useNavigate();
+  const { currentUser, currentCompany, companies, setCurrentCompany, logout } = useCompanies();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
@@ -27,15 +35,64 @@ const Header = () => {
             </div>
             <span className="font-bold text-xl text-gray-900 dark:text-white">HealthBeat</span>
           </a>
+
+          {currentUser?.isAdmin && companies.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="ml-4 gap-1">
+                  <Building className="w-4 h-4 mr-1" />
+                  {currentCompany ? currentCompany.name : "All Companies"}
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => setCurrentCompany("")}>
+                  All Companies
+                </DropdownMenuItem>
+                {companies.map(company => (
+                  <DropdownMenuItem 
+                    key={company.id}
+                    onClick={() => setCurrentCompany(company.id)}
+                  >
+                    {company.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
-        <div className="flex items-center">
-          <Button 
-            onClick={() => navigate('/checks/new')} 
-            className="bg-healthy hover:bg-opacity-90 text-white"
-          >
-            <PlusIcon className="w-5 h-5 mr-2" />
-            New Check
-          </Button>
+        <div className="flex items-center space-x-2">
+          {currentUser && (
+            <>
+              <Button 
+                onClick={() => navigate('/checks/new')} 
+                className="bg-healthy hover:bg-opacity-90 text-white"
+              >
+                <PlusIcon className="w-5 h-5 mr-2" />
+                New Check
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="ml-2">
+                    <User className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {currentUser.isAdmin && (
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin Dashboard
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
       </div>
     </header>
