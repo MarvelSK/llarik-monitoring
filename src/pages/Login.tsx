@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,6 +18,7 @@ const formSchema = z.object({
 const Login = () => {
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -36,10 +37,13 @@ const Login = () => {
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsSubmitting(true);
       await signIn(values.email, values.password);
-      navigate("/");
+      // The navigation is now handled in the AuthContext after successful login
     } catch (error) {
       console.error("Login failed:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -97,7 +101,9 @@ const Login = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">Sign In</Button>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Signing In..." : "Sign In"}
+              </Button>
             </form>
           </Form>
         </CardContent>

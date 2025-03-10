@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log("Auth state changed", _event, session);
         setSession(session);
         
         if (session) {
@@ -57,6 +58,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               company_id: data.company_id,
               is_admin: data.is_admin
             });
+            
+            // Navigate to home page if not already there
+            if (window.location.pathname === '/login') {
+              navigate('/');
+            }
           }
         } else {
           setUser(null);
@@ -91,6 +97,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             company_id: data.company_id,
             is_admin: data.is_admin
           });
+          
+          // Navigate to home page if on login page
+          if (window.location.pathname === '/login') {
+            navigate('/');
+          }
         }
       }
       
@@ -102,7 +113,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -117,6 +128,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       toast.success("Successfully signed in!");
+      navigate('/');
     } catch (error) {
       console.error("Error signing in:", error);
       throw error;
