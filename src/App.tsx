@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import CompanyList from "./pages/admin/CompanyList";
 import CompanyDetail from "./pages/admin/CompanyDetail";
 import CompanyCreate from "./pages/admin/CompanyCreate";
+import { AuthProvider } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -25,63 +26,65 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <CompanyProvider>
-        <CheckProvider>
-          <BrowserRouter>
-            <Routes>
-              {/* Public route */}
-              <Route path="/login" element={<Login />} />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <RequireAuth>
-                  <Index />
-                </RequireAuth>
-              } />
-              <Route path="/checks/new" element={
-                <RequireAuth>
-                  <CheckCreate />
-                </RequireAuth>
-              } />
-              <Route path="/checks/:id" element={
-                <RequireAuth>
-                  <CheckDetail />
-                </RequireAuth>
-              } />
-              <Route path="/checks/:id/edit" element={
-                <RequireAuth>
-                  <CheckEdit />
-                </RequireAuth>
-              } />
-              
-              {/* Admin routes */}
-              <Route path="/admin" element={
-                <RequireAuth requireAdmin>
-                  <AdminDashboard />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies" element={
-                <RequireAuth requireAdmin>
-                  <CompanyList />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies/new" element={
-                <RequireAuth requireAdmin>
-                  <CompanyCreate />
-                </RequireAuth>
-              } />
-              <Route path="/admin/companies/:id" element={
-                <RequireAuth requireAdmin>
-                  <CompanyDetail />
-                </RequireAuth>
-              } />
-              
-              <Route path="/ping/:id" element={<div>Ping received successfully</div>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </CheckProvider>
-      </CompanyProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <CompanyProvider>
+            <CheckProvider>
+              <Routes>
+                {/* Public route */}
+                <Route path="/login" element={<Login />} />
+                
+                {/* Protected routes */}
+                <Route path="/" element={
+                  <RequireAuth>
+                    <Index />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/new" element={
+                  <RequireAuth>
+                    <CheckCreate />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/:id" element={
+                  <RequireAuth>
+                    <CheckDetail />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/:id/edit" element={
+                  <RequireAuth>
+                    <CheckEdit />
+                  </RequireAuth>
+                } />
+                
+                {/* Admin routes */}
+                <Route path="/admin" element={
+                  <RequireAuth requireAdmin>
+                    <AdminDashboard />
+                  </RequireAuth>
+                } />
+                <Route path="/admin/companies" element={
+                  <RequireAuth requireAdmin>
+                    <CompanyList />
+                  </RequireAuth>
+                } />
+                <Route path="/admin/companies/new" element={
+                  <RequireAuth requireAdmin>
+                    <CompanyCreate />
+                  </RequireAuth>
+                } />
+                <Route path="/admin/companies/:id" element={
+                  <RequireAuth requireAdmin>
+                    <CompanyDetail />
+                  </RequireAuth>
+                } />
+                
+                <Route path="/ping/:id" element={<div>Ping received successfully</div>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CheckProvider>
+          </CompanyProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

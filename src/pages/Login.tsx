@@ -6,9 +6,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useCompanies } from "@/context/CompanyContext";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -16,8 +16,15 @@ const formSchema = z.object({
 });
 
 const Login = () => {
-  const { setCurrentUser } = useCompanies();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect if already logged in
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -27,18 +34,12 @@ const Login = () => {
     },
   });
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    // This is just a mock authentication - in a real app, you would call an API
-    const users = JSON.parse(localStorage.getItem("healthbeat-users") || "[]");
-    const user = users.find((u: any) => u.email === values.email);
-
-    if (user) {
-      // In a real app, you would verify the password here
-      setCurrentUser(user);
-      toast.success(`Welcome back, ${user.name}!`);
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      await signIn(values.email, values.password);
       navigate("/");
-    } else {
-      toast.error("Invalid email or password");
+    } catch (error) {
+      console.error("Login failed:", error);
     }
   };
 
@@ -106,7 +107,7 @@ const Login = () => {
             <p>Admin: admin@example.com</p>
             <p>Company 1: john@acme.com</p>
             <p>Company 2: jane@globex.com</p>
-            <p>(Any password will work)</p>
+            <p>(Password: password123)</p>
           </div>
         </CardFooter>
       </Card>

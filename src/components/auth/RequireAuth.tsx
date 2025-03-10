@@ -1,7 +1,7 @@
 
 import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompanies } from "@/context/CompanyContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -9,22 +9,31 @@ interface RequireAuthProps {
 }
 
 const RequireAuth = ({ children, requireAdmin = false }: RequireAuthProps) => {
-  const { currentUser } = useCompanies();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/login");
-    } else if (requireAdmin && !currentUser.isAdmin) {
-      navigate("/");
+    if (!loading) {
+      if (!user) {
+        navigate("/login");
+      } else if (requireAdmin && !user.is_admin) {
+        navigate("/");
+      }
     }
-  }, [currentUser, navigate, requireAdmin]);
+  }, [user, navigate, requireAdmin, loading]);
 
-  if (!currentUser) {
+  // Show nothing while checking authentication
+  if (loading) {
     return null;
   }
 
-  if (requireAdmin && !currentUser.isAdmin) {
+  // Not authenticated
+  if (!user) {
+    return null;
+  }
+
+  // Not admin but admin is required
+  if (requireAdmin && !user.is_admin) {
     return null;
   }
 
