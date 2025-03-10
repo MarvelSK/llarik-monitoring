@@ -22,7 +22,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
   
   const copyPingUrl = () => {
     navigator.clipboard.writeText(getPingUrl(check.id));
-    toast.success('Ping URL copied to clipboard');
+    toast.success('URL pingu skopírované do schránky');
   };
 
   return (
@@ -31,7 +31,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-xl">{check.name}</CardTitle>
-            <CardDescription className="mt-1">{check.description || "No description"}</CardDescription>
+            <CardDescription className="mt-1">{check.description || "Žiadny popis"}</CardDescription>
           </div>
           <StatusBadge status={check.status} size="lg" withLabel />
         </div>
@@ -42,14 +42,14 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2 text-gray-500" />
               <span className="text-gray-700 dark:text-gray-300">
-                Period: <span className="font-medium">{check.period} minutes</span>
+                Perióda: <span className="font-medium">{check.period} minút</span>
               </span>
             </div>
             
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2 text-gray-500" />
               <span className="text-gray-700 dark:text-gray-300">
-                Grace Time: <span className="font-medium">{check.grace} minutes</span>
+                Čas odkladu: <span className="font-medium">{check.grace} minút</span>
               </span>
             </div>
 
@@ -67,7 +67,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
 
           <div className="space-y-3">
             <div className="flex items-center text-sm">
-              <span className="text-gray-700 dark:text-gray-300 mr-2">Created:</span>
+              <span className="text-gray-700 dark:text-gray-300 mr-2">Vytvorené:</span>
               <span className="font-medium">
                 {formatDistanceToNow(check.createdAt, { addSuffix: true })}
               </span>
@@ -75,7 +75,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
 
             {check.lastPing && (
               <div className="flex items-center text-sm">
-                <span className="text-gray-700 dark:text-gray-300 mr-2">Last ping:</span>
+                <span className="text-gray-700 dark:text-gray-300 mr-2">Posledný ping:</span>
                 <span className="font-medium">
                   {formatDistanceToNow(check.lastPing, { addSuffix: true })}
                 </span>
@@ -84,10 +84,10 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
 
             {check.nextPingDue && (
               <div className="flex items-center text-sm">
-                <span className="text-gray-700 dark:text-gray-300 mr-2">Next ping due:</span>
+                <span className="text-gray-700 dark:text-gray-300 mr-2">Ďalší ping očakávaný:</span>
                 <span className="font-medium">
                   {check.status === 'down' 
-                    ? 'Overdue' 
+                    ? 'Oneskorený' 
                     : formatDistance(new Date(), check.nextPingDue, { 
                         addSuffix: true 
                       })
@@ -101,7 +101,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <LinkIcon className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">Ping URL</span>
+                <span className="font-medium">URL pingu</span>
               </div>
               <Button
                 variant="ghost"
@@ -123,7 +123,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
             onClick={() => setShowIntegrations(!showIntegrations)}
           >
             <Bell className="h-4 w-4" />
-            {showIntegrations ? "Hide Integrations" : "Show Integrations"}
+            {showIntegrations ? "Skryť integrácie" : "Zobraziť integrácie"}
           </Button>
 
           {showIntegrations && (
@@ -137,7 +137,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
               <div>
                 <h4 className="text-sm text-gray-500 mb-2 flex items-center">
                   <Tag className="w-4 h-4 mr-1" />
-                  Tags
+                  Značky
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {check.tags.map((tag) => (

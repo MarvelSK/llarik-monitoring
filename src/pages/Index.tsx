@@ -26,7 +26,7 @@ const Index = () => {
     // Simulate refresh with a delay
     await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
-    toast.success("Dashboard refreshed");
+    toast.success("Nástenka obnovená");
   };
 
   return (
@@ -34,9 +34,9 @@ const Index = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Nástenka</h1>
             <p className="text-muted-foreground">
-              Monitor your scheduled tasks and cron jobs
+              Monitorovanie naplánovaných úloh a cron jobov
             </p>
           </div>
           <div className="flex gap-2">
@@ -53,7 +53,7 @@ const Index = () => {
               className="gap-2"
             >
               <PlusCircle className="w-4 h-4" />
-              New Check
+              Nová kontrola
             </Button>
           </div>
         </div>
@@ -75,26 +75,26 @@ const Index = () => {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             <StatusCard 
-              title="Total Checks" 
+              title="Celkový počet" 
               count={allChecks.length} 
               icon={<Activity className="w-5 h-5" />}
               color="bg-primary"
             />
             <StatusCard 
-              title="Up" 
+              title="Fungujúce" 
               count={upChecks.length} 
               icon={<Activity className="w-5 h-5" />}
               color="bg-healthy"
             />
             <StatusCard 
-              title="Running Late" 
+              title="Meškajúce" 
               count={lateChecks.length} 
               icon={<Clock className="w-5 h-5" />}
               color="bg-warning"
               pulseAnimation={lateChecks.length > 0}
             />
             <StatusCard 
-              title="Down" 
+              title="Nefungujúce" 
               count={downChecks.length} 
               icon={<AlertCircle className="w-5 h-5" />}
               color="bg-danger"
@@ -105,10 +105,10 @@ const Index = () => {
 
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="gap-1">
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">All Checks</TabsTrigger>
-            <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Up</TabsTrigger>
-            <TabsTrigger value="grace" className="data-[state=active]:bg-warning/10">Running Late</TabsTrigger>
-            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Down</TabsTrigger>
+            <TabsTrigger value="all" className="data-[state=active]:bg-primary/10">Všetky kontroly</TabsTrigger>
+            <TabsTrigger value="up" className="data-[state=active]:bg-healthy/10">Fungujúce</TabsTrigger>
+            <TabsTrigger value="grace" className="data-[state=active]:bg-warning/10">Meškajúce</TabsTrigger>
+            <TabsTrigger value="down" className="data-[state=active]:bg-danger/10">Nefungujúce</TabsTrigger>
           </TabsList>
           <TabsContent value="all">
             <CheckTable checks={allChecks} />

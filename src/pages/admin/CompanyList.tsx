@@ -25,14 +25,14 @@ const CompanyList = () => {
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <h1 className="text-2xl font-bold">Companies</h1>
+            <h1 className="text-2xl font-bold">Spoločnosti</h1>
           </div>
           <Button 
             onClick={() => navigate("/admin/companies/new")}
             className="gap-2"
           >
             <PlusCircle className="w-4 h-4" />
-            New Company
+            Nová spoločnosť
           </Button>
         </div>
 
@@ -40,11 +40,11 @@ const CompanyList = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Checks</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Názov</TableHead>
+                <TableHead>Popis</TableHead>
+                <TableHead>Vytvorené</TableHead>
+                <TableHead>Kontroly</TableHead>
+                <TableHead>Akcie</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -60,7 +60,7 @@ const CompanyList = () => {
                       size="sm"
                       onClick={() => navigate(`/admin/companies/${company.id}`)}
                     >
-                      View
+                      Zobraziť
                     </Button>
                   </TableCell>
                 </TableRow>

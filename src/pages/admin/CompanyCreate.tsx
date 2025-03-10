@@ -14,7 +14,7 @@ import { useCompanies } from "@/context/CompanyContext";
 import { toast } from "sonner";
 
 const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Názov je povinný"),
   description: z.string().optional(),
 });
 
@@ -32,7 +32,7 @@ const CompanyCreate = () => {
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     createCompany(values);
-    toast.success("Company created successfully");
+    toast.success("Spoločnosť bola úspešne vytvorená");
     navigate("/admin/companies");
   };
 
@@ -47,16 +47,16 @@ const CompanyCreate = () => {
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-2xl font-bold">Create New Company</h1>
+          <h1 className="text-2xl font-bold">Vytvoriť novú spoločnosť</h1>
         </div>
 
         <Card className="max-w-2xl mx-auto">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)}>
               <CardHeader>
-                <CardTitle>Company Information</CardTitle>
+                <CardTitle>Informácie o spoločnosti</CardTitle>
                 <CardDescription>
-                  Create a new company to organize checks
+                  Vytvorte novú spoločnosť pre organizáciu kontrol
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -65,12 +65,12 @@ const CompanyCreate = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company Name</FormLabel>
+                      <FormLabel>Názov spoločnosti</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Corp" {...field} />
+                        <Input placeholder="Acme s.r.o." {...field} />
                       </FormControl>
                       <FormDescription>
-                        The name of the company
+                        Názov spoločnosti
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -82,15 +82,15 @@ const CompanyCreate = () => {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description</FormLabel>
+                      <FormLabel>Popis</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="A brief description of the company"
+                          placeholder="Stručný popis spoločnosti"
                           {...field}
                         />
                       </FormControl>
                       <FormDescription>
-                        Optional details about the company
+                        Voliteľné detaily o spoločnosti
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -103,10 +103,10 @@ const CompanyCreate = () => {
                   variant="outline"
                   onClick={() => navigate("/admin/companies")}
                 >
-                  Cancel
+                  Zrušiť
                 </Button>
                 <Button type="submit">
-                  Create Company
+                  Vytvoriť spoločnosť
                 </Button>
               </CardFooter>
             </form>

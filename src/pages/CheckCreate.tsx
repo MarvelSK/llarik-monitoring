@@ -28,7 +28,7 @@ const CheckCreate = () => {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create New Check</h1>
+            <h1 className="text-2xl font-bold">Vytvoriť novú kontrolu</h1>
           </div>
         </div>
 

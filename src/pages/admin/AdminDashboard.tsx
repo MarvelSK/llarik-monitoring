@@ -15,13 +15,13 @@ const AdminDashboard = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Administračná nástenka</h1>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           <Card className="hover:shadow-md transition-shadow cursor-pointer" 
                 onClick={() => navigate("/admin/companies")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Total Companies</CardTitle>
+              <CardTitle className="text-sm font-medium">Celkový počet spoločností</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -30,7 +30,7 @@ const AdminDashboard = () => {
           </Card>
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium">Celkový počet užívateľov</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
           </Card>
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardTitle className="text-sm font-medium">Total Checks</CardTitle>
+              <CardTitle className="text-sm font-medium">Celkový počet kontrol</CardTitle>
               <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -50,7 +50,7 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        <h2 className="text-xl font-semibold mt-8 mb-4">All Companies</h2>
+        <h2 className="text-xl font-semibold mt-8 mb-4">Všetky spoločnosti</h2>
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {companies.map((company) => (
             <Card 
@@ -61,15 +61,15 @@ const AdminDashboard = () => {
               <CardHeader>
                 <CardTitle>{company.name}</CardTitle>
                 <CardDescription>
-                  {company.description || "No description"}
+                  {company.description || "Žiadny popis"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-muted-foreground">
-                  Created {formatDistanceToNow(company.createdAt, { addSuffix: true })}
+                  Vytvorené {formatDistanceToNow(company.createdAt, { addSuffix: true })}
                 </div>
                 <div className="text-sm mt-2">
-                  {checks.filter(check => check.companyId === company.id).length} checks
+                  {checks.filter(check => check.companyId === company.id).length} kontrol
                 </div>
               </CardContent>
             </Card>

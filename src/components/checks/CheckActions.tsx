@@ -45,18 +45,18 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
     onDelete();
     setShowDeleteDialog(false);
     navigate("/");
-    toast.success("Check deleted successfully");
+    toast.success("Kontrola úspešne odstránená");
   };
 
   const handlePing = (status: CheckPing["status"]) => {
     onPing(status);
-    toast.success(`Sent a "${status}" ping`);
+    toast.success(`Odoslaný ping "${status}"`);
   };
 
   const copyCheckUrl = () => {
     // In a real app, this would be a unique URL for the check
     navigator.clipboard.writeText(`https://healthbeat.app/ping/${check.id}`);
-    toast.success("Ping URL copied to clipboard");
+    toast.success("URL pingu skopírované do schránky");
   };
 
   return (
@@ -64,7 +64,7 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
       <div className="flex items-center space-x-2">
         <Button onClick={() => handlePing('success')} className="bg-healthy text-white hover:bg-opacity-90">
           <Play className="w-4 h-4 mr-2" />
-          Ping Now
+          Ping teraz
         </Button>
         
         <DropdownMenu>
@@ -76,24 +76,24 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleEdit}>
               <Edit className="w-4 h-4 mr-2" />
-              Edit
+              Upraviť
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePing('success')}>
               <Play className="w-4 h-4 mr-2" />
-              Ping Success
+              Ping úspešný
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePing('failure')}>
               <AlertCircle className="w-4 h-4 mr-2" />
-              Ping Failure
+              Ping zlyhaný
             </DropdownMenuItem>
             <DropdownMenuItem onClick={copyCheckUrl}>
               <Copy className="w-4 h-4 mr-2" />
-              Copy Ping URL
+              Kopírovať URL pingu
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600" onClick={handleDelete}>
               <Trash className="w-4 h-4 mr-2" />
-              Delete
+              Odstrániť
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -102,19 +102,19 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Ste si istý?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the "{check.name}" check and all its ping history.
-              This action cannot be undone.
+              Týmto natrvalo odstránite kontrolu "{check.name}" a celú jej históriu pingov.
+              Túto akciu nie je možné vrátiť späť.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Zrušiť</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground"
             >
-              Delete
+              Odstrániť
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

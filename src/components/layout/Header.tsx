@@ -33,7 +33,7 @@ const Header = () => {
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
               </svg>
             </div>
-            <span className="font-bold text-xl text-gray-900 dark:text-white">HealthBeat</span>
+            <span className="font-bold text-xl text-gray-900 dark:text-white">ZdravieTep</span>
           </a>
 
           {currentUser?.isAdmin && companies.length > 0 && (
@@ -41,13 +41,13 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="ml-4 gap-1">
                   <Building className="w-4 h-4 mr-1" />
-                  {currentCompany ? currentCompany.name : "All Companies"}
+                  {currentCompany ? currentCompany.name : "Všetky spoločnosti"}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onClick={() => setCurrentCompany("")}>
-                  All Companies
+                  Všetky spoločnosti
                 </DropdownMenuItem>
                 {companies.map(company => (
                   <DropdownMenuItem 
@@ -69,7 +69,7 @@ const Header = () => {
                 className="bg-healthy hover:bg-opacity-90 text-white"
               >
                 <PlusIcon className="w-5 h-5 mr-2" />
-                New Check
+                Nová kontrola
               </Button>
 
               <DropdownMenu>
@@ -82,12 +82,12 @@ const Header = () => {
                   {currentUser.isAdmin && (
                     <DropdownMenuItem onClick={() => navigate("/admin")}>
                       <Settings className="w-4 h-4 mr-2" />
-                      Admin Dashboard
+                      Administračná nástenka
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    Odhlásiť sa
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

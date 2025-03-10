@@ -96,7 +96,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
   const copyPingUrl = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(getPingUrl(id));
-    toast.success('Ping URL copied to clipboard');
+    toast.success('URL pingu skopírované do schránky');
   };
 
   const getEnvironmentColor = (env: CheckEnvironment) => {
@@ -115,7 +115,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <Input
             className="pl-10"
-            placeholder="Filter by check name..."
+            placeholder="Filtrovať podľa názvu kontroly..."
             disabled
           />
         </div>
@@ -123,11 +123,11 @@ const CheckTable = ({ checks }: CheckTableProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">Status</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden lg:table-cell">Period / Grace</TableHead>
-                <TableHead className="hidden md:table-cell">Last Ping</TableHead>
-                <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
+                <TableHead className="w-12">Stav</TableHead>
+                <TableHead>Názov</TableHead>
+                <TableHead className="hidden lg:table-cell">Perióda / Odklad</TableHead>
+                <TableHead className="hidden md:table-cell">Posledný ping</TableHead>
+                <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -169,7 +169,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <Input
           className="pl-10"
-          placeholder="Filter by check name..."
+          placeholder="Filtrovať podľa názvu kontroly..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -179,8 +179,8 @@ const CheckTable = ({ checks }: CheckTableProps) => {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 text-center">
           <p className="text-gray-500 dark:text-gray-400">
             {checks.length === 0 
-              ? "No checks added yet. Click 'New Check' to add one." 
-              : "No checks match your search term."}
+              ? "Zatiaľ neboli pridané žiadne kontroly. Kliknite na 'Nová kontrola' pre pridanie." 
+              : "Vášmu vyhľadávaniu nezodpovedajú žiadne kontroly."}
           </p>
         </div>
       ) : (
@@ -194,7 +194,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     onClick={() => handleSort('status')} 
                     className="h-8 px-2"
                   >
-                    Status
+                    Stav
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
@@ -204,7 +204,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     onClick={() => handleSort('name')} 
                     className="h-8 px-2 text-left"
                   >
-                    Name
+                    Názov
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
@@ -214,7 +214,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     onClick={() => handleSort('period')} 
                     className="h-8 px-2"
                   >
-                    Period / Grace
+                    Perióda / Odklad
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
@@ -224,11 +224,11 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     onClick={() => handleSort('lastPingFormatted')} 
                     className="h-8 px-2"
                   >
-                    Last Ping
+                    Posledný ping
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
-                <TableHead className="hidden sm:table-cell">Ping URL</TableHead>
+                <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -253,14 +253,14 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     </div>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    <div>{check.period} minutes</div>
-                    <div className="text-muted-foreground text-sm">{check.grace} minutes grace</div>
+                    <div>{check.period} minút</div>
+                    <div className="text-muted-foreground text-sm">{check.grace} minút odklad</div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div>
                       {check.lastPing 
                         ? formatDistanceToNow(check.lastPing, { addSuffix: true })
-                        : "Never"}
+                        : "Nikdy"}
                     </div>
                     {check.lastDuration && (
                       <div className="text-muted-foreground text-sm">
@@ -276,7 +276,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       onClick={(e) => copyPingUrl(check.id, e)}
                     >
                       <Copy className="h-4 w-4" />
-                      <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Copy URL</span>
+                      <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Kopírovať URL</span>
                     </Button>
                   </TableCell>
                   <TableCell>
@@ -284,7 +284,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
+                          <span className="sr-only">Otvoriť menu</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -292,13 +292,13 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                           e.stopPropagation();
                           navigate(`/checks/${check.id}`);
                         }}>
-                          View details
+                          Zobraziť detaily
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/checks/${check.id}/edit`);
                         }}>
-                          Edit
+                          Upraviť
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

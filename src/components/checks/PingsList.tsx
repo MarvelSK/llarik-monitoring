@@ -89,7 +89,7 @@ const PingsList = ({ checkId }: PingsListProps) => {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Recent Pings</h3>
+          <h3 className="text-lg font-medium">Nedávne pingy</h3>
         </div>
         <div className="space-y-3">
           {Array(5).fill(0).map((_, i) => (
@@ -109,11 +109,11 @@ const PingsList = ({ checkId }: PingsListProps) => {
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Recent Pings</h3>
+        <h3 className="text-lg font-medium">Nedávne pingy</h3>
       </div>
       {pings.length === 0 ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <p>No pings recorded yet</p>
+          <p>Zatiaľ neboli zaznamenané žiadne pingy</p>
         </div>
       ) : (
         <div className="space-y-1 max-h-[400px] overflow-y-auto">

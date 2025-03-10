@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -23,10 +24,10 @@ interface CheckFormProps {
 const environmentOptions: CheckEnvironment[] = ["prod", "sandbox", "worker", "db-backups"];
 
 const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Názov je povinný"),
   description: z.string().optional(),
-  period: z.coerce.number().min(1, "Period must be at least 1 minute"),
-  grace: z.coerce.number().min(1, "Grace period must be at least 1 minute"),
+  period: z.coerce.number().min(1, "Perióda musí byť aspoň 1 minúta"),
+  grace: z.coerce.number().min(1, "Doba odkladu musí byť aspoň 1 minúta"),
   tags: z.string().optional(),
   environments: z.array(z.string()).optional(),
   cronExpression: z.string().optional(),
@@ -73,9 +74,10 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
     onSubmit({
       ...values,
       tags,
+      environments: values.environments as CheckEnvironment[]
     });
 
-    toast.success(isEdit ? "Check updated successfully" : "Check created successfully");
+    toast.success(isEdit ? "Kontrola úspešne aktualizovaná" : "Kontrola úspešne vytvorená");
     
     if (!isEdit) {
       navigate("/");
@@ -87,9 +89,9 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardHeader>
-            <CardTitle>{isEdit ? "Edit Check" : "Create a New Check"}</CardTitle>
+            <CardTitle>{isEdit ? "Upraviť kontrolu" : "Vytvoriť novú kontrolu"}</CardTitle>
             <CardDescription>
-              Configure your scheduled task monitoring
+              Konfigurácia monitorovania naplánovanej úlohy
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -98,12 +100,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Názov</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Database Backup" {...field} />
+                    <Input placeholder="napr., Záloha databázy" {...field} />
                   </FormControl>
                   <FormDescription>
-                    A name to identify this scheduled task
+                    Názov na identifikáciu tejto naplánovanej úlohy
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -115,15 +117,15 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Popis</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="e.g., Runs daily at 3am to backup our PostgreSQL database"
+                      placeholder="napr., Spúšťa sa denne o 3:00 pre zálohu našej PostgreSQL databázy"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    Optional details about the check
+                    Voliteľné detaily o kontrole
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -134,7 +136,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
             
             <Tabs defaultValue="simple">
               <TabsList className="mb-4">
-                <TabsTrigger value="simple">Simple</TabsTrigger>
+                <TabsTrigger value="simple">Jednoduchá</TabsTrigger>
                 <TabsTrigger value="cron">Cron</TabsTrigger>
               </TabsList>
               
@@ -145,12 +147,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     name="period"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Period (minutes)</FormLabel>
+                        <FormLabel>Perióda (minúty)</FormLabel>
                         <FormControl>
                           <Input type="number" min={1} {...field} />
                         </FormControl>
                         <FormDescription>
-                          Expected time between pings
+                          Očakávaný čas medzi pingmi
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -162,12 +164,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     name="grace"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Grace Period (minutes)</FormLabel>
+                        <FormLabel>Doba odkladu (minúty)</FormLabel>
                         <FormControl>
                           <Input type="number" min={1} {...field} />
                         </FormControl>
                         <FormDescription>
-                          How long to wait before alerting
+                          Ako dlho čakať pred upozornením
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -182,12 +184,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   name="cronExpression"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cron Expression</FormLabel>
+                      <FormLabel>Cron výraz</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., 0 3 * * *" {...field} />
+                        <Input placeholder="napr., 0 3 * * *" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Specify a cron schedule (e.g., "0 3 * * *" for every day at 3am)
+                        Zadajte cron harmonogram (napr., "0 3 * * *" pre každý deň o 3:00)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -198,12 +200,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   name="grace"
                   render={({ field }) => (
                     <FormItem className="mt-4">
-                      <FormLabel>Grace Period (minutes)</FormLabel>
+                      <FormLabel>Doba odkladu (minúty)</FormLabel>
                       <FormControl>
                         <Input type="number" min={1} {...field} />
                       </FormControl>
                       <FormDescription>
-                        How long to wait before alerting
+                        Ako dlho čakať pred upozornením
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -217,7 +219,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               name="environments"
               render={() => (
                 <FormItem>
-                  <FormLabel>Environments</FormLabel>
+                  <FormLabel>Prostredia</FormLabel>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {environmentOptions.map((env) => {
                       const isSelected = form.getValues().environments?.includes(env) || false;
@@ -233,7 +235,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     })}
                   </div>
                   <FormDescription>
-                    Select environment tags for this check
+                    Vyberte značky prostredia pre túto kontrolu
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -245,12 +247,12 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags</FormLabel>
+                  <FormLabel>Značky</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., production, database, backup" {...field} />
+                    <Input placeholder="napr., produkcia, databáza, záloha" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Comma-separated tags to categorize your checks
+                    Čiarkou oddelené značky na kategorizáciu vašich kontrol
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -263,10 +265,10 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               variant="outline"
               onClick={() => navigate(isEdit ? `/checks/${defaultValues?.id}` : "/")}
             >
-              Cancel
+              Zrušiť
             </Button>
             <Button type="submit" className="bg-healthy hover:bg-opacity-90 text-white">
-              {isEdit ? "Update Check" : "Create Check"}
+              {isEdit ? "Aktualizovať kontrolu" : "Vytvoriť kontrolu"}
             </Button>
           </CardFooter>
         </form>

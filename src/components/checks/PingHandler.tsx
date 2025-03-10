@@ -70,12 +70,12 @@ const PingHandler = () => {
           <div className="h-12 w-12 mx-auto mb-4 flex items-center justify-center bg-red-100 dark:bg-red-900 rounded-full">
             <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Error Processing Ping</h1>
+          <h1 className="text-2xl font-bold mb-2">Chyba pri spracovaní pingu</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            We couldn't process your ping. The check may not exist or has been deleted.
+            Nemohli sme spracovať váš ping. Kontrola neexistuje alebo bola odstránená.
           </p>
           <Button asChild>
-            <Link to="/">Go to Dashboard</Link>
+            <Link to="/">Späť na nástenku</Link>
           </Button>
         </div>
       </div>
@@ -88,12 +88,12 @@ const PingHandler = () => {
         <div className="h-12 w-12 mx-auto mb-4 flex items-center justify-center bg-green-100 dark:bg-green-900 rounded-full">
           <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Ping Received Successfully</h1>
+        <h1 className="text-2xl font-bold mb-2">Ping úspešne prijatý</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Your check has been updated and the status is now UP.
+          Vaša kontrola bola aktualizovaná a stav je teraz FUNKČNÝ.
         </p>
         <Button asChild>
-          <Link to="/">Go to Dashboard</Link>
+          <Link to="/">Späť na nástenku</Link>
         </Button>
       </div>
     </div>
