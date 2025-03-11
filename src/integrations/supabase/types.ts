@@ -197,9 +197,9 @@ export type Database = {
       }
       invite_user_to_project: {
         Args: {
-          project_id: string
-          email: string
-          permissions?: string
+          p_project_id: string
+          p_email: string
+          p_permissions?: string
         }
         Returns: boolean
       }

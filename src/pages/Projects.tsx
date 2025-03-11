@@ -1,4 +1,3 @@
-
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -139,9 +138,9 @@ const Projects = () => {
       }
       
       const { data, error } = await supabase.rpc('invite_user_to_project', {
-        project_id: projectForMember.id,
-        email: memberEmail.trim(),
-        permissions: memberPermissions
+        p_project_id: projectForMember.id,
+        p_email: memberEmail.trim(),
+        p_permissions: memberPermissions
       });
       
       if (error) throw error;
@@ -514,3 +513,4 @@ const Projects = () => {
 };
 
 export default Projects;
+

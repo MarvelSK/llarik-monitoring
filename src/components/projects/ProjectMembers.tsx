@@ -33,10 +33,11 @@ const ProjectMembers = ({ projectId, isOwner, members, onMembersChange }: Projec
     try {
       setIsSubmitting(true);
       
+      // Updated parameter names to match the fixed function
       const { data, error } = await supabase.rpc('invite_user_to_project', {
-        project_id: projectId,
-        email: email.trim(),
-        permissions: permissions
+        p_project_id: projectId,
+        p_email: email.trim(),
+        p_permissions: permissions
       });
       
       if (error) throw error;
