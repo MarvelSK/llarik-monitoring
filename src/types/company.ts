@@ -10,6 +10,7 @@ export interface User {
 export interface Company {
   id: string;
   name: string;
+  ico?: string;
   description?: string;
   createdAt: Date;
 }

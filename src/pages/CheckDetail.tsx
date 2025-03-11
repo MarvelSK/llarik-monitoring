@@ -1,3 +1,4 @@
+
 import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChecks } from "@/context/CheckContext";
+import { useCompanies } from "@/context/CompanyContext";
 import { CheckPing, CheckEnvironment } from "@/types/check";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -14,8 +16,10 @@ const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getCheck, pingCheck, deleteCheck, loading } = useChecks();
+  const { getCompany } = useCompanies();
 
   const check = id ? getCheck(id) : undefined;
+  const company = check?.companyId ? getCompany(check.companyId) : undefined;
 
   if (loading) {
     return (
@@ -135,6 +139,11 @@ const CheckDetail = () => {
                 </Button>
               </h1>
               <div className="flex flex-wrap gap-1 mt-1">
+                {company && (
+                  <Badge className="bg-blue-500 text-white">
+                    {company.name}
+                  </Badge>
+                )}
                 {check.environments?.map((env) => (
                   <Badge key={env} className={`${getEnvironmentColor(env)}`}>
                     {env}

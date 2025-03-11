@@ -1,4 +1,3 @@
-
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,9 @@ const Index = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Nástenka</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {currentCompany ? `Nástenka - ${currentCompany.name}` : 'Nástenka'}
+            </h1>
             <p className="text-muted-foreground">
               Monitorovanie systémových úloh
             </p>
