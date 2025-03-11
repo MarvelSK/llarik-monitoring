@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Info } from "lucide-react";
+import ProjectSelector from "@/components/projects/ProjectSelector";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -31,6 +31,7 @@ const formSchema = z.object({
   tags: z.string().optional(),
   environments: z.array(z.string()).optional(),
   cronExpression: z.string().optional(),
+  projectId: z.string().optional(),
 });
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
@@ -46,6 +47,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       tags: defaultValues?.tags?.join(", ") || "",
       environments: defaultValues?.environments || [],
       cronExpression: defaultValues?.cronExpression || "",
+      projectId: defaultValues?.projectId || "",
     },
   });
 
@@ -110,6 +112,8 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                 </FormItem>
               )}
             />
+
+            <ProjectSelector control={form.control} />
 
             <FormField
               control={form.control}
