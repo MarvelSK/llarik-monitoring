@@ -1,4 +1,3 @@
-
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -8,33 +7,74 @@ import { useCompanies } from "@/context/CompanyContext";
 import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const { checks, loading } = useChecks();
   const { currentCompany, currentUser } = useCompanies();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
 
-  // Filter checks by current company's ID from the current user
-  const companyChecks = useMemo(() => {
-    // If there's no current user or company ID, don't show any checks
-    if (!currentUser?.companyId) return [];
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            return;
+          }
+          
+          if (profile && profile.company_id) {
+            console.log('User company ID from profiles:', profile.company_id);
+            setUserCompanyId(profile.company_id);
+          } else {
+            console.log('User has no company assigned in profiles table');
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchUserProfile:', error);
+      }
+    };
     
-    // Only show checks that match the user's company ID
-    return checks.filter(check => check.companyId === currentUser.companyId);
-  }, [checks, currentUser]);
+    fetchUserProfile();
+  }, []);
+
+  const companyChecks = useMemo(() => {
+    if (!userCompanyId) {
+      console.log('No company ID available, not showing any checks');
+      return [];
+    }
+    
+    const filtered = checks.filter(check => {
+      const match = check.companyId === userCompanyId;
+      if (match) {
+        console.log(`Check ${check.id} matches company ${userCompanyId}`);
+      }
+      return match;
+    });
+    
+    console.log(`Found ${filtered.length} checks for company ID ${userCompanyId}`);
+    return filtered;
+  }, [checks, userCompanyId]);
 
   const allChecks = companyChecks;
   const upChecks = companyChecks.filter((check) => check.status === "up");
   const downChecks = companyChecks.filter((check) => check.status === "down");
   const lateChecks = companyChecks.filter((check) => check.status === "grace");
 
-  // Function to handle manual refresh
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh with a delay
     await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
     toast.success("Nástenka obnovená");
