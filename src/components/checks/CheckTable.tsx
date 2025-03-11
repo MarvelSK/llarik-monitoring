@@ -2,18 +2,13 @@
 import { Check, CheckEnvironment } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { formatDistanceToNow } from "date-fns";
+import { sk } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, MoreHorizontal, Copy, ArrowUpDown } from "lucide-react";
+import { Search, Copy, ArrowUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { toast } from "sonner";
@@ -261,9 +256,9 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <div>
-                      {check.lastPing 
-                        ? formatDistanceToNow(check.lastPing, { addSuffix: true })
-                        : "Nikdy"}
+                      {check.lastPing
+                          ? formatDistanceToNow(check.lastPing, { addSuffix: true, locale: sk })
+                          : "Nikdy"}
                     </div>
                     {check.lastDuration && (
                       <div className="text-muted-foreground text-sm">
@@ -281,30 +276,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       <Copy className="h-4 w-4" />
                       <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Kopírovať URL</span>
                     </Button>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Otvoriť menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/checks/${check.id}`);
-                        }}>
-                          Zobraziť detaily
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/checks/${check.id}/edit`);
-                        }}>
-                          Upraviť
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

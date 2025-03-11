@@ -4,6 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {sk} from "date-fns/locale";
 
 interface PingsListProps {
   checkId: string;
@@ -126,7 +127,7 @@ const PingsList = ({ checkId }: PingsListProps) => {
               <div>
                 <div className="font-medium">{ping.status}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatDistanceToNow(ping.timestamp, { addSuffix: true })}
+                  {formatDistanceToNow(ping.timestamp, { addSuffix: true, locale: sk })}
                 </div>
               </div>
             </div>

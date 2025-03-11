@@ -278,9 +278,9 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
       
       {integrations.length === 0 && !isAdding ? (
         <div className="text-center p-4 border border-dashed rounded-md">
-          <p className="text-muted-foreground">No integrations configured yet</p>
+          <p className="text-muted-foreground">Žiadne existujúce integrácie</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Add an integration to get notified when this check changes status.
+            Pridajte integráciu pre oznamovanie nových stavov kontrol.
           </p>
         </div>
       ) : (

@@ -11,6 +11,7 @@ import { useChecks } from "@/context/CheckContext";
 import { toast } from "sonner";
 import { useState } from "react";
 import { IntegrationsPanel } from "../integrations/IntegrationsPanel";
+import {sk} from "date-fns/locale";
 
 interface CheckSummaryProps {
   check: Check;
@@ -69,7 +70,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
             <div className="flex items-center text-sm">
               <span className="text-gray-700 dark:text-gray-300 mr-2">Vytvorené:</span>
               <span className="font-medium">
-                {formatDistanceToNow(check.createdAt, { addSuffix: true })}
+                {formatDistanceToNow(check.createdAt, { addSuffix: true, locale: sk })}
               </span>
             </div>
 
@@ -77,7 +78,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
               <div className="flex items-center text-sm">
                 <span className="text-gray-700 dark:text-gray-300 mr-2">Posledný ping:</span>
                 <span className="font-medium">
-                  {formatDistanceToNow(check.lastPing, { addSuffix: true })}
+                  {formatDistanceToNow(check.lastPing, { addSuffix: true, locale: sk })}
                 </span>
               </div>
             )}
@@ -137,7 +138,7 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
               <div>
                 <h4 className="text-sm text-gray-500 mb-2 flex items-center">
                   <Tag className="w-4 h-4 mr-1" />
-                  Značky
+                  Kód Úlohy
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {check.tags.map((tag) => (

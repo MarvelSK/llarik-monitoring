@@ -250,9 +250,9 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Značky</FormLabel>
+                  <FormLabel>Kód Úlohy</FormLabel>
                   <FormControl>
-                    <Input placeholder="napr. Firma s.r.o." {...field} />
+                    <Input placeholder="napr. WKD01, IC001" {...field} />
                   </FormControl>
                   <FormDescription>
                     Čiarkou oddelené značky na kategorizáciu vašich kontrol

@@ -34,13 +34,13 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="ml-4 gap-1">
                   <Building className="w-4 h-4 mr-1" />
-                  {currentProject ? currentProject.name : "All Projects"}
+                  {currentProject ? currentProject.name : "Všetky Projekty"}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuItem onClick={() => setCurrentProject("")}>
-                  All Projects
+                  Všetky Projekty
                 </DropdownMenuItem>
                 {projects.map(project => <DropdownMenuItem key={project.id} onClick={() => setCurrentProject(project.id)}>
                     {project.name}
@@ -48,7 +48,7 @@ const Header = () => {
                 <DropdownMenuItem asChild>
                   <Link to="/projects" className="w-full">
                     <FolderKanban className="w-4 h-4 mr-2" />
-                    Manage Projects
+                    Správa Projektov
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -64,7 +64,7 @@ const Header = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                Odhlásiť sa
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
