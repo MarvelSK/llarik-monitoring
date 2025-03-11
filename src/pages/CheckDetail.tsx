@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChecks } from "@/context/CheckContext";
-import { useCompanies } from "@/context/CompanyContext";
-import { CheckPing, CheckEnvironment } from "@/types/check";
+import { CheckPing } from "@/types/check";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -16,10 +15,8 @@ const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getCheck, pingCheck, deleteCheck, loading } = useChecks();
-  const { getCompany } = useCompanies();
 
   const check = id ? getCheck(id) : undefined;
-  const company = check?.companyId ? getCompany(check.companyId) : undefined;
 
   if (loading) {
     return (
@@ -96,11 +93,12 @@ const CheckDetail = () => {
     );
   }
 
-  const getEnvironmentColor = (env: CheckEnvironment) => {
+  const getEnvironmentColor = (env: string) => {
     switch(env) {
-      case 'produkcia': return 'bg-amber-500 text-white';
-      case 'test': return 'bg-rose-500 text-white';
-      case 'manuál': return 'bg-slate-500 text-white';
+      case 'prod': return 'bg-amber-500 text-white';
+      case 'sandbox': return 'bg-rose-500 text-white';
+      case 'worker': return 'bg-slate-500 text-white';
+      case 'db-backups': return 'bg-blue-500 text-white';
       default: return 'bg-gray-200 text-gray-800';
     }
   };
@@ -139,11 +137,6 @@ const CheckDetail = () => {
                 </Button>
               </h1>
               <div className="flex flex-wrap gap-1 mt-1">
-                {company && (
-                  <Badge className="bg-blue-500 text-white">
-                    {company.name}
-                  </Badge>
-                )}
                 {check.environments?.map((env) => (
                   <Badge key={env} className={`${getEnvironmentColor(env)}`}>
                     {env}

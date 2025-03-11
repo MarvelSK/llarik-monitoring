@@ -23,5 +23,5 @@ export interface Check {
   cronExpression?: string;
   createdAt: Date;
   lastDuration?: number; // in seconds, for showing execution time
-  companyId: string; // Changed from optional to required
+  companyId?: string;
 }
