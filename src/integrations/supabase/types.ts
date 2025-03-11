@@ -185,6 +185,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_accessible_projects: {
+        Args: {
+          user_id: string
+        }
+        Returns: string[]
+      }
       get_user_profile: {
         Args: Record<PropertyKey, never>
         Returns: string
