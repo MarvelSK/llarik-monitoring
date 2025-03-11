@@ -4,19 +4,47 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
 import { CheckProvider } from "./context/CheckContext";
-import CheckDetail from "./pages/CheckDetail";
-import CheckCreate from "./pages/CheckCreate";
-import CheckEdit from "./pages/CheckEdit";
-import Login from "./pages/Login";
+import { ProjectProvider } from "./context/ProjectContext";
 import RequireAuth from "./components/auth/RequireAuth";
 import PingHandler from "./components/checks/PingHandler";
-import { ProjectProvider } from "./context/ProjectContext";
-import Projects from "./pages/Projects";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const queryClient = new QueryClient();
+// Lazy load pages to improve initial load time
+const Index = lazy(() => import("./pages/Index"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const CheckDetail = lazy(() => import("./pages/CheckDetail"));
+const CheckCreate = lazy(() => import("./pages/CheckCreate"));
+const CheckEdit = lazy(() => import("./pages/CheckEdit"));
+const Login = lazy(() => import("./pages/Login"));
+const Projects = lazy(() => import("./pages/Projects"));
+
+// Configure QueryClient for better performance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      cacheTime: 1000 * 60 * 10, // 10 minutes
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="space-y-4 w-full max-w-md">
+      <Skeleton className="h-12 w-3/4 mx-auto" />
+      <Skeleton className="h-64 w-full" />
+      <div className="grid grid-cols-2 gap-4">
+        <Skeleton className="h-8" />
+        <Skeleton className="h-8" />
+      </div>
+    </div>
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -26,39 +54,41 @@ const App = () => (
       <ProjectProvider>
         <CheckProvider>
           <BrowserRouter>
-            <Routes>
-              {/* Public route */}
-              <Route path="/login" element={<Login />} />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <RequireAuth>
-                  <Index />
-                </RequireAuth>
-              } />
-              <Route path="/projects" element={
-                <RequireAuth>
-                  <Projects />
-                </RequireAuth>
-              } />
-              <Route path="/checks/new" element={
-                <RequireAuth>
-                  <CheckCreate />
-                </RequireAuth>
-              } />
-              <Route path="/checks/:id" element={
-                <RequireAuth>
-                  <CheckDetail />
-                </RequireAuth>
-              } />
-              <Route path="/checks/:id/edit" element={
-                <RequireAuth>
-                  <CheckEdit />
-                </RequireAuth>
-              } />
-              <Route path="/ping/:id" element={<PingHandler />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public route */}
+                <Route path="/login" element={<Login />} />
+                
+                {/* Protected routes */}
+                <Route path="/" element={
+                  <RequireAuth>
+                    <Index />
+                  </RequireAuth>
+                } />
+                <Route path="/projects" element={
+                  <RequireAuth>
+                    <Projects />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/new" element={
+                  <RequireAuth>
+                    <CheckCreate />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/:id" element={
+                  <RequireAuth>
+                    <CheckDetail />
+                  </RequireAuth>
+                } />
+                <Route path="/checks/:id/edit" element={
+                  <RequireAuth>
+                    <CheckEdit />
+                  </RequireAuth>
+                } />
+                <Route path="/ping/:id" element={<PingHandler />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </CheckProvider>
       </ProjectProvider>

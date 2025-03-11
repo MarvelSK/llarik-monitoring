@@ -107,9 +107,8 @@ const CheckDetail = () => {
     pingCheck(check.id, status);
   };
 
-  const handleDelete = () => {
-    deleteCheck(check.id);
-    navigate("/");
+  const handleDelete = async () => {
+    await deleteCheck(check.id);
   };
 
   return (

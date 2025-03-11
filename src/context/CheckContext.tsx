@@ -10,7 +10,7 @@ interface CheckContextType {
   getCheck: (id: string) => Check | undefined;
   createCheck: (check: Partial<Check>) => Promise<Check>;
   updateCheck: (id: string, check: Partial<Check>) => Promise<Check | undefined>;
-  deleteCheck: (id: string) => void;
+  deleteCheck: (id: string) => Promise<void>;
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
   loading: boolean;
@@ -31,7 +31,6 @@ interface CheckProviderProps {
   children: ReactNode;
 }
 
-// Helper to convert Supabase date strings to Date objects
 function convertDatesToObjects(check: any): Check {
   return {
     ...check,
@@ -43,7 +42,6 @@ function convertDatesToObjects(check: any): Check {
   };
 }
 
-// Helper to convert Date objects to ISO strings for Supabase
 function prepareCheckForSupabase(check: Partial<Check>) {
   return {
     name: check.name,
@@ -65,7 +63,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Helper to revive dates when parsing JSON
   function dateReviver(_key: string, value: any) {
     if (typeof value === 'string') {
       const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
@@ -76,7 +73,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return value;
   }
 
-  // Load checks from Supabase
   useEffect(() => {
     async function fetchChecks() {
       try {
@@ -104,7 +100,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
     fetchChecks();
 
-    // Set up real-time subscription to checks table for updates
     const channel = supabase
       .channel('public:checks')
       .on('postgres_changes', {
@@ -131,7 +126,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     };
   }, []);
 
-  // Status check interval
   useEffect(() => {
     const intervalId = setInterval(() => {
       setChecks((currentChecks) =>
@@ -151,7 +145,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
               triggerIntegrations(check.id, 'up');
             }
 
-            // Update status in Supabase
             supabase
               .from('checks')
               .update({ status: newStatus })
@@ -169,7 +162,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           };
         })
       );
-    }, 60 * 1000); // 1 minute
+    }, 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -223,7 +216,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       
       if (integration.type === 'email' && integration.config.email) {
         console.log(`Would send email to ${integration.config.email} for status "${status}"`);
-        // In a real app, you would call an API to send an email
       }
     });
   };
@@ -235,7 +227,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     const now = new Date();
     
     if (isPast(check.nextPingDue)) {
-      // Past due, check if within grace period
       const graceEndTime = addMinutes(check.nextPingDue, check.grace);
       if (isBefore(now, graceEndTime)) {
         return "grace";
@@ -305,7 +296,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       const prevStatus = check.status;
       const nextPingDue = addMinutes(now, check.period);
 
-      // Add a new ping
       const pingData = {
         check_id: id,
         status,
@@ -322,7 +312,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
 
-      // Update the check
       const updateData = {
         last_ping: now.toISOString(),
         next_ping_due: nextPingDue.toISOString(),
@@ -342,7 +331,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       toast.success('Pingnutie prebehlo úspešne');
       
-      // If status changed from down to up, trigger integrations
       if (prevStatus === 'down' || prevStatus === 'grace') {
         triggerIntegrations(id, 'up');
       }
@@ -388,7 +376,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
-  const deleteCheck = async (id: string) => {
+  const deleteCheck = async (id: string): Promise<void> => {
     try {
       const { error } = await supabase
         .from('checks')
@@ -398,7 +386,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       if (error) {
         console.error('Error deleting check:', error);
         toast.error('Failed to delete check');
-        return;
+        throw error;
       }
 
       setChecks((prev) => prev.filter((check) => check.id !== id));
@@ -406,6 +394,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     } catch (error) {
       console.error('Error in deleteCheck:', error);
       toast.error('Failed to delete check');
+      throw error;
     }
   };
 

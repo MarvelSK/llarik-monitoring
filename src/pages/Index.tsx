@@ -1,3 +1,4 @@
+
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { toast } from "sonner";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import StatusCards from "@/components/dashboard/StatusCards";
 
 const Index = () => {
   const { checks, loading } = useChecks();
@@ -38,32 +41,13 @@ const Index = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Nástenka</h1>
-            <p className="text-muted-foreground">
-              Monitorovanie systémových úloh
-              {currentProject ? ` - ${currentProject.name}` : ' - Všetky projekty'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              size="icon"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button 
-              onClick={() => navigate("/checks/new")}
-              className="gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Nová kontrola
-            </Button>
-          </div>
-        </div>
+        <DashboardHeader 
+          title="Nástenka"
+          subtitle={`Monitorovanie systémových úloh${currentProject ? ` - ${currentProject.name}` : ' - Všetky projekty'}`}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          onAddNew={() => navigate("/checks/new")}
+        />
 
         {loading ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -80,34 +64,12 @@ const Index = () => {
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <StatusCard 
-              title="Celkový počet" 
-              count={allChecks.length} 
-              icon={<Activity className="w-5 h-5" />}
-              color="bg-primary"
-            />
-            <StatusCard 
-              title="Aktívne"
-              count={upChecks.length} 
-              icon={<Activity className="w-5 h-5" />}
-              color="bg-healthy"
-            />
-            <StatusCard 
-              title="Meškajúce"
-              count={lateChecks.length} 
-              icon={<Clock className="w-5 h-5" />}
-              color="bg-warning"
-              pulseAnimation={lateChecks.length > 0}
-            />
-            <StatusCard 
-              title="V Poruche"
-              count={downChecks.length} 
-              icon={<AlertCircle className="w-5 h-5" />}
-              color="bg-danger"
-              pulseAnimation={downChecks.length > 0}
-            />
-          </div>
+          <StatusCards 
+            allChecksCount={allChecks.length}
+            upChecksCount={upChecks.length}
+            lateChecksCount={lateChecks.length}
+            downChecksCount={downChecks.length}
+          />
         )}
 
         <Tabs defaultValue="all" className="w-full">
@@ -132,30 +94,6 @@ const Index = () => {
         </Tabs>
       </div>
     </Layout>
-  );
-};
-
-interface StatusCardProps {
-  title: string;
-  count: number;
-  icon: React.ReactNode;
-  color: string;
-  pulseAnimation?: boolean;
-}
-
-const StatusCard = ({ title, count, icon, color, pulseAnimation = false }: StatusCardProps) => {
-  return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-      <div className="flex items-center">
-        <div className={`${color} p-3 rounded-full mr-4 text-white ${pulseAnimation ? 'animate-pulse' : ''}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
-          <p className="text-2xl font-bold">{count}</p>
-        </div>
-      </div>
-    </div>
   );
 };
 

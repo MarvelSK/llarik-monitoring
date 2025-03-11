@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Check, CheckPing } from "@/types/check";
-import { Edit, MoreVertical, Trash, Play, AlertCircle, BarChart, Copy } from "lucide-react";
+import { Edit, MoreVertical, Trash, Play, AlertCircle, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -26,12 +26,13 @@ import { toast } from "sonner";
 interface CheckActionsProps {
   check: Check;
   onPing: (status: CheckPing["status"]) => void;
-  onDelete: () => void;
+  onDelete: () => Promise<void>;
 }
 
 const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleEdit = () => {
     navigate(`/checks/${check.id}/edit`);
@@ -41,11 +42,19 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
     setShowDeleteDialog(true);
   };
 
-  const confirmDelete = () => {
-    onDelete();
-    setShowDeleteDialog(false);
-    navigate("/");
-    toast.success("Kontrola úspešne odstránená");
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      setShowDeleteDialog(false);
+      toast.success("Kontrola úspešne odstránená");
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Error deleting check:", error);
+      toast.error("Nepodarilo sa odstrániť kontrolu");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handlePing = (status: CheckPing["status"]) => {
@@ -54,8 +63,7 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
   };
 
   const copyCheckUrl = () => {
-    // In a real app, this would be a unique URL for the check
-    navigator.clipboard.writeText(`https://healthbeat.app/ping/${check.id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/ping/${check.id}`);
     toast.success("URL pingu skopírované do schránky");
   };
 
@@ -86,6 +94,10 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
               <AlertCircle className="w-4 h-4 mr-2" />
               Pingnúť chybu
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={copyCheckUrl}>
+              <Copy className="w-4 h-4 mr-2" />
+              Kopírovať URL
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600" onClick={handleDelete}>
               <Trash className="w-4 h-4 mr-2" />
@@ -109,8 +121,9 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground"
+              disabled={isDeleting}
             >
-              Odstrániť
+              {isDeleting ? "Odstraňuje sa..." : "Odstrániť"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
