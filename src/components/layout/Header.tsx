@@ -45,14 +45,15 @@ const Header = () => {
                 {projects.map(project => <DropdownMenuItem key={project.id} onClick={() => setCurrentProject(project.id)}>
                     {project.name}
                   </DropdownMenuItem>)}
-                <DropdownMenuItem asChild>
-                  <Link to="/projects" className="w-full">
-                    <FolderKanban className="w-4 h-4 mr-2" />
-                    Správa Projektov
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>}
+            
+            <Button variant="ghost" asChild className="ml-2">
+              <Link to="/projects">
+                <FolderKanban className="w-4 h-4 mr-2" />
+                Správa Projektov
+              </Link>
+            </Button>
         </div>
         <div className="flex items-center space-x-2">
           <DropdownMenu>

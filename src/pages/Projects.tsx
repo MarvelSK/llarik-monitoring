@@ -24,11 +24,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/context/ProjectContext";
 import { Project, ProjectMember } from "@/types/project";
-import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User } from "lucide-react";
+import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ProjectMembers from "@/components/projects/ProjectMembers";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 const Projects = () => {
   const { 
@@ -58,6 +60,11 @@ const Projects = () => {
   const [activeTab, setActiveTab] = useState<string>("details");
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberPermissions, setMemberPermissions] = useState<"read_only" | "read_write">("read_only");
+  const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+  const [projectForMember, setProjectForMember] = useState<Project | null>(null);
 
   const handleCreateProject = async () => {
     await createProject(newProject);
@@ -118,6 +125,49 @@ const Projects = () => {
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project.id);
     setActiveTab("details");
+  };
+
+  const handleAddMember = async () => {
+    if (!projectForMember) return;
+    
+    try {
+      setIsSubmittingMember(true);
+      
+      if (!memberEmail.trim()) {
+        toast.error("Zadajte emailovú adresu");
+        return;
+      }
+      
+      const { data, error } = await supabase.rpc('invite_user_to_project', {
+        project_id: projectForMember.id,
+        email: memberEmail.trim(),
+        permissions: memberPermissions
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Používateľ bol úspešne pridaný do projektu");
+      setMemberEmail("");
+      setMemberPermissions("read_only");
+      setOpenAddMemberDialog(false);
+      
+      // Refresh members if the current project is selected
+      if (selectedProject === projectForMember.id && activeTab === "members") {
+        fetchProjectMembers(projectForMember.id);
+      }
+    } catch (error: any) {
+      console.error("Error inviting user:", error);
+      toast.error(error.message || "Nepodarilo sa pridať používateľa");
+    } finally {
+      setIsSubmittingMember(false);
+    }
+  };
+
+  const openAddMemberDialogFor = (project: Project) => {
+    setProjectForMember(project);
+    setMemberEmail("");
+    setMemberPermissions("read_only");
+    setOpenAddMemberDialog(true);
   };
 
   return (
@@ -247,16 +297,30 @@ const Projects = () => {
                         {project.description || "Žiadny popis"}
                       </p>
                     </CardContent>
-                    <CardFooter className="justify-between border-t pt-3">
-                      <Button 
-                        variant="outline" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/`);
-                        }}
-                      >
-                        Zobraziť kontroly
-                      </Button>
+                    <CardFooter className="justify-between border-t pt-3 flex-wrap gap-2">
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/`);
+                          }}
+                        >
+                          Zobraziť kontroly
+                        </Button>
+                        {project.ownerId === currentUserId && (
+                          <Button 
+                            variant="outline" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAddMemberDialogFor(project);
+                            }}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Pridať člena
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         {project.ownerId === currentUserId && (
                           <Button 
@@ -390,6 +454,57 @@ const Projects = () => {
             <Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>Zrušiť</Button>
             <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
               {isDeleting ? 'Odstraňujem...' : 'Odstrániť'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openAddMemberDialog} onOpenChange={(val) => {
+        setOpenAddMemberDialog(val);
+        if (!val) setProjectForMember(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pridať člena do projektu</DialogTitle>
+            <DialogDescription>
+              Pridajte používateľa do projektu {projectForMember?.name} zadaním jeho emailovej adresy.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="member-email">Email používateľa</Label>
+              <Input 
+                id="member-email" 
+                type="email"
+                value={memberEmail} 
+                onChange={e => setMemberEmail(e.target.value)}
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="member-permissions">Oprávnenia</Label>
+              <Select 
+                value={memberPermissions} 
+                onValueChange={(value) => setMemberPermissions(value as "read_only" | "read_write")}
+              >
+                <SelectTrigger id="member-permissions">
+                  <SelectValue placeholder="Vyberte oprávnenia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="read_only">Len na čítanie</SelectItem>
+                  <SelectItem value="read_write">Na čítanie a úpravy</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Len na čítanie - používateľ môže vidieť kontroly a ich stav<br />
+                Na čítanie a úpravy - používateľ môže pridávať, upravovať a mazať kontroly
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAddMemberDialog(false)}>Zrušiť</Button>
+            <Button onClick={handleAddMember} disabled={isSubmittingMember}>
+              {isSubmittingMember ? 'Pridávam...' : 'Pridať člena'}
             </Button>
           </DialogFooter>
         </DialogContent>
