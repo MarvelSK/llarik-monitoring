@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +66,7 @@ const Projects = () => {
   const [memberPermissions, setMemberPermissions] = useState<"read_only" | "read_write">("read_only");
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
   const [projectForMember, setProjectForMember] = useState<Project | null>(null);
+  const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
 
   const handleCreateProject = async () => {
     await createProject(newProject);
