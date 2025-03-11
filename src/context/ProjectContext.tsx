@@ -90,7 +90,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
         if (ownedError) {
           console.error('Error fetching owned projects:', ownedError);
-          toast.error('Failed to load owned projects');
+          toast.error('Zlyhalo načítanie vlastných projektov');
           return;
         }
 
@@ -103,7 +103,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
         if (sharedError) {
           console.error('Error fetching shared projects:', sharedError);
-          toast.error('Failed to load shared projects');
+          toast.error('Zlyhalo načítanie zdieľaných projektov');
           return;
         }
 
@@ -117,7 +117,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         }
       } catch (err) {
         console.error('Error in fetchProjects:', err);
-        toast.error('Failed to load projects');
+        toast.error('Zlyhalo načítanie projektov');
       } finally {
         setLoading(false);
       }
@@ -217,7 +217,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       }));
     } catch (error) {
       console.error('Error getting project members:', error);
-      toast.error('Failed to load project members');
+      toast.error('Zlyhalo načítanie členov projektu');
       return [];
     }
   };
@@ -227,11 +227,11 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       const now = new Date();
       
       if (!currentUserId) {
-        throw new Error("User not authenticated");
+        throw new Error("Používateľ nie je autentifikovaný");
       }
       
       const newProjectData = {
-        name: projectData.name || "Untitled Project",
+        name: projectData.name || "Nový Projekt",
         description: projectData.description,
         created_at: now.toISOString(),
         owner_id: currentUserId
@@ -245,16 +245,16 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
       if (error) {
         console.error('Error creating project:', error);
-        toast.error('Failed to create project');
+        toast.error('Zlyhalo vytvorenie projektu');
         throw error;
       }
 
       const newProject = convertDatesToObjects(data);
-      toast.success('Project created successfully');
+      toast.success('Projekt bol úspešne vytvorený');
       return newProject;
     } catch (error) {
       console.error('Error in createProject:', error);
-      toast.error('Failed to create project');
+      toast.error('Zlyhalo vytvorenie projektu');
       throw error;
     }
   };
@@ -267,7 +267,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       // Check if user is the owner
       const project = projects[projectIndex];
       if (project.ownerId !== currentUserId) {
-        toast.error('Only the owner can update this project');
+        toast.error('Projekt môže upraviť iba vlastník');
         return undefined;
       }
 
@@ -284,7 +284,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
       if (error) {
         console.error('Error updating project:', error);
-        toast.error('Failed to update project');
+        toast.error('Zlyhala aktualizácia projektu');
         return undefined;
       }
 
@@ -293,11 +293,11 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         ...projectData,
       };
 
-      toast.success('Project updated successfully');
+      toast.success('Projekt bol úspešne aktualizovaný');
       return updatedProject;
     } catch (error) {
       console.error('Error in updateProject:', error);
-      toast.error('Failed to update project');
+      toast.error('Zlyhala aktualizácia projektu');
       return undefined;
     }
   };
@@ -328,14 +328,14 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       // Check if user is the owner
       const project = getProject(id);
       if (!project || project.ownerId !== currentUserId) {
-        toast.error('Only the owner can delete this project');
+        toast.error('Projekt môže vymazať iba vlastník');
         return;
       }
       
       // Check if project has checks
       const hasChecks = await projectHasChecks(id);
       if (hasChecks) {
-        toast.error('Cannot delete project with existing checks. Remove all checks first.');
+        toast.error('Nie je možné vymazať projekt s existujúcimi kontrolami. Najprv odstráňte všetky kontroly.');
         return;
       }
 
@@ -346,7 +346,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
       if (error) {
         console.error('Error deleting project:', error);
-        toast.error('Failed to delete project');
+        toast.error('Zlyhalo vymazanie projektu');
         return;
       }
 
@@ -357,10 +357,10 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       }
 
       setProjects((prev) => prev.filter((project) => project.id !== id));
-      toast.success('Project deleted successfully');
+      toast.success('Projekt bol úspešne vymazaný');
     } catch (error) {
       console.error('Error in deleteProject:', error);
-      toast.error('Failed to delete project');
+      toast.error('Zlyhalo vymazanie projektu');
     }
   };
 

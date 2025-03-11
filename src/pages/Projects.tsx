@@ -88,7 +88,7 @@ const Projects = () => {
       // Check if the project has checks before attempting to delete
       const hasChecks = await projectHasChecks(editProject.id);
       if (hasChecks) {
-        toast.error('Cannot delete project with existing checks. Remove all checks first.');
+        toast.error('Nie je možné odstrániť projekt s existujúcimi kontrolami. Najprv odstráňte všetky kontroly.');
         setIsDeleting(false);
         setOpenDeleteDialog(false);
         return;
