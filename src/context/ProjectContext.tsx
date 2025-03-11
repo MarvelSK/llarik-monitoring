@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,31 +228,46 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
   const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
     try {
-      const { data, error } = await supabase
+      // First, fetch the project members
+      const { data: membersData, error: membersError } = await supabase
         .from('project_members')
-        .select(`
-          id,
-          project_id,
-          user_id,
-          permissions,
-          created_at,
-          profiles:user_id(name, email)
-        `)
+        .select('id, project_id, user_id, permissions, created_at')
         .eq('project_id', projectId);
       
-      if (error) throw error;
+      if (membersError) throw membersError;
       
-      return (data || []).map((member: any) => ({
-        id: member.id,
-        projectId: member.project_id,
-        userId: member.user_id,
-        permissions: member.permissions,
-        createdAt: new Date(member.created_at),
-        user: member.profiles ? {
-          name: member.profiles.name,
-          email: member.profiles.email
-        } : undefined
-      }));
+      if (!membersData || membersData.length === 0) {
+        return [];
+      }
+      
+      // Then, fetch the user profiles separately for each member
+      const memberPromises = membersData.map(async (member) => {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', member.user_id)
+          .single();
+        
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error(`Error fetching profile for user ${member.user_id}:`, profileError);
+        }
+        
+        return {
+          id: member.id,
+          projectId: member.project_id,
+          userId: member.user_id,
+          permissions: member.permissions,
+          createdAt: new Date(member.created_at),
+          user: profileData ? {
+            name: profileData.name,
+            email: profileData.email
+          } : undefined
+        };
+      });
+      
+      const members = await Promise.all(memberPromises);
+      return members;
+      
     } catch (error) {
       console.error('Error getting project members:', error);
       toast.error('Zlyhalo načítanie členov projektu');

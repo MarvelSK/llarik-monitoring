@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { UserPlus, Trash, User, Edit, Check, X } from "lucide-react";
+import { UserPlus, Trash, User, Edit, Check, X, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
 import { 
   Table,
   TableBody,
@@ -17,6 +17,8 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface ProjectMembersProps {
   projectId: string;
@@ -32,6 +34,12 @@ const ProjectMembers = ({ projectId, isOwner, members, onMembersChange, isAdmin 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMemberId, setEditMemberId] = useState<string | null>(null);
   const [editPermissions, setEditPermissions] = useState<"read_only" | "read_write">("read_only");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredMembers = members.filter(member => 
+    member.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    member.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +52,6 @@ const ProjectMembers = ({ projectId, isOwner, members, onMembersChange, isAdmin 
     try {
       setIsSubmitting(true);
       
-      // Updated parameter names to match the fixed function
       const { data, error } = await supabase.rpc('invite_user_to_project', {
         p_project_id: projectId,
         p_email: email.trim(),
@@ -110,6 +117,17 @@ const ProjectMembers = ({ projectId, isOwner, members, onMembersChange, isAdmin 
     }
   };
 
+  const getPermissionBadge = (permission: string) => {
+    switch(permission) {
+      case 'read_only':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Len na čítanie</Badge>;
+      case 'read_write':
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Na čítanie a úpravy</Badge>;
+      default:
+        return <Badge variant="outline">{permission}</Badge>;
+    }
+  };
+
   return (
     <Card className="shadow-none border-0">
       <CardHeader className="px-0">
@@ -156,93 +174,106 @@ const ProjectMembers = ({ projectId, isOwner, members, onMembersChange, isAdmin 
         )}
 
         <div>
-          <h3 className="text-base font-medium mb-4">Členovia projektu</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-medium">Členovia projektu</h3>
+            {members.length > 0 && (
+              <Input
+                placeholder="Vyhľadať člena..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-xs"
+              />
+            )}
+          </div>
+          
           {members.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tento projekt zatiaľ nemá žiadnych členov</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Používateľ</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Oprávnenia</TableHead>
-                  {(isOwner || isAdmin) && <TableHead className="text-right">Akcie</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {member.user?.name || "Používateľ"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{member.user?.email}</TableCell>
-                    <TableCell>
-                      {editMemberId === member.id ? (
-                        <Select 
-                          value={editPermissions} 
-                          onValueChange={(value) => setEditPermissions(value as "read_only" | "read_write")}
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="read_only">Len na čítanie</SelectItem>
-                            <SelectItem value="read_write">Na čítanie a úpravy</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-xs bg-slate-100 text-slate-800 rounded-md px-2 py-1">
-                          {member.permissions === 'read_write' ? 'Na čítanie a úpravy' : 'Len na čítanie'}
-                        </span>
-                      )}
-                    </TableCell>
-                    {(isOwner || isAdmin) && (
-                      <TableCell className="text-right">
-                        {editMemberId === member.id ? (
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={updateMemberPermissions}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={cancelEditingMember}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+            <div className="border rounded-md">
+              <ScrollArea className="h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Používateľ</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Oprávnenia</TableHead>
+                      {(isOwner || isAdmin) && <TableHead className="text-right">Akcie</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMembers.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center">
+                            <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                            {member.user?.name || "Používateľ"}
                           </div>
-                        ) : (
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => startEditingMember(member)}
+                        </TableCell>
+                        <TableCell>{member.user?.email}</TableCell>
+                        <TableCell>
+                          {editMemberId === member.id ? (
+                            <Select 
+                              value={editPermissions} 
+                              onValueChange={(value) => setEditPermissions(value as "read_only" | "read_write")}
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleRemoveMember(member.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="read_only">Len na čítanie</SelectItem>
+                                <SelectItem value="read_write">Na čítanie a úpravy</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            getPermissionBadge(member.permissions)
+                          )}
+                        </TableCell>
+                        {(isOwner || isAdmin) && (
+                          <TableCell className="text-right">
+                            {editMemberId === member.id ? (
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={updateMemberPermissions}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={cancelEditingMember}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => startEditingMember(member)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleRemoveMember(member.id)}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
                         )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
           )}
         </div>
       </CardContent>

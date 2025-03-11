@@ -25,12 +25,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/context/ProjectContext";
 import { Project, ProjectMember } from "@/types/project";
-import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus, ShieldAlert, Users, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProjectMembers from "@/components/projects/ProjectMembers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 const Projects = () => {
   const { 
@@ -68,8 +70,19 @@ const Projects = () => {
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
   const [projectForMember, setProjectForMember] = useState<Project | null>(null);
   const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredProjects = projects.filter(project => 
+    project.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleCreateProject = async () => {
+    if (!newProject.name) {
+      toast.error("Zadajte názov projektu");
+      return;
+    }
+    
     await createProject(newProject);
     setNewProject({ name: "", description: "" });
     setOpenNewDialog(false);
@@ -77,6 +90,12 @@ const Projects = () => {
 
   const handleUpdateProject = async () => {
     if (!editProject) return;
+    
+    if (!editProject.name) {
+      toast.error("Zadajte názov projektu");
+      return;
+    }
+    
     await updateProject(editProject.id, editProject);
     setEditProject(null);
     setOpenEditDialog(false);
@@ -107,6 +126,8 @@ const Projects = () => {
   };
 
   const fetchProjectMembers = async (projectId: string) => {
+    if (!projectId) return;
+    
     setLoadingMembers(true);
     try {
       const members = await getProjectMembers(projectId);
@@ -195,10 +216,10 @@ const Projects = () => {
               <h1 className="text-2xl font-bold tracking-tight">
                 Projekty 
                 {isAdmin && (
-                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <ShieldAlert className="w-3 h-3 mr-1" />
-                    Administrátor
-                  </span>
+                  <Badge variant="outline" className="ml-2 bg-yellow-50 border-yellow-300">
+                    <ShieldAlert className="w-3 h-3 mr-1 text-yellow-600" />
+                    <span className="text-yellow-800">Administrátor</span>
+                  </Badge>
                 )}
               </h1>
               <p className="text-muted-foreground">
@@ -207,47 +228,68 @@ const Projects = () => {
             </div>
           </div>
           
-          <Dialog open={openNewDialog} onOpenChange={setOpenNewDialog}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Nový projekt
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate("/admin")} className="gap-2">
+                <ShieldCheck className="w-4 h-4" />
+                Admin Panel
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Vytvoriť nový projekt</DialogTitle>
-                <DialogDescription>
-                  Vytvorte nový projekt pre organizáciu vašich kontrol.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Názov projektu</Label>
-                  <Input 
-                    id="name" 
-                    value={newProject.name} 
-                    onChange={e => setNewProject({...newProject, name: e.target.value})}
-                    placeholder="Zadajte názov projektu" 
-                  />
+            )}
+            
+            <Dialog open={openNewDialog} onOpenChange={setOpenNewDialog}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <PlusCircle className="w-4 h-4" />
+                  Nový projekt
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Vytvoriť nový projekt</DialogTitle>
+                  <DialogDescription>
+                    Vytvorte nový projekt pre organizáciu vašich kontrol.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Názov projektu</Label>
+                    <Input 
+                      id="name" 
+                      value={newProject.name} 
+                      onChange={e => setNewProject({...newProject, name: e.target.value})}
+                      placeholder="Zadajte názov projektu" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Popis</Label>
+                    <Textarea 
+                      id="description" 
+                      value={newProject.description || ''} 
+                      onChange={e => setNewProject({...newProject, description: e.target.value})}
+                      placeholder="Zadajte popis projektu" 
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Popis</Label>
-                  <Textarea 
-                    id="description" 
-                    value={newProject.description || ''} 
-                    onChange={e => setNewProject({...newProject, description: e.target.value})}
-                    placeholder="Zadajte popis projektu" 
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpenNewDialog(false)}>Zrušiť</Button>
-                <Button onClick={handleCreateProject}>Vytvoriť</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpenNewDialog(false)}>Zrušiť</Button>
+                  <Button onClick={handleCreateProject}>Vytvoriť</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        {/* Search bar for projects */}
+        {!loading && projects.length > 0 && (
+          <div className="w-full max-w-md">
+            <Input
+              placeholder="Vyhľadať projekt..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
@@ -261,26 +303,32 @@ const Projects = () => {
               </Card>
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
             <Folder className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium">Žiadne projekty</h3>
-            <p className="mt-1 text-gray-500">Začnite vytvorením nového projektu.</p>
-            <div className="mt-6">
-              <Button onClick={() => setOpenNewDialog(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nový projekt
-              </Button>
-            </div>
+            <h3 className="mt-2 text-lg font-medium">
+              {searchTerm ? "Nenašli sa žiadne projekty" : "Žiadne projekty"}
+            </h3>
+            <p className="mt-1 text-gray-500">
+              {searchTerm ? "Skúste upraviť vyhľadávanie" : "Začnite vytvorením nového projektu."}
+            </p>
+            {!searchTerm && (
+              <div className="mt-6">
+                <Button onClick={() => setOpenNewDialog(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nový projekt
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                {projects.map(project => (
+                {filteredProjects.map(project => (
                   <Card 
                     key={project.id} 
-                    className={`overflow-hidden cursor-pointer ${selectedProject === project.id ? 'ring-2 ring-primary' : ''}`}
+                    className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${selectedProject === project.id ? 'ring-2 ring-primary' : ''}`}
                     onClick={() => handleSelectProject(project)}
                   >
                     <CardHeader className="pb-3">
@@ -289,14 +337,14 @@ const Projects = () => {
                           <CardTitle className="flex items-center flex-wrap gap-2">
                             {project.name}
                             {project.ownerId === currentUserId && (
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                                 Vlastník
-                              </span>
+                              </Badge>
                             )}
                             {isAdmin && project.ownerId !== currentUserId && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                                 Admin prístup
-                              </span>
+                              </Badge>
                             )}
                           </CardTitle>
                           <CardDescription>
@@ -339,7 +387,7 @@ const Projects = () => {
                             }}
                           >
                             <UserPlus className="mr-2 h-4 w-4" />
-                            Pridať člena
+                            Správa členov
                           </Button>
                         )}
                       </div>
@@ -367,19 +415,19 @@ const Projects = () => {
             
             {selectedProject && (
               <div className="lg:col-span-1">
-                <Card>
+                <Card className="sticky top-24">
                   <CardHeader>
                     <CardTitle>
                       {projects.find(p => p.id === selectedProject)?.name || "Projekt"}
                     </CardTitle>
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
-                      <TabsList>
-                        <TabsTrigger value="details">
-                          <Building className="w-4 h-4 mr-2" />
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="details" className="flex items-center gap-1">
+                          <Building className="w-4 h-4" />
                           Detaily
                         </TabsTrigger>
-                        <TabsTrigger value="members">
-                          <User className="w-4 h-4 mr-2" />
+                        <TabsTrigger value="members" className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
                           Členovia
                         </TabsTrigger>
                       </TabsList>
@@ -407,6 +455,24 @@ const Projects = () => {
                             ? "Vy" 
                             : "Iný používateľ"}
                         </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-4">
+                        <Button 
+                          onClick={() => navigateToProjectChecks(projects.find(p => p.id === selectedProject)!)}
+                          className="w-full"
+                        >
+                          Zobraziť kontroly
+                        </Button>
+                        {(isProjectOwner(selectedProject) || isAdmin) && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => openAddMemberDialogFor(projects.find(p => p.id === selectedProject)!)}
+                            className="w-full"
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Správa členov
+                          </Button>
+                        )}
                       </div>
                     </TabsContent>
                     
@@ -502,19 +568,43 @@ const Projects = () => {
           {projectMembers.length > 0 && (
             <div className="border rounded-md p-3 mb-4">
               <h3 className="text-sm font-medium mb-2">Aktuálni členovia</h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {projectMembers.map(member => (
-                  <div key={member.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{member.user?.name || "Používateľ"}</p>
-                        <p className="text-xs text-muted-foreground">{member.user?.email}</p>
+              <ScrollArea className="h-[150px]">
+                <div className="space-y-2">
+                  {projectMembers.map(member => (
+                    <div key={member.id} className="flex items-center justify-between p-2 border rounded-md">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">{member.user?.name || "Používateľ"}</p>
+                          <p className="text-xs text-muted-foreground">{member.user?.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {member.permissions === 'read_only' ? (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            Len na čítanie
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            Na čítanie a úpravy
+                          </Badge>
+                        )}
+                        
+                        {((projectForMember && projectForMember.ownerId === currentUserId) || isAdmin) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500"
+                            onClick={() => handleRemoveMember(member.id)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           )}
           
