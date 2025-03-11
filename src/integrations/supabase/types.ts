@@ -54,6 +54,7 @@ export type Database = {
           name: string
           next_ping_due: string | null
           period: number
+          project_id: string | null
           status: string
           tags: string[] | null
         }
@@ -69,6 +70,7 @@ export type Database = {
           name: string
           next_ping_due?: string | null
           period: number
+          project_id?: string | null
           status: string
           tags?: string[] | null
         }
@@ -84,10 +86,19 @@ export type Database = {
           name?: string
           next_ping_due?: string | null
           period?: number
+          project_id?: string | null
           status?: string
           tags?: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -109,6 +120,27 @@ export type Database = {
           email?: string
           id?: string
           is_admin?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
           name?: string
         }
         Relationships: []
