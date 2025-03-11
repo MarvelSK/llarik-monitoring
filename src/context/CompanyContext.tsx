@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Company, User } from "@/types/company";
 import { v4 as uuidv4 } from "uuid";
@@ -90,7 +89,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
           id: company.id,
           name: company.name,
           ico: company.ico,
-          description: company.description || undefined,
+          description: undefined,
           createdAt: new Date(company.created_at),
         }));
         setCompanies(companiesWithDates);
@@ -117,7 +116,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
             id: payload.new.id,
             name: payload.new.name,
             ico: payload.new.ico,
-            description: payload.new.description || undefined,
+            description: undefined,
             createdAt: new Date(payload.new.created_at),
           };
           setCompanies(prev => [newCompany, ...prev]);
@@ -126,7 +125,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
             id: payload.new.id,
             name: payload.new.name,
             ico: payload.new.ico,
-            description: payload.new.description || undefined,
+            description: undefined,
             createdAt: new Date(payload.new.created_at),
           };
           setCompanies(prev => prev.map(company => 

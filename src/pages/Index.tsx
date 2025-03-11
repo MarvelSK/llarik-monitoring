@@ -1,3 +1,4 @@
+
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -12,15 +13,18 @@ import { toast } from "sonner";
 
 const Index = () => {
   const { checks, loading } = useChecks();
-  const { currentCompany } = useCompanies();
+  const { currentCompany, currentUser } = useCompanies();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filter checks by current company
+  // Filter checks by current company's ID from the current user
   const companyChecks = useMemo(() => {
-    if (!currentCompany) return checks;
-    return checks.filter(check => check.companyId === currentCompany.id);
-  }, [checks, currentCompany]);
+    // If there's no current user or company ID, don't show any checks
+    if (!currentUser?.companyId) return [];
+    
+    // Only show checks that match the user's company ID
+    return checks.filter(check => check.companyId === currentUser.companyId);
+  }, [checks, currentUser]);
 
   const allChecks = companyChecks;
   const upChecks = companyChecks.filter((check) => check.status === "up");
