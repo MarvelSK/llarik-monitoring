@@ -1,3 +1,4 @@
+
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +24,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/context/ProjectContext";
 import { Project, ProjectMember } from "@/types/project";
-import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus } from "lucide-react";
+import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus, ShieldAlert } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProjectMembers from "@/components/projects/ProjectMembers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,8 +42,10 @@ const Projects = () => {
     projectHasChecks,
     getProjectMembers,
     isProjectOwner,
-    currentUserId
+    currentUserId,
+    isAdmin
   } = useProjects();
+  
   const navigate = useNavigate();
   
   const [newProject, setNewProject] = useState<Partial<Project>>({
@@ -59,7 +62,6 @@ const Projects = () => {
   const [activeTab, setActiveTab] = useState<string>("details");
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
   const [memberEmail, setMemberEmail] = useState("");
   const [memberPermissions, setMemberPermissions] = useState<"read_only" | "read_write">("read_only");
   const [isSubmittingMember, setIsSubmittingMember] = useState(false);
@@ -182,7 +184,15 @@ const Projects = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Projekty</h1>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Projekty 
+                {isAdmin && (
+                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <ShieldAlert className="w-3 h-3 mr-1" />
+                    Administrátor
+                  </span>
+                )}
+              </h1>
               <p className="text-muted-foreground">
                 Správa projektov pre kontroly
               </p>
@@ -268,11 +278,16 @@ const Projects = () => {
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="flex items-center">
+                          <CardTitle className="flex items-center flex-wrap gap-2">
                             {project.name}
                             {project.ownerId === currentUserId && (
-                              <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                 Vlastník
+                              </span>
+                            )}
+                            {isAdmin && project.ownerId !== currentUserId && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                Admin prístup
                               </span>
                             )}
                           </CardTitle>
@@ -280,7 +295,7 @@ const Projects = () => {
                             {new Date(project.createdAt).toLocaleDateString()}
                           </CardDescription>
                         </div>
-                        {project.ownerId === currentUserId && (
+                        {(project.ownerId === currentUserId || isAdmin) && (
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
                             e.stopPropagation();
                             setEditProject(project);
@@ -307,7 +322,7 @@ const Projects = () => {
                         >
                           Zobraziť kontroly
                         </Button>
-                        {project.ownerId === currentUserId && (
+                        {(project.ownerId === currentUserId || isAdmin) && (
                           <Button 
                             variant="outline" 
                             onClick={(e) => {
@@ -321,7 +336,7 @@ const Projects = () => {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        {project.ownerId === currentUserId && (
+                        {(project.ownerId === currentUserId || isAdmin) && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -388,12 +403,17 @@ const Projects = () => {
                     </TabsContent>
                     
                     <TabsContent value="members" className="mt-0">
-                      <ProjectMembers 
-                        projectId={selectedProject}
-                        isOwner={isProjectOwner(selectedProject)}
-                        members={projectMembers}
-                        onMembersChange={() => fetchProjectMembers(selectedProject)}
-                      />
+                      {loadingMembers ? (
+                        <div className="text-center py-4">Načítavam členov...</div>
+                      ) : (
+                        <ProjectMembers 
+                          projectId={selectedProject}
+                          isOwner={isProjectOwner(selectedProject)}
+                          members={projectMembers}
+                          onMembersChange={() => fetchProjectMembers(selectedProject)}
+                          isAdmin={isAdmin}
+                        />
+                      )}
                     </TabsContent>
                   </CardContent>
                 </Card>
@@ -513,4 +533,3 @@ const Projects = () => {
 };
 
 export default Projects;
-

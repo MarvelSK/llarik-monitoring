@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,8 @@ interface ProjectContextType {
   getProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
   isProjectOwner: (projectId: string) => boolean;
   currentUserId: string | null;
+  isAdmin: boolean;
+  getAllProjects: () => Promise<Project[]>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -29,7 +30,6 @@ export const useProjects = () => {
   return context;
 };
 
-// Helper to convert Supabase date strings to Date objects
 function convertDatesToObjects(project: any): Project {
   return {
     ...project,
@@ -47,18 +47,43 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Get current user's ID and set up auth listener
   useEffect(() => {
     const initializeAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setCurrentUserId(session?.user?.id || null);
       
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user?.id) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (!error && data) {
+          setIsAdmin(data.is_admin);
+        }
+      }
+      
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setCurrentUserId(session?.user?.id || null);
+          
+          if (session?.user?.id) {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('is_admin')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (!error && data) {
+              setIsAdmin(data.is_admin);
+            }
+          }
         } else if (event === 'SIGNED_OUT') {
           setCurrentUserId(null);
+          setIsAdmin(false);
         }
       });
       
@@ -70,7 +95,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     initializeAuth();
   }, []);
 
-  // Load projects from Supabase
   useEffect(() => {
     async function fetchProjects() {
       try {
@@ -81,37 +105,55 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           return;
         }
         
-        // Get projects the user owns
-        const { data: ownedProjects, error: ownedError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('owner_id', currentUserId)
-          .order('created_at', { ascending: false });
+        let allProjects: any[] = [];
+        
+        if (isAdmin) {
+          const { data: adminProjects, error: adminError } = await supabase
+            .from('projects')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (adminError) {
+            console.error('Error fetching all projects for admin:', adminError);
+            toast.error('Zlyhalo načítanie projektov');
+            return;
+          }
+          
+          allProjects = adminProjects || [];
+        } else {
+          const { data: ownedProjects, error: ownedError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('owner_id', currentUserId)
+            .order('created_at', { ascending: false });
 
-        if (ownedError) {
-          console.error('Error fetching owned projects:', ownedError);
-          toast.error('Zlyhalo načítanie vlastných projektov');
-          return;
+          if (ownedError) {
+            console.error('Error fetching owned projects:', ownedError);
+            toast.error('Zlyhalo načítanie vlastných projektov');
+            return;
+          }
+          
+          const { data: memberProjects, error: memberError } = await supabase
+            .from('project_members')
+            .select(`
+              project_id,
+              projects:project_id (*)
+            `)
+            .eq('user_id', currentUserId);
+            
+          if (memberError) {
+            console.error('Error fetching member projects:', memberError);
+            toast.error('Zlyhalo načítanie zdieľaných projektov');
+            return;
+          }
+
+          const sharedProjects = memberProjects?.map(item => item.projects) || [];
+          allProjects = [...(ownedProjects || []), ...sharedProjects];
         }
 
-        // Get projects shared with the user
-        const { data: sharedProjects, error: sharedError } = await supabase
-          .from('projects')
-          .select('*')
-          .not('owner_id', 'eq', currentUserId)
-          .order('created_at', { ascending: false });
-
-        if (sharedError) {
-          console.error('Error fetching shared projects:', sharedError);
-          toast.error('Zlyhalo načítanie zdieľaných projektov');
-          return;
-        }
-
-        const allProjects = [...(ownedProjects || []), ...(sharedProjects || [])];
         const projectsWithDates = allProjects.map(convertDatesToObjects);
         setProjects(projectsWithDates);
         
-        // Set the first project as current if we have projects and no current project
         if (projectsWithDates.length > 0 && !currentProject) {
           setCurrentProject(projectsWithDates[0]);
         }
@@ -125,7 +167,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
     fetchProjects();
 
-    // Set up real-time subscription to projects table for updates
     const channel = supabase
       .channel('public:projects')
       .on('postgres_changes', {
@@ -135,7 +176,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newProject = convertDatesToObjects(payload.new);
-          // Only add if the project is owned by the current user or shared with them
           if (newProject.ownerId === currentUserId) {
             setProjects(prev => [newProject, ...prev]);
           }
@@ -145,14 +185,12 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
             project.id === updatedProject.id ? updatedProject : project
           ));
           
-          // Update currentProject if it was the one updated
           if (currentProject && currentProject.id === updatedProject.id) {
             setCurrentProject(updatedProject);
           }
         } else if (payload.eventType === 'DELETE') {
           setProjects(prev => prev.filter(project => project.id !== payload.old.id));
           
-          // If current project was deleted, set to first available or null
           if (currentProject && currentProject.id === payload.old.id) {
             setCurrentProject(projects.length > 0 ? projects[0] : null);
           }
@@ -160,7 +198,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       })
       .subscribe();
 
-    // Also subscribe to project_members changes
     const membersChannel = supabase
       .channel('public:project_members')
       .on('postgres_changes', {
@@ -168,7 +205,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         schema: 'public',
         table: 'project_members'
       }, () => {
-        // When members change, refresh projects to reflect new shares
         fetchProjects();
       })
       .subscribe();
@@ -177,13 +213,14 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       supabase.removeChannel(channel);
       supabase.removeChannel(membersChannel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, isAdmin]);
 
   const getProject = (id: string) => {
     return projects.find((project) => project.id === id);
   };
 
   const isProjectOwner = (projectId: string) => {
+    if (isAdmin) return true;
     const project = getProject(projectId);
     return project?.ownerId === currentUserId;
   };
@@ -264,14 +301,12 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       const projectIndex = projects.findIndex((c) => c.id === id);
       if (projectIndex === -1) return undefined;
 
-      // Check if user is the owner
       const project = projects[projectIndex];
-      if (project.ownerId !== currentUserId) {
-        toast.error('Projekt môže upraviť iba vlastník');
+      if (project.ownerId !== currentUserId && !isAdmin) {
+        toast.error('Projekt môže upraviť iba vlastník alebo administrátor');
         return undefined;
       }
 
-      // Prepare data for Supabase
       const dbProjectData = {
         name: projectData.name,
         description: projectData.description,
@@ -302,7 +337,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     }
   };
 
-  // Check if project has any related checks
   const projectHasChecks = async (id: string): Promise<boolean> => {
     try {
       const { data, error, count } = await supabase
@@ -325,14 +359,12 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
   const deleteProject = async (id: string) => {
     try {
-      // Check if user is the owner
       const project = getProject(id);
-      if (!project || project.ownerId !== currentUserId) {
-        toast.error('Projekt môže vymazať iba vlastník');
+      if (!project || (project.ownerId !== currentUserId && !isAdmin)) {
+        toast.error('Projekt môže vymazať iba vlastník alebo administrátor');
         return;
       }
       
-      // Check if project has checks
       const hasChecks = await projectHasChecks(id);
       if (hasChecks) {
         toast.error('Nie je možné vymazať projekt s existujúcimi kontrolami. Najprv odstráňte všetky kontroly.');
@@ -350,7 +382,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         return;
       }
 
-      // If we're deleting the current project, set another one as current
       if (currentProject && currentProject.id === id) {
         const remainingProjects = projects.filter(project => project.id !== id);
         setCurrentProject(remainingProjects.length > 0 ? remainingProjects[0] : null);
@@ -375,6 +406,31 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     }
   };
 
+  const getAllProjects = async (): Promise<Project[]> => {
+    if (!isAdmin) {
+      return projects;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching all projects:', error);
+        toast.error('Zlyhalo načítanie všetkých projektov');
+        return [];
+      }
+      
+      return (data || []).map(convertDatesToObjects);
+    } catch (error) {
+      console.error('Error in getAllProjects:', error);
+      toast.error('Zlyhalo načítanie projektov');
+      return [];
+    }
+  };
+
   return (
     <ProjectContext.Provider
       value={{
@@ -390,6 +446,8 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         getProjectMembers,
         isProjectOwner,
         currentUserId,
+        isAdmin,
+        getAllProjects,
       }}
     >
       {children}
