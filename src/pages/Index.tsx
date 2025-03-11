@@ -8,21 +8,24 @@ import { useProjects } from "@/context/ProjectContext";
 import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatusCards from "@/components/dashboard/StatusCards";
 
 const Index = () => {
   const { checks, loading } = useChecks();
-  const { currentProject } = useProjects();
+  const { currentProject, projects } = useProjects();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filter checks by current project or show all if no project selected
+  // Get all accessible project IDs
+  const accessibleProjectIds = projects.map(project => project.id);
+
+  // Filter checks by current project or show all accessible project checks if no project selected
   const filteredChecks = currentProject 
     ? checks.filter(check => check.projectId === currentProject.id)
-    : checks; // If no project is selected, show all checks
+    : checks.filter(check => check.projectId === null || accessibleProjectIds.includes(check.projectId)); 
 
   const allChecks = filteredChecks;
   const upChecks = filteredChecks.filter((check) => check.status === "up");
