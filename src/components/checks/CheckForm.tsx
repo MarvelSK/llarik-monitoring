@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +13,8 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useCompanies } from "@/context/CompanyContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -36,6 +37,39 @@ const formSchema = z.object({
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
   const navigate = useNavigate();
   const { currentCompany } = useCompanies();
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            return;
+          }
+          
+          if (profile && profile.company_id) {
+            console.log('User company ID from profiles for check creation:', profile.company_id);
+            setUserCompanyId(profile.company_id);
+          } else {
+            console.log('User has no company assigned in profiles table for check creation');
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchUserProfile:', error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -71,17 +105,18 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const tags = values.tags ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) : undefined;
     
-    if (!currentCompany && !isEdit) {
+    const companyId = defaultValues?.companyId || userCompanyId || currentCompany?.id;
+    
+    if (!companyId && !isEdit) {
       toast.error("Nie je vybraná spoločnosť");
       return;
     }
     
-    // Include the company ID when submitting the form
     onSubmit({
       ...values,
       tags,
       environments: values.environments as CheckEnvironment[],
-      companyId: defaultValues?.companyId || currentCompany?.id, // Use existing ID or current company ID
+      companyId: companyId,
     });
 
     toast.success(isEdit ? "Kontrola úspešne aktualizovaná" : "Kontrola úspešne vytvorená");

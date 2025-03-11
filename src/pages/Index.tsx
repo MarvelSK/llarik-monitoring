@@ -1,3 +1,4 @@
+
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,19 @@ const Index = () => {
           if (profile && profile.company_id) {
             console.log('User company ID from profiles:', profile.company_id);
             setUserCompanyId(profile.company_id);
+            
+            // Also fetch checks for this company to verify
+            const { data: companyChecks, error: checksError } = await supabase
+              .from('checks')
+              .select('id, name')
+              .eq('company_id', profile.company_id);
+              
+            if (checksError) {
+              console.error('Error fetching company checks:', checksError);
+            } else {
+              console.log(`Found ${companyChecks.length} checks in Supabase for company ${profile.company_id}:`, 
+                companyChecks.map(c => `${c.id}: ${c.name}`).join(', '));
+            }
           } else {
             console.log('User has no company assigned in profiles table');
           }

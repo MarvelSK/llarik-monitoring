@@ -89,7 +89,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
           id: company.id,
           name: company.name,
           ico: company.ico,
-          description: undefined,
+          description: company.description || undefined,
           createdAt: new Date(company.created_at),
         }));
         setCompanies(companiesWithDates);
@@ -116,7 +116,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
             id: payload.new.id,
             name: payload.new.name,
             ico: payload.new.ico,
-            description: undefined,
+            description: payload.new.description || undefined,
             createdAt: new Date(payload.new.created_at),
           };
           setCompanies(prev => [newCompany, ...prev]);
@@ -125,7 +125,7 @@ export const CompanyProvider = ({ children }: CompanyProviderProps) => {
             id: payload.new.id,
             name: payload.new.name,
             ico: payload.new.ico,
-            description: undefined,
+            description: payload.new.description || undefined,
             createdAt: new Date(payload.new.created_at),
           };
           setCompanies(prev => prev.map(company => 
