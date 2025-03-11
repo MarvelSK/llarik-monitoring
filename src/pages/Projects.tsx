@@ -1,4 +1,5 @@
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/context/ProjectContext";
 import { Project, ProjectMember } from "@/types/project";
 import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus, ShieldAlert } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProjectMembers from "@/components/projects/ProjectMembers";
@@ -43,7 +43,8 @@ const Projects = () => {
     getProjectMembers,
     isProjectOwner,
     currentUserId,
-    isAdmin
+    isAdmin,
+    setCurrentProject
   } = useProjects();
   
   const navigate = useNavigate();
@@ -134,6 +135,8 @@ const Projects = () => {
     setMemberEmail("");
     setMemberPermissions("read_only");
     setOpenAddMemberDialog(true);
+    // Fetch members for display in the modal
+    fetchProjectMembers(project.id);
   };
 
   const handleAddMember = async () => {
@@ -158,18 +161,22 @@ const Projects = () => {
       toast.success("Používateľ bol úspešne pridaný do projektu");
       setMemberEmail("");
       setMemberPermissions("read_only");
-      setOpenAddMemberDialog(false);
       
-      // Refresh members if the current project is selected
-      if (selectedProject === projectForMember.id && activeTab === "members") {
-        fetchProjectMembers(projectForMember.id);
-      }
+      // Refresh members list
+      fetchProjectMembers(projectForMember.id);
     } catch (error: any) {
       console.error("Error inviting user:", error);
       toast.error(error.message || "Nepodarilo sa pridať používateľa");
     } finally {
       setIsSubmittingMember(false);
     }
+  };
+
+  const navigateToProjectChecks = (project: Project) => {
+    // Set the current project in context
+    setCurrentProject(project.id);
+    // Navigate to the index page
+    navigate('/');
   };
 
   return (
@@ -318,7 +325,7 @@ const Projects = () => {
                           variant="outline" 
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/`);
+                            navigateToProjectChecks(project);
                           }}
                         >
                           Zobraziť kontroly
@@ -483,13 +490,35 @@ const Projects = () => {
         setOpenAddMemberDialog(val);
         if (!val) setProjectForMember(null);
       }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pridať člena do projektu</DialogTitle>
+            <DialogTitle>Správa členov projektu</DialogTitle>
             <DialogDescription>
-              Pridajte používateľa do projektu {projectForMember?.name} zadaním jeho emailovej adresy.
+              Pridajte a spravujte používateľov v projekte {projectForMember?.name}
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Current members list */}
+          {projectMembers.length > 0 && (
+            <div className="border rounded-md p-3 mb-4">
+              <h3 className="text-sm font-medium mb-2">Aktuálni členovia</h3>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {projectMembers.map(member => (
+                  <div key={member.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{member.user?.name || "Používateľ"}</p>
+                        <p className="text-xs text-muted-foreground">{member.user?.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Add new member form */}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="member-email">Email používateľa</Label>
@@ -522,7 +551,7 @@ const Projects = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenAddMemberDialog(false)}>Zrušiť</Button>
+            <Button variant="outline" onClick={() => setOpenAddMemberDialog(false)}>Zavrieť</Button>
             <Button onClick={handleAddMember} disabled={isSubmittingMember}>
               {isSubmittingMember ? 'Pridávam...' : 'Pridať člena'}
             </Button>
