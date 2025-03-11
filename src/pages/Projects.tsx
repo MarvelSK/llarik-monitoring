@@ -1,4 +1,4 @@
-
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+  } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -128,6 +128,13 @@ const Projects = () => {
     setActiveTab("details");
   };
 
+  const openAddMemberDialogFor = (project: Project) => {
+    setProjectForMember(project);
+    setMemberEmail("");
+    setMemberPermissions("read_only");
+    setOpenAddMemberDialog(true);
+  };
+
   const handleAddMember = async () => {
     if (!projectForMember) return;
     
@@ -162,13 +169,6 @@ const Projects = () => {
     } finally {
       setIsSubmittingMember(false);
     }
-  };
-
-  const openAddMemberDialogFor = (project: Project) => {
-    setProjectForMember(project);
-    setMemberEmail("");
-    setMemberPermissions("read_only");
-    setOpenAddMemberDialog(true);
   };
 
   return (
