@@ -1,4 +1,3 @@
-
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,9 +25,10 @@ import { Project } from "@/types/project";
 import { ArrowLeft, Edit, Folder, PlusCircle, Trash } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Projects = () => {
-  const { projects, createProject, updateProject, deleteProject, loading } = useProjects();
+  const { projects, createProject, updateProject, deleteProject, loading, projectHasChecks } = useProjects();
   const navigate = useNavigate();
   
   const [newProject, setNewProject] = useState<Partial<Project>>({
@@ -40,6 +40,7 @@ const Projects = () => {
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleCreateProject = async () => {
     await createProject(newProject);
@@ -56,9 +57,25 @@ const Projects = () => {
 
   const handleDeleteProject = async () => {
     if (!editProject) return;
-    await deleteProject(editProject.id);
-    setEditProject(null);
-    setOpenDeleteDialog(false);
+    
+    try {
+      setIsDeleting(true);
+      
+      // Check if the project has checks before attempting to delete
+      const hasChecks = await projectHasChecks(editProject.id);
+      if (hasChecks) {
+        toast.error('Cannot delete project with existing checks. Remove all checks first.');
+        setIsDeleting(false);
+        setOpenDeleteDialog(false);
+        return;
+      }
+      
+      await deleteProject(editProject.id);
+      setEditProject(null);
+      setOpenDeleteDialog(false);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -225,7 +242,9 @@ const Projects = () => {
                         </DialogHeader>
                         <DialogFooter>
                           <Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>Zrušiť</Button>
-                          <Button variant="destructive" onClick={handleDeleteProject}>Odstrániť</Button>
+                          <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeleting}>
+                            {isDeleting ? 'Odstraňujem...' : 'Odstrániť'}
+                          </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>

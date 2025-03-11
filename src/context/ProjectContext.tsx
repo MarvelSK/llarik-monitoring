@@ -14,6 +14,7 @@ interface ProjectContextType {
   deleteProject: (id: string) => void;
   setCurrentProject: (projectId: string) => void;
   loading: boolean;
+  projectHasChecks: (id: string) => Promise<boolean>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -185,8 +186,36 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     }
   };
 
+  // Check if project has any related checks
+  const projectHasChecks = async (id: string): Promise<boolean> => {
+    try {
+      const { data, error, count } = await supabase
+        .from('checks')
+        .select('id', { count: 'exact' })
+        .eq('project_id', id)
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking if project has checks:', error);
+        return false;
+      }
+
+      return count ? count > 0 : false;
+    } catch (error) {
+      console.error('Error in projectHasChecks:', error);
+      return false;
+    }
+  };
+
   const deleteProject = async (id: string) => {
     try {
+      // Check if project has checks
+      const hasChecks = await projectHasChecks(id);
+      if (hasChecks) {
+        toast.error('Cannot delete project with existing checks. Remove all checks first.');
+        return;
+      }
+
       const { error } = await supabase
         .from('projects')
         .delete()
@@ -213,9 +242,13 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   };
 
   const handleSetCurrentProject = (projectId: string) => {
-    const project = getProject(projectId);
-    if (project) {
-      setCurrentProject(project);
+    if (projectId === "") {
+      setCurrentProject(null);
+    } else {
+      const project = getProject(projectId);
+      if (project) {
+        setCurrentProject(project);
+      }
     }
   };
 
@@ -230,6 +263,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         deleteProject,
         setCurrentProject: handleSetCurrentProject,
         loading,
+        projectHasChecks,
       }}
     >
       {children}

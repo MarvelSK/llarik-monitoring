@@ -1,4 +1,3 @@
-
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -17,10 +16,10 @@ const Index = () => {
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filter checks by current project
+  // Filter checks by current project or show all if no project selected
   const filteredChecks = currentProject 
     ? checks.filter(check => check.projectId === currentProject.id)
-    : checks;
+    : checks; // If no project is selected, show all checks
 
   const allChecks = filteredChecks;
   const upChecks = filteredChecks.filter((check) => check.status === "up");
@@ -44,6 +43,7 @@ const Index = () => {
             <h1 className="text-2xl font-bold tracking-tight">Nástenka</h1>
             <p className="text-muted-foreground">
               Monitorovanie systémových úloh
+              {currentProject ? ` - ${currentProject.name}` : ' - Všetky projekty'}
             </p>
           </div>
           <div className="flex gap-2">
