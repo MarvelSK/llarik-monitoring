@@ -130,7 +130,9 @@ const Projects = () => {
     
     setLoadingMembers(true);
     try {
+      console.log("Fetching members for project:", projectId);
       const members = await getProjectMembers(projectId);
+      console.log("Fetched members:", members);
       setProjectMembers(members);
     } catch (error) {
       console.error("Error fetching project members:", error);
@@ -190,6 +192,30 @@ const Projects = () => {
       toast.error(error.message || "Nepodarilo sa pridať používateľa");
     } finally {
       setIsSubmittingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const { error } = await supabase
+        .from('project_members')
+        .delete()
+        .eq('id', memberId);
+      
+      if (error) throw error;
+      
+      toast.success("Používateľ bol odstránený z projektu");
+      
+      // Refresh members list
+      if (projectForMember) {
+        fetchProjectMembers(projectForMember.id);
+      }
+      if (selectedProject) {
+        fetchProjectMembers(selectedProject);
+      }
+    } catch (error: any) {
+      console.error("Error removing member:", error);
+      toast.error(error.message || "Nepodarilo sa odstrániť používateľa");
     }
   };
 

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
@@ -228,17 +227,25 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
   const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
     try {
+      console.log("Fetching project members for project:", projectId);
+      
       // First, fetch the project members
       const { data: membersData, error: membersError } = await supabase
         .from('project_members')
         .select('id, project_id, user_id, permissions, created_at')
         .eq('project_id', projectId);
       
-      if (membersError) throw membersError;
+      if (membersError) {
+        console.error('Error fetching project members:', membersError);
+        throw membersError;
+      }
       
       if (!membersData || membersData.length === 0) {
+        console.log("No members found for project:", projectId);
         return [];
       }
+      
+      console.log("Found members:", membersData.length);
       
       // Then, fetch the user profiles separately for each member
       const memberPromises = membersData.map(async (member) => {
@@ -248,15 +255,16 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           .eq('id', member.user_id)
           .single();
         
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError) {
           console.error(`Error fetching profile for user ${member.user_id}:`, profileError);
+          // Don't throw here, we'll still include the member with undefined user info
         }
         
         return {
           id: member.id,
           projectId: member.project_id,
           userId: member.user_id,
-          permissions: member.permissions,
+          permissions: member.permissions as 'read_only' | 'read_write',
           createdAt: new Date(member.created_at),
           user: profileData ? {
             name: profileData.name,
@@ -265,8 +273,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         };
       });
       
-      const members = await Promise.all(memberPromises);
-      return members;
+      return await Promise.all(memberPromises);
       
     } catch (error) {
       console.error('Error getting project members:', error);
