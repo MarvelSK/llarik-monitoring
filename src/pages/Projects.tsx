@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjects } from "@/context/ProjectContext";
 import { Project, ProjectMember } from "@/types/project";
-import { ArrowLeft, Building, Edit, Folder, PlusCircle, Share2, Trash, User, UserPlus, ShieldAlert, Users, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Building, Edit, Folder, PlusCircle, Search, Share2, Trash, User, UserPlus, ShieldAlert, Users, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProjectMembers from "@/components/projects/ProjectMembers";
