@@ -1,17 +1,14 @@
 
 import CheckTable from "@/components/checks/CheckTable";
 import Layout from "@/components/layout/Layout";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
-import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatusCards from "@/components/dashboard/StatusCards";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { checks, loading } = useChecks();
@@ -57,10 +54,10 @@ const Index = () => {
             {Array(4).fill(0).map((_, i) => (
               <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="flex items-center">
-                  <Skeleton className="w-12 h-12 rounded-full mr-4" />
+                  <div className="w-12 h-12 rounded-full mr-4 bg-gray-200 dark:bg-gray-700 animate-pulse" />
                   <div>
-                    <Skeleton className="h-4 w-28 mb-2" />
-                    <Skeleton className="h-8 w-16" />
+                    <div className="h-4 w-28 mb-2 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                    <div className="h-8 w-16 bg-gray-200 dark:bg-gray-700 animate-pulse" />
                   </div>
                 </div>
               </div>

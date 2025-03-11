@@ -9,7 +9,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  } from "@/components/ui/card";
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const Projects = () => {
   const { 
@@ -71,6 +72,7 @@ const Projects = () => {
   const [projectForMember, setProjectForMember] = useState<Project | null>(null);
   const [openAddMemberDialog, setOpenAddMemberDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
 
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -305,15 +307,37 @@ const Projects = () => {
           </div>
         </div>
 
-        {/* Search bar for projects */}
+        {/* Search and view controls */}
         {!loading && projects.length > 0 && (
-          <div className="w-full max-w-md">
-            <Input
-              placeholder="Vyhľadať projekt..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-            />
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Vyhľadať projekt..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex items-center ml-auto gap-2">
+              <span className="text-sm text-muted-foreground">Zobraziť ako:</span>
+              <Button 
+                variant={viewMode === "table" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setViewMode("table")}
+                className="h-8"
+              >
+                Tabuľka
+              </Button>
+              <Button 
+                variant={viewMode === "grid" ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setViewMode("grid")}
+                className="h-8"
+              >
+                Karty
+              </Button>
+            </div>
           </div>
         )}
 
@@ -347,179 +371,234 @@ const Projects = () => {
               </div>
             )}
           </div>
-        ) : (
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                {filteredProjects.map(project => (
-                  <Card 
-                    key={project.id} 
-                    className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${selectedProject === project.id ? 'ring-2 ring-primary' : ''}`}
-                    onClick={() => handleSelectProject(project)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="flex items-center flex-wrap gap-2">
-                            {project.name}
-                            {project.ownerId === currentUserId && (
-                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                                Vlastník
-                              </Badge>
-                            )}
-                            {isAdmin && project.ownerId !== currentUserId && (
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                Admin prístup
-                              </Badge>
-                            )}
-                          </CardTitle>
-                          <CardDescription>
-                            {new Date(project.createdAt).toLocaleDateString()}
-                          </CardDescription>
+        ) : viewMode === "table" ? (
+          // Table view for projects
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <ScrollArea className="h-[calc(100vh-280px)]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Názov</TableHead>
+                    <TableHead className="hidden md:table-cell">Popis</TableHead>
+                    <TableHead className="hidden sm:table-cell">Vytvorené</TableHead>
+                    <TableHead className="w-[100px]">Vlastník</TableHead>
+                    <TableHead className="text-right w-[180px]">Akcie</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProjects.map(project => (
+                    <TableRow 
+                      key={project.id} 
+                      className={`${selectedProject === project.id ? 'bg-primary/5' : ''}`}
+                    >
+                      <TableCell 
+                        className="font-medium cursor-pointer"
+                        onClick={() => handleSelectProject(project)}
+                      >
+                        {project.name}
+                      </TableCell>
+                      <TableCell 
+                        className="hidden md:table-cell max-w-xs truncate cursor-pointer"
+                        onClick={() => handleSelectProject(project)}
+                      >
+                        {project.description || "—"}
+                      </TableCell>
+                      <TableCell 
+                        className="hidden sm:table-cell cursor-pointer"
+                        onClick={() => handleSelectProject(project)}
+                      >
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          {project.ownerId === currentUserId ? (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                              Vlastník
+                            </Badge>
+                          ) : isAdmin ? (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
+                              Admin prístup
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Člen
+                            </Badge>
+                          )}
                         </div>
-                        {(project.ownerId === currentUserId || isAdmin) && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
-                            e.stopPropagation();
-                            setEditProject(project);
-                            setOpenEditDialog(true);
-                          }}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-600 dark:text-gray-300 line-clamp-2">
-                        {project.description || "Žiadny popis"}
-                      </p>
-                    </CardContent>
-                    <CardFooter className="justify-between border-t pt-3 flex-wrap gap-2">
-                      <div className="flex gap-2">
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
                         <Button 
-                          variant="outline" 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigateToProjectChecks(project)}
+                          className="h-8"
+                        >
+                          Kontroly
+                        </Button>
+                        {(project.ownerId === currentUserId || isAdmin) && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => openAddMemberDialogFor(project)}
+                              className="h-8"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setEditProject(project);
+                                setOpenEditDialog(true);
+                              }}
+                              className="h-8"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-8 text-red-500 hover:text-red-600"
+                              onClick={() => {
+                                setEditProject(project);
+                                setOpenDeleteDialog(true);
+                              }}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </div>
+        ) : (
+          // Grid view (cards)
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredProjects.map(project => (
+              <Card 
+                key={project.id} 
+                className={`overflow-hidden cursor-pointer hover:shadow-md transition-shadow ${selectedProject === project.id ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => handleSelectProject(project)}
+              >
+                <CardHeader className="pb-2 space-y-0">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-base">
+                      {project.name}
+                    </CardTitle>
+                    {(project.ownerId === currentUserId || isAdmin) && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => {
+                        e.stopPropagation();
+                        setEditProject(project);
+                        setOpenEditDialog(true);
+                      }}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <CardDescription className="text-xs">
+                    {new Date(project.createdAt).toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-2">
+                  <div className="mb-1 flex gap-1">
+                    {project.ownerId === currentUserId && (
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                        Vlastník
+                      </Badge>
+                    )}
+                    {isAdmin && project.ownerId !== currentUserId && (
+                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
+                        Admin prístup
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-1">
+                    {project.description || "Žiadny popis"}
+                  </p>
+                </CardContent>
+                <CardFooter className="pt-2 flex justify-between border-t">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigateToProjectChecks(project);
+                    }}
+                  >
+                    Kontroly
+                  </Button>
+                  
+                  <div className="flex gap-1">
+                    {(project.ownerId === currentUserId || isAdmin) && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigateToProjectChecks(project);
+                            openAddMemberDialogFor(project);
                           }}
                         >
-                          Zobraziť kontroly
+                          <UserPlus className="h-4 w-4" />
                         </Button>
-                        {(project.ownerId === currentUserId || isAdmin) && (
-                          <Button 
-                            variant="outline" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openAddMemberDialogFor(project);
-                            }}
-                          >
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Správa členov
-                          </Button>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        {(project.ownerId === currentUserId || isAdmin) && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-red-500 hover:text-red-600"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditProject(project);
-                              setOpenDeleteDialog(true);
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            </div>
-            
-            {selectedProject && (
-              <div className="lg:col-span-1">
-                <Card className="sticky top-24">
-                  <CardHeader>
-                    <CardTitle>
-                      {projects.find(p => p.id === selectedProject)?.name || "Projekt"}
-                    </CardTitle>
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="details" className="flex items-center gap-1">
-                          <Building className="w-4 h-4" />
-                          Detaily
-                        </TabsTrigger>
-                        <TabsTrigger value="members" className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          Členovia
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </CardHeader>
-                  <CardContent>
-                    <TabsContent value="details" className="space-y-4 mt-0">
-                      <div>
-                        <h3 className="text-sm font-medium">Popis</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {projects.find(p => p.id === selectedProject)?.description || "Žiadny popis"}
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium">Vytvorené</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {projects.find(p => p.id === selectedProject)?.createdAt.toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium">Vlastník</h3>
-                        <p className="text-sm text-muted-foreground mt-1 flex items-center">
-                          <User className="w-4 h-4 mr-2" />
-                          {projects.find(p => p.id === selectedProject)?.ownerId === currentUserId 
-                            ? "Vy" 
-                            : "Iný používateľ"}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-4">
                         <Button 
-                          onClick={() => navigateToProjectChecks(projects.find(p => p.id === selectedProject)!)}
-                          className="w-full"
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditProject(project);
+                            setOpenDeleteDialog(true);
+                          }}
                         >
-                          Zobraziť kontroly
+                          <Trash className="h-4 w-4" />
                         </Button>
-                        {(isProjectOwner(selectedProject) || isAdmin) && (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => openAddMemberDialogFor(projects.find(p => p.id === selectedProject)!)}
-                            className="w-full"
-                          >
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Správa členov
-                          </Button>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="members" className="mt-0">
-                      {loadingMembers ? (
-                        <div className="text-center py-4">Načítavam členov...</div>
-                      ) : (
-                        <ProjectMembers 
-                          projectId={selectedProject}
-                          isOwner={isProjectOwner(selectedProject)}
-                          members={projectMembers}
-                          onMembersChange={() => fetchProjectMembers(selectedProject)}
-                          isAdmin={isAdmin}
-                        />
-                      )}
-                    </TabsContent>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                      </>
+                    )}
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
+        )}
+        
+        {selectedProject && (
+          <Card className="sticky bottom-6 md:hidden border-primary/40 shadow-md">
+            <CardHeader className="pb-2 pt-3">
+              <CardTitle className="text-base">
+                {projects.find(p => p.id === selectedProject)?.name || "Projekt"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3 pt-0">
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  size="sm"
+                  onClick={() => navigateToProjectChecks(projects.find(p => p.id === selectedProject)!)}
+                  className="h-8"
+                >
+                  Zobraziť kontroly
+                </Button>
+                {(isProjectOwner(selectedProject) || isAdmin) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => openAddMemberDialogFor(projects.find(p => p.id === selectedProject)!)}
+                    className="h-8"
+                  >
+                    <UserPlus className="mr-1 h-4 w-4" />
+                    Správa členov
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

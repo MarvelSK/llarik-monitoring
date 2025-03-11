@@ -7,12 +7,15 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Copy, ArrowUpDown } from "lucide-react";
+import { Search, Copy, ArrowUpDown, Tag } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
+import { useProjects } from "@/context/ProjectContext";
 import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CheckTableProps {
   checks: Check[];
@@ -22,6 +25,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const { getPingUrl, loading } = useChecks();
+  const { projects, isAdmin } = useProjects();
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Check | 'lastPingFormatted';
     direction: 'ascending' | 'descending';
@@ -106,6 +110,12 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     }
   };
 
+  const getProjectName = (projectId: string | null) => {
+    if (!projectId) return "No Project";
+    const project = projects.find(p => p.id === projectId);
+    return project ? project.name : "Unknown Project";
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -123,6 +133,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
               <TableRow>
                 <TableHead className="w-12">Stav</TableHead>
                 <TableHead>Názov</TableHead>
+                {isAdmin && <TableHead className="hidden md:table-cell">Projekt</TableHead>}
                 <TableHead className="hidden lg:table-cell">Perióda / Odklad</TableHead>
                 <TableHead className="hidden md:table-cell">Posledný ping</TableHead>
                 <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
@@ -139,6 +150,11 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     <Skeleton className="h-5 w-40 mb-2" />
                     <Skeleton className="h-4 w-20" />
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell className="hidden md:table-cell">
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                  )}
                   <TableCell className="hidden lg:table-cell">
                     <Skeleton className="h-4 w-24 mb-2" />
                     <Skeleton className="h-4 w-36" />
@@ -148,9 +164,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <Skeleton className="h-8 w-20" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8 rounded-full" />
                   </TableCell>
                 </TableRow>
               ))}
@@ -167,7 +180,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <Input
           className="pl-10"
-          placeholder="Filtrovať podľa názvu kontroly..."
+          placeholder="Filtrovať podľa názvu kontroly, tagu alebo popisu..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -183,104 +196,138 @@ const CheckTable = ({ checks }: CheckTableProps) => {
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleSort('status')} 
-                    className="h-8 px-2"
-                  >
-                    Stav
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleSort('name')} 
-                    className="h-8 px-2 text-left"
-                  >
-                    Názov
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead className="hidden lg:table-cell">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleSort('period')} 
-                    className="h-8 px-2"
-                  >
-                    Perióda / Odklad
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead className="hidden md:table-cell">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleSort('lastPingFormatted')} 
-                    className="h-8 px-2"
-                  >
-                    Posledný ping
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
-                <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {processedChecks.map((check) => (
-                <TableRow 
-                  key={check.id} 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleRowClick(check.id)}
-                >
-                  <TableCell className="py-3">
-                    <StatusBadge status={check.status} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium mb-1">{check.name}</div>
-                    <div className="flex flex-wrap gap-1 my-1">
-                      {check.environments && check.environments.map((env) => (
-                        <Badge key={env} className={`${getEnvironmentColor(env)} text-xs`}>
-                          {env}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <div>{check.period} minút</div>
-                    <div className="text-muted-foreground text-sm">{check.grace} minút odklad</div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <div>
-                      {check.lastPing
-                          ? formatDistanceToNow(check.lastPing, { addSuffix: true, locale: sk })
-                          : "Nikdy"}
-                    </div>
-                    {check.lastDuration && (
-                      <div className="text-muted-foreground text-sm">
-                        {check.lastDuration}s
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 gap-1"
-                      onClick={(e) => copyPingUrl(check.id, e)}
+          <ScrollArea className="h-[calc(100vh-320px)]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort('status')} 
+                      className="h-8 px-2"
                     >
-                      <Copy className="h-4 w-4" />
-                      <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Kopírovať URL</span>
+                      Stav
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort('name')} 
+                      className="h-8 px-2 text-left"
+                    >
+                      Názov
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  {isAdmin && (
+                    <TableHead className="hidden md:table-cell">
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => handleSort('projectId' as keyof Check)} 
+                        className="h-8 px-2"
+                      >
+                        Projekt
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                  )}
+                  <TableHead className="hidden lg:table-cell">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort('period')} 
+                      className="h-8 px-2"
+                    >
+                      Perióda / Odklad
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => handleSort('lastPingFormatted')} 
+                      className="h-8 px-2"
+                    >
+                      Posledný ping
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {processedChecks.map((check) => (
+                  <TableRow 
+                    key={check.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(check.id)}
+                  >
+                    <TableCell className="py-1">
+                      <StatusBadge status={check.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{check.name}</div>
+                      <div className="flex flex-wrap gap-1 my-1">
+                        {check.environments && check.environments.map((env) => (
+                          <Badge key={env} className={`${getEnvironmentColor(env)} text-xs`}>
+                            {env}
+                          </Badge>
+                        ))}
+                        {check.tags && check.tags.length > 0 && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <Tag className="h-3 w-3 text-muted-foreground" />
+                            {check.tags.map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="hidden md:table-cell">
+                        {check.projectId ? (
+                          <Badge variant="secondary" className="font-normal">
+                            {getProjectName(check.projectId)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">No Project</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className="hidden lg:table-cell">
+                      <div>{check.period} minút</div>
+                      <div className="text-muted-foreground text-sm">{check.grace} minút odklad</div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div>
+                        {check.lastPing
+                            ? formatDistanceToNow(check.lastPing, { addSuffix: true, locale: sk })
+                            : "Nikdy"}
+                      </div>
+                      {check.lastDuration && (
+                        <div className="text-muted-foreground text-sm">
+                          {check.lastDuration}s
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1"
+                        onClick={(e) => copyPingUrl(check.id, e)}
+                      >
+                        <Copy className="h-4 w-4" />
+                        <span className="sr-only md:not-sr-only md:inline-block md:text-xs">Kopírovať URL</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         </div>
       )}
     </div>
