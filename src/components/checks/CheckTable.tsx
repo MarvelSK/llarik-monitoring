@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Search, Copy, ArrowUpDown, Tag } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
 import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CheckTableProps {
@@ -34,7 +34,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     direction: 'descending'
   });
 
-  // Sort and filter checks - memoized for performance
+  // Sort and filter checks
   const processedChecks = useMemo(() => {
     // First filter
     let result = checks.filter(check => 
@@ -79,28 +79,26 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     return result;
   }, [checks, searchTerm, sortConfig]);
 
-  // Memoized handlers to prevent rerenders
-  const handleSort = useCallback((key: keyof Check | 'lastPingFormatted') => {
+  const handleSort = (key: keyof Check | 'lastPingFormatted') => {
     setSortConfig(current => ({
       key,
       direction: current.key === key && current.direction === 'ascending' 
         ? 'descending' 
         : 'ascending'
     }));
-  }, []);
+  };
 
-  const handleRowClick = useCallback((id: string) => {
+  const handleRowClick = (id: string) => {
     navigate(`/checks/${id}`);
-  }, [navigate]);
+  };
 
-  const copyPingUrl = useCallback((id: string, e: React.MouseEvent) => {
+  const copyPingUrl = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(getPingUrl(id));
     toast.success('URL pingu skopírované do schránky');
-  }, [getPingUrl]);
+  };
 
-  // Memoized functions for rendering
-  const getEnvironmentColor = useCallback((env: CheckEnvironment) => {
+  const getEnvironmentColor = (env: CheckEnvironment) => {
     switch(env) {
       case 'produkcia':
       case 'prod': return 'bg-amber-500 text-white';
@@ -110,13 +108,13 @@ const CheckTable = ({ checks }: CheckTableProps) => {
       case 'worker': return 'bg-slate-500 text-white';
       default: return 'bg-gray-200 text-gray-800';
     }
-  }, []);
+  };
 
-  const getProjectName = useCallback((projectId: string | null) => {
+  const getProjectName = (projectId: string | null) => {
     if (!projectId) return "No Project";
     const project = projects.find(p => p.id === projectId);
     return project ? project.name : "Unknown Project";
-  }, [projects]);
+  };
 
   if (loading) {
     return (
@@ -139,6 +137,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                 <TableHead className="hidden lg:table-cell">Perióda / Odklad</TableHead>
                 <TableHead className="hidden md:table-cell">Posledný ping</TableHead>
                 <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
+                <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -208,9 +207,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       className="h-8 px-2"
                     >
                       Stav
-                      {sortConfig.key === 'status' && (
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      )}
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
                   <TableHead>
@@ -220,9 +217,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       className="h-8 px-2 text-left"
                     >
                       Názov
-                      {sortConfig.key === 'name' && (
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      )}
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
                   {isAdmin && (
@@ -233,9 +228,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                         className="h-8 px-2"
                       >
                         Projekt
-                        {sortConfig.key === 'projectId' && (
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        )}
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                   )}
@@ -246,9 +239,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       className="h-8 px-2"
                     >
                       Perióda / Odklad
-                      {sortConfig.key === 'period' && (
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      )}
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
                   <TableHead className="hidden md:table-cell">
@@ -258,9 +249,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       className="h-8 px-2"
                     >
                       Posledný ping
-                      {sortConfig.key === 'lastPingFormatted' && (
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                      )}
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
                   <TableHead className="hidden sm:table-cell">URL pingu</TableHead>
@@ -299,16 +288,9 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     {isAdmin && (
                       <TableCell className="hidden md:table-cell">
                         {check.projectId ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="font-normal">
-                                {getProjectName(check.projectId)}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{getProjectName(check.projectId)}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <Badge variant="secondary" className="font-normal">
+                            {getProjectName(check.projectId)}
+                          </Badge>
                         ) : (
                           <span className="text-muted-foreground text-xs">No Project</span>
                         )}

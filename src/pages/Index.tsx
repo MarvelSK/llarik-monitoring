@@ -4,7 +4,7 @@ import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatusCards from "@/components/dashboard/StatusCards";
@@ -29,19 +29,14 @@ const Index = () => {
   const downChecks = filteredChecks.filter((check) => check.status === "down");
   const lateChecks = filteredChecks.filter((check) => check.status === "grace");
 
-  // Memoized refresh handler to prevent unnecessary rerenders
-  const handleRefresh = useCallback(async () => {
+  // Function to handle manual refresh
+  const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh with a shorter delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Simulate refresh with a delay
+    await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
     toast.success("Nástenka obnovená");
-  }, []);
-
-  // Memoized navigation handler
-  const handleAddNew = useCallback(() => {
-    navigate("/checks/new");
-  }, [navigate]);
+  };
 
   return (
     <Layout>
@@ -51,7 +46,7 @@ const Index = () => {
           subtitle={`Monitorovanie systémových úloh${currentProject ? ` - ${currentProject.name}` : ' - Všetky projekty'}`}
           onRefresh={handleRefresh}
           refreshing={refreshing}
-          onAddNew={handleAddNew}
+          onAddNew={() => navigate("/checks/new")}
         />
 
         {loading ? (
