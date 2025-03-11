@@ -11,9 +11,10 @@ import CheckDetail from "./pages/CheckDetail";
 import CheckCreate from "./pages/CheckCreate";
 import CheckEdit from "./pages/CheckEdit";
 import Login from "./pages/Login";
-import { CompanyProvider } from "./context/CompanyContext";
 import RequireAuth from "./components/auth/RequireAuth";
 import PingHandler from "./components/checks/PingHandler";
+import { ProjectProvider } from "./context/ProjectContext";
+import Projects from "./pages/Projects";
 
 const queryClient = new QueryClient();
 
@@ -22,7 +23,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <CompanyProvider>
+      <ProjectProvider>
         <CheckProvider>
           <BrowserRouter>
             <Routes>
@@ -33,6 +34,11 @@ const App = () => (
               <Route path="/" element={
                 <RequireAuth>
                   <Index />
+                </RequireAuth>
+              } />
+              <Route path="/projects" element={
+                <RequireAuth>
+                  <Projects />
                 </RequireAuth>
               } />
               <Route path="/checks/new" element={
@@ -55,7 +61,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </CheckProvider>
-      </CompanyProvider>
+      </ProjectProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

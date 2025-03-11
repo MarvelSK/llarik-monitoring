@@ -3,16 +3,23 @@ import CheckForm from "@/components/checks/CheckForm";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
+import { useProjects } from "@/context/ProjectContext";
 import { Check } from "@/types/check";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const CheckCreate = () => {
   const { createCheck } = useChecks();
+  const { currentProject } = useProjects();
   const navigate = useNavigate();
 
-  const handleSubmit = (data: Partial<Check>) => {
-    createCheck(data);
+  const handleSubmit = async (data: Partial<Check>) => {
+    // Add the current project ID if available
+    if (currentProject) {
+      data.projectId = currentProject.id;
+    }
+    
+    await createCheck(data);
     navigate("/");
   };
 

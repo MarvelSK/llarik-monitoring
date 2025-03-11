@@ -1,16 +1,16 @@
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useCompanies } from "@/context/CompanyContext";
-import { Building, ChevronDown, LogOut, PlusIcon, Settings, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useProjects } from "@/context/ProjectContext";
+import { Building, ChevronDown, FolderKanban, LogOut, PlusCircle, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 const Header = () => {
   const navigate = useNavigate();
-  const { currentUser, currentCompany, companies, setCurrentCompany, logout } = useCompanies();
+  const { currentProject, projects, setCurrentProject } = useProjects();
 
   const handleLogout = () => {
-    logout();
+    // For now, just navigate to login
     navigate("/login");
   };
 
@@ -36,63 +36,59 @@ const Header = () => {
             <span className="font-bold text-xl text-gray-900 dark:text-white">LLarik Monitoring</span>
           </a>
 
-          {currentUser?.isAdmin && companies.length > 0 && (
+          {projects.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="ml-4 gap-1">
                   <Building className="w-4 h-4 mr-1" />
-                  {currentCompany ? currentCompany.name : "Všetky spoločnosti"}
+                  {currentProject ? currentProject.name : "All Projects"}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setCurrentCompany("")}>
-                  Všetky spoločnosti
+                <DropdownMenuItem onClick={() => setCurrentProject("")}>
+                  All Projects
                 </DropdownMenuItem>
-                {companies.map(company => (
+                {projects.map(project => (
                   <DropdownMenuItem 
-                    key={company.id}
-                    onClick={() => setCurrentCompany(company.id)}
+                    key={project.id}
+                    onClick={() => setCurrentProject(project.id)}
                   >
-                    {company.name}
+                    {project.name}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuItem asChild>
+                  <Link to="/projects" className="w-full">
+                    <FolderKanban className="w-4 h-4 mr-2" />
+                    Manage Projects
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
         <div className="flex items-center space-x-2">
-          {currentUser && (
-            <>
-              <Button 
-                onClick={() => navigate('/checks/new')} 
-                className="bg-healthy hover:bg-opacity-90 text-white"
-              >
-                <PlusIcon className="w-5 h-5 mr-2" />
-                Nová kontrola
-              </Button>
+          <Button 
+            onClick={() => navigate('/checks/new')} 
+            className="bg-healthy hover:bg-opacity-90 text-white"
+          >
+            <PlusCircle className="w-5 h-5 mr-2" />
+            New Check
+          </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="ml-2">
-                    <User className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {currentUser.isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate("/admin")}>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Administračná nástenka
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Odhlásiť sa
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="ml-2">
+                <User className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -4,6 +4,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
+import { useProjects } from "@/context/ProjectContext";
 import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,13 +13,19 @@ import { toast } from "sonner";
 
 const Index = () => {
   const { checks, loading } = useChecks();
+  const { currentProject } = useProjects();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  const allChecks = checks;
-  const upChecks = checks.filter((check) => check.status === "up");
-  const downChecks = checks.filter((check) => check.status === "down");
-  const lateChecks = checks.filter((check) => check.status === "grace");
+  // Filter checks by current project
+  const filteredChecks = currentProject 
+    ? checks.filter(check => check.projectId === currentProject.id)
+    : checks;
+
+  const allChecks = filteredChecks;
+  const upChecks = filteredChecks.filter((check) => check.status === "up");
+  const downChecks = filteredChecks.filter((check) => check.status === "down");
+  const lateChecks = filteredChecks.filter((check) => check.status === "grace");
 
   // Function to handle manual refresh
   const handleRefresh = async () => {

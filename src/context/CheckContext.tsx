@@ -1,6 +1,7 @@
+
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
-import { addMinutes, isBefore, isPast, parseISO } from "date-fns";
+import { addMinutes, isBefore, isPast } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,7 @@ interface CheckContextType {
   pingCheck: (id: string, status: CheckPing["status"]) => void;
   getPingUrl: (id: string) => string;
   loading: boolean;
-  getChecksByCompany: (companyId: string) => Check[];
+  getChecksByProject: (projectId: string) => Check[];
 }
 
 const CheckContext = createContext<CheckContextType | undefined>(undefined);
@@ -38,6 +39,7 @@ function convertDatesToObjects(check: any): Check {
     lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
     nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
     createdAt: new Date(check.created_at),
+    projectId: check.project_id,
     pings: [], // We'll load pings separately as needed
   };
 }
@@ -56,6 +58,7 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     last_duration: check.lastDuration,
     last_ping: check.lastPing?.toISOString(),
     next_ping_due: check.nextPingDue?.toISOString(),
+    project_id: check.projectId
   };
 }
 
@@ -265,6 +268,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         tags: checkData.tags || [],
         environments: checkData.environments || [],
         cron_expression: checkData.cronExpression,
+        project_id: checkData.projectId,
         created_at: now.toISOString()
       };
 
@@ -406,8 +410,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
-  const getChecksByCompany = (companyId: string) => {
-    return checks.filter(check => check.companyId === companyId);
+  const getChecksByProject = (projectId: string) => {
+    return checks.filter(check => check.projectId === projectId);
   };
 
   return (
@@ -421,7 +425,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         pingCheck,
         getPingUrl,
         loading,
-        getChecksByCompany,
+        getChecksByProject,
       }}
     >
       {children}
