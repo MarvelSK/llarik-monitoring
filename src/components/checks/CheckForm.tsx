@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Info } from "lucide-react";
+import { useCompanies } from "@/context/CompanyContext";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -35,6 +35,7 @@ const formSchema = z.object({
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
   const navigate = useNavigate();
+  const { currentCompany } = useCompanies();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,10 +71,17 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const tags = values.tags ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) : undefined;
     
+    if (!currentCompany && !isEdit) {
+      toast.error("Nie je vybraná spoločnosť");
+      return;
+    }
+    
+    // Include the company ID when submitting the form
     onSubmit({
       ...values,
       tags,
-      environments: values.environments as CheckEnvironment[]
+      environments: values.environments as CheckEnvironment[],
+      companyId: defaultValues?.companyId || currentCompany?.id, // Use existing ID or current company ID
     });
 
     toast.success(isEdit ? "Kontrola úspešne aktualizovaná" : "Kontrola úspešne vytvorená");

@@ -4,21 +4,29 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
+import { useCompanies } from "@/context/CompanyContext";
 import { Activity, AlertCircle, Clock, PlusCircle, RefreshCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 const Index = () => {
   const { checks, loading } = useChecks();
+  const { currentCompany } = useCompanies();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
 
-  const allChecks = checks;
-  const upChecks = checks.filter((check) => check.status === "up");
-  const downChecks = checks.filter((check) => check.status === "down");
-  const lateChecks = checks.filter((check) => check.status === "grace");
+  // Filter checks by current company
+  const companyChecks = useMemo(() => {
+    if (!currentCompany) return checks;
+    return checks.filter(check => check.companyId === currentCompany.id);
+  }, [checks, currentCompany]);
+
+  const allChecks = companyChecks;
+  const upChecks = companyChecks.filter((check) => check.status === "up");
+  const downChecks = companyChecks.filter((check) => check.status === "down");
+  const lateChecks = companyChecks.filter((check) => check.status === "grace");
 
   // Function to handle manual refresh
   const handleRefresh = async () => {

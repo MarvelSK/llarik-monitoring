@@ -39,6 +39,7 @@ function convertDatesToObjects(check: any): Check {
     nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
     createdAt: new Date(check.created_at),
     pings: [], // We'll load pings separately as needed
+    companyId: check.company_id || '', // Make sure we handle the company_id field from Supabase
   };
 }
 
@@ -56,6 +57,7 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     last_duration: check.lastDuration,
     last_ping: check.lastPing?.toISOString(),
     next_ping_due: check.nextPingDue?.toISOString(),
+    company_id: check.companyId, // Include company_id when sending to Supabase
   };
 }
 
@@ -265,7 +267,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         tags: checkData.tags || [],
         environments: checkData.environments || [],
         cron_expression: checkData.cronExpression,
-        created_at: now.toISOString()
+        created_at: now.toISOString(),
+        company_id: checkData.companyId, // Set company ID when creating a check
       };
 
       const { data, error } = await supabase
