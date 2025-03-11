@@ -1,7 +1,6 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Company, User } from "@/types/company";
 import { v4 as uuidv4 } from "uuid";
+import { Company, User } from "@/types/project";
 
 interface CompanyContextType {
   companies: Company[];
