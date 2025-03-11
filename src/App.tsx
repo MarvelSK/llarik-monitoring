@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { CheckProvider } from "./context/CheckContext";
 import { ProjectProvider } from "./context/ProjectContext";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -24,27 +24,35 @@ const Projects = lazy(() => import("./pages/Projects"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
-      gcTime: 1000 * 60 * 10, // 10 minutes (replaced cacheTime)
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes
       refetchOnWindowFocus: false,
       retry: 1,
+      refetchOnMount: false, // Don't refetch when component mounts
     },
   },
 });
 
-// Loading fallback component
+// Loading fallback component with reduced skeleton animation
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="space-y-4 w-full max-w-md">
-      <Skeleton className="h-12 w-3/4 mx-auto" />
-      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-12 w-3/4 mx-auto animate-pulse" />
+      <Skeleton className="h-64 w-full animate-pulse" />
       <div className="grid grid-cols-2 gap-4">
-        <Skeleton className="h-8" />
-        <Skeleton className="h-8" />
+        <Skeleton className="h-8 animate-pulse" />
+        <Skeleton className="h-8 animate-pulse" />
       </div>
     </div>
   </div>
 );
+
+const ScrollToTop = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -54,6 +62,7 @@ const App = () => (
       <ProjectProvider>
         <CheckProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public route */}
