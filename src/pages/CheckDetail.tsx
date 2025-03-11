@@ -1,4 +1,3 @@
-
 import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChecks } from "@/context/CheckContext";
-import { CheckPing } from "@/types/check";
+import { CheckPing, CheckEnvironment } from "@/types/check";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -93,12 +92,11 @@ const CheckDetail = () => {
     );
   }
 
-  const getEnvironmentColor = (env: string) => {
+  const getEnvironmentColor = (env: CheckEnvironment) => {
     switch(env) {
-      case 'prod': return 'bg-amber-500 text-white';
-      case 'sandbox': return 'bg-rose-500 text-white';
-      case 'worker': return 'bg-slate-500 text-white';
-      case 'db-backups': return 'bg-blue-500 text-white';
+      case 'produkcia': return 'bg-amber-500 text-white';
+      case 'test': return 'bg-rose-500 text-white';
+      case 'manuál': return 'bg-slate-500 text-white';
       default: return 'bg-gray-200 text-gray-800';
     }
   };

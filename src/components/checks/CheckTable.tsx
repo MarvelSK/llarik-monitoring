@@ -101,9 +101,9 @@ const CheckTable = ({ checks }: CheckTableProps) => {
 
   const getEnvironmentColor = (env: CheckEnvironment) => {
     switch(env) {
-      case 'prod': return 'bg-amber-500 text-white';
-      case 'sandbox': return 'bg-rose-500 text-white';
-      case 'worker': return 'bg-slate-500 text-white';
+      case 'produkcia': return 'bg-amber-500 text-white';
+      case 'test': return 'bg-rose-500 text-white';
+      case 'manuál': return 'bg-slate-500 text-white';
       default: return 'bg-gray-200 text-gray-800';
     }
   };

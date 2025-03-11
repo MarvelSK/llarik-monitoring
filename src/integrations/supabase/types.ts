@@ -43,6 +43,7 @@ export type Database = {
       }
       checks: {
         Row: {
+          company_id: string | null
           created_at: string
           cron_expression: string | null
           description: string | null
@@ -58,6 +59,7 @@ export type Database = {
           tags: string[] | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           cron_expression?: string | null
           description?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           tags?: string[] | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           cron_expression?: string | null
           description?: string | null
