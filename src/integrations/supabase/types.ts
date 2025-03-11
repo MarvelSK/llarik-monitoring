@@ -124,24 +124,59 @@ export type Database = {
         }
         Relationships: []
       }
+      project_members: {
+        Row: {
+          created_at: string
+          id: string
+          permissions: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permissions?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permissions?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
           description: string | null
           id: string
           name: string
+          owner_id: string
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          owner_id: string
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          owner_id?: string
         }
         Relationships: []
       }
@@ -153,6 +188,14 @@ export type Database = {
       get_user_profile: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      invite_user_to_project: {
+        Args: {
+          project_id: string
+          email: string
+          permissions?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

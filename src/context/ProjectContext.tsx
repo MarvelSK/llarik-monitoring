@@ -1,7 +1,6 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Project } from "@/types/project";
-import { v4 as uuidv4 } from "uuid";
+import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,6 +14,9 @@ interface ProjectContextType {
   setCurrentProject: (projectId: string) => void;
   loading: boolean;
   projectHasChecks: (id: string) => Promise<boolean>;
+  getProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
+  isProjectOwner: (projectId: string) => boolean;
+  currentUserId: string | null;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -32,6 +34,7 @@ function convertDatesToObjects(project: any): Project {
   return {
     ...project,
     createdAt: new Date(project.created_at),
+    ownerId: project.owner_id
   };
 }
 
@@ -43,24 +46,69 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user's ID and set up auth listener
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserId(session?.user?.id || null);
+      
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setCurrentUserId(session?.user?.id || null);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUserId(null);
+        }
+      });
+      
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+    
+    initializeAuth();
+  }, []);
 
   // Load projects from Supabase
   useEffect(() => {
     async function fetchProjects() {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        
+        if (!currentUserId) {
+          setProjects([]);
+          return;
+        }
+        
+        // Get projects the user owns
+        const { data: ownedProjects, error: ownedError } = await supabase
           .from('projects')
           .select('*')
+          .eq('owner_id', currentUserId)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching projects:', error);
-          toast.error('Failed to load projects');
+        if (ownedError) {
+          console.error('Error fetching owned projects:', ownedError);
+          toast.error('Failed to load owned projects');
           return;
         }
 
-        const projectsWithDates = data.map(convertDatesToObjects);
+        // Get projects shared with the user
+        const { data: sharedProjects, error: sharedError } = await supabase
+          .from('projects')
+          .select('*')
+          .not('owner_id', 'eq', currentUserId)
+          .order('created_at', { ascending: false });
+
+        if (sharedError) {
+          console.error('Error fetching shared projects:', sharedError);
+          toast.error('Failed to load shared projects');
+          return;
+        }
+
+        const allProjects = [...(ownedProjects || []), ...(sharedProjects || [])];
+        const projectsWithDates = allProjects.map(convertDatesToObjects);
         setProjects(projectsWithDates);
         
         // Set the first project as current if we have projects and no current project
@@ -87,7 +135,10 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newProject = convertDatesToObjects(payload.new);
-          setProjects(prev => [newProject, ...prev]);
+          // Only add if the project is owned by the current user or shared with them
+          if (newProject.ownerId === currentUserId) {
+            setProjects(prev => [newProject, ...prev]);
+          }
         } else if (payload.eventType === 'UPDATE') {
           const updatedProject = convertDatesToObjects(payload.new);
           setProjects(prev => prev.map(project => 
@@ -109,23 +160,81 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       })
       .subscribe();
 
+    // Also subscribe to project_members changes
+    const membersChannel = supabase
+      .channel('public:project_members')
+      .on('postgres_changes', {
+        event: '*', 
+        schema: 'public',
+        table: 'project_members'
+      }, () => {
+        // When members change, refresh projects to reflect new shares
+        fetchProjects();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(membersChannel);
     };
-  }, []);
+  }, [currentUserId]);
 
   const getProject = (id: string) => {
     return projects.find((project) => project.id === id);
+  };
+
+  const isProjectOwner = (projectId: string) => {
+    const project = getProject(projectId);
+    return project?.ownerId === currentUserId;
+  };
+
+  const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('project_members')
+        .select(`
+          id,
+          project_id,
+          user_id,
+          permissions,
+          created_at,
+          profiles:user_id(name, email)
+        `)
+        .eq('project_id', projectId);
+      
+      if (error) throw error;
+      
+      return (data || []).map((member: any) => ({
+        id: member.id,
+        projectId: member.project_id,
+        userId: member.user_id,
+        permissions: member.permissions,
+        createdAt: new Date(member.created_at),
+        user: member.profiles ? {
+          name: member.profiles.name,
+          email: member.profiles.email
+        } : undefined
+      }));
+    } catch (error) {
+      console.error('Error getting project members:', error);
+      toast.error('Failed to load project members');
+      return [];
+    }
   };
 
   const createProject = async (projectData: Partial<Project>) => {
     try {
       const now = new Date();
       
+      if (!currentUserId) {
+        throw new Error("User not authenticated");
+      }
+      
       const newProjectData = {
         name: projectData.name || "Untitled Project",
         description: projectData.description,
-        created_at: now.toISOString()
+        created_at: now.toISOString(),
+        owner_id: currentUserId
       };
 
       const { data, error } = await supabase
@@ -154,6 +263,13 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     try {
       const projectIndex = projects.findIndex((c) => c.id === id);
       if (projectIndex === -1) return undefined;
+
+      // Check if user is the owner
+      const project = projects[projectIndex];
+      if (project.ownerId !== currentUserId) {
+        toast.error('Only the owner can update this project');
+        return undefined;
+      }
 
       // Prepare data for Supabase
       const dbProjectData = {
@@ -209,6 +325,13 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
   const deleteProject = async (id: string) => {
     try {
+      // Check if user is the owner
+      const project = getProject(id);
+      if (!project || project.ownerId !== currentUserId) {
+        toast.error('Only the owner can delete this project');
+        return;
+      }
+      
       // Check if project has checks
       const hasChecks = await projectHasChecks(id);
       if (hasChecks) {
@@ -264,6 +387,9 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         setCurrentProject: handleSetCurrentProject,
         loading,
         projectHasChecks,
+        getProjectMembers,
+        isProjectOwner,
+        currentUserId,
       }}
     >
       {children}
