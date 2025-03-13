@@ -17,10 +17,7 @@ export function ProjectSelector() {
     <Select
       value={currentProject?.id || ""}
       onValueChange={(value) => {
-        const project = projects.find(p => p.id === value)
-        if (project) {
-          setCurrentProject(value)
-        }
+        setCurrentProject(value);
       }}
     >
       <SelectTrigger className="w-[180px] h-8 mr-1">

@@ -42,6 +42,8 @@ interface ProjectProviderProps {
   children: ReactNode;
 }
 
+const CURRENT_PROJECT_KEY = 'currentProjectId';
+
 export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
@@ -108,7 +110,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         let allProjects: any[] = [];
         
         if (isAdmin) {
-          // Admin gets all projects
           const { data: adminProjects, error: adminError } = await supabase
             .from('projects')
             .select('*')
@@ -122,8 +123,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           
           allProjects = adminProjects || [];
         } else {
-          // Regular users get only their own projects and projects they're members of
-          // First, get owned projects
           const { data: ownedProjects, error: ownedError } = await supabase
             .from('projects')
             .select('*')
@@ -136,7 +135,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
             return;
           }
           
-          // Then, get projects where user is a member
           const { data: memberProjects, error: memberError } = await supabase
             .from('project_members')
             .select(`
@@ -158,7 +156,14 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         const projectsWithDates = allProjects.map(convertDatesToObjects);
         setProjects(projectsWithDates);
         
-        if (projectsWithDates.length > 0 && !currentProject) {
+        const savedProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
+        
+        if (savedProjectId && projectsWithDates.some(p => p.id === savedProjectId)) {
+          const savedProject = projectsWithDates.find(p => p.id === savedProjectId);
+          if (savedProject) {
+            setCurrentProject(savedProject);
+          }
+        } else if (projectsWithDates.length > 0 && !currentProject) {
           setCurrentProject(projectsWithDates[0]);
         }
       } catch (err) {
@@ -233,7 +238,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     try {
       console.log("Fetching project members for project:", projectId);
       
-      // First, fetch the project members
       const { data: membersData, error: membersError } = await supabase
         .from('project_members')
         .select('id, project_id, user_id, permissions, created_at')
@@ -249,9 +253,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         return [];
       }
       
-      console.log("Found members:", membersData.length);
-      
-      // Then, fetch the user profiles separately for each member
       const memberPromises = membersData.map(async (member) => {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
@@ -425,17 +426,18 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const handleSetCurrentProject = (projectId: string) => {
     if (projectId === "") {
       setCurrentProject(null);
+      localStorage.removeItem(CURRENT_PROJECT_KEY);
     } else {
       const project = getProject(projectId);
       if (project) {
         setCurrentProject(project);
+        localStorage.setItem(CURRENT_PROJECT_KEY, projectId);
       }
     }
   };
 
   const getAllProjects = async (): Promise<Project[]> => {
     if (isAdmin) {
-      // Admin gets all projects
       try {
         const { data, error } = await supabase
           .from('projects')
@@ -455,7 +457,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         return [];
       }
     } else {
-      // Regular users only get their accessible projects
       return projects;
     }
   };

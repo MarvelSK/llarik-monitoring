@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Control } from "react-hook-form";
+import { useEffect } from "react";
 
 interface ProjectSelectorProps {
   control: Control<any>;
@@ -23,7 +24,18 @@ const ProjectSelector = ({
   description = "Vyberte projekt pre túto kontrolu",
   label = "Projekt"
 }: ProjectSelectorProps) => {
-  const { projects } = useProjects();
+  const { projects, currentProject } = useProjects();
+
+  // Set the default value of the form field to the current project ID
+  useEffect(() => {
+    if (currentProject && control) {
+      // Set default value for the project selector if not already set
+      const currentValue = control._getWatch(name);
+      if (!currentValue && currentProject.id) {
+        control._setValue(name, currentProject.id);
+      }
+    }
+  }, [currentProject, control, name]);
 
   return (
     <FormField
