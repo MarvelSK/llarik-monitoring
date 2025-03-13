@@ -1,9 +1,11 @@
+
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { toast } from "sonner";
 import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
+import { parseExpression } from 'cron-parser';
 
 interface CheckContextType {
   checks: Check[];
@@ -74,6 +76,20 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return value;
   }
 
+  // Calculate next execution date for a CRON expression
+  function getNextCronDate(cronExpression: string, fromDate = new Date()): Date {
+    try {
+      const interval = parseExpression(cronExpression, {
+        currentDate: fromDate
+      });
+      return interval.next().toDate();
+    } catch (error) {
+      console.error("Error parsing CRON expression:", error);
+      // Return a date in the far future as fallback
+      return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    }
+  }
+
   useEffect(() => {
     async function fetchChecks() {
       try {
@@ -90,7 +106,19 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }
 
         const checksWithDates = data.map(convertDatesToObjects);
-        setChecks(checksWithDates);
+        
+        // Calculate next ping due for CRON checks if not set
+        const updatedChecks = checksWithDates.map(check => {
+          if (check.cronExpression && (!check.nextPingDue || check.lastPing)) {
+            // If has CRON and either no nextPingDue or has lastPing (need to calculate next)
+            const baseDate = check.lastPing || new Date();
+            const nextDue = getNextCronDate(check.cronExpression, baseDate);
+            return { ...check, nextPingDue: nextDue };
+          }
+          return check;
+        });
+        
+        setChecks(updatedChecks);
       } catch (err) {
         console.error('Error in fetchChecks:', err);
         toast.error('Failed to load checks');
@@ -110,6 +138,12 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newCheck = convertDatesToObjects(payload.new);
+          
+          // Calculate next ping for CRON if needed
+          if (newCheck.cronExpression && !newCheck.nextPingDue) {
+            newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
+          }
+          
           setChecks(prev => [newCheck, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
           const updatedCheck = convertDatesToObjects(payload.new);
@@ -223,8 +257,21 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
     if (!check.lastPing) return "new";
-    if (!check.nextPingDue) return "up";
-
+    if (!check.nextPingDue) {
+      // If nextPingDue is not calculated yet, calculate it now
+      if (check.cronExpression) {
+        // We should generate the next due ping time based on CRON
+        const nextDue = getNextCronDate(check.cronExpression, check.lastPing);
+        check.nextPingDue = nextDue;
+      } else if (check.period > 0) {
+        // Regular period check
+        check.nextPingDue = addMinutes(check.lastPing, check.period);
+      } else {
+        // No schedule defined, assume it's up
+        return "up";
+      }
+    }
+    
     const now = new Date();
     
     if (isPast(check.nextPingDue)) {
@@ -260,6 +307,18 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         checkData.cronExpression = "";
       }
       
+      // Calculate next_ping_due for CRON checks
+      let nextPingDue = undefined;
+      if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
+        try {
+          nextPingDue = getNextCronDate(checkData.cronExpression);
+        } catch (error) {
+          console.error("Invalid CRON expression:", error);
+          toast.error("Neplatný CRON výraz");
+          throw new Error("Invalid CRON expression");
+        }
+      }
+      
       const newCheckData = {
         name: checkData.name || "Untitled Check",
         description: checkData.description,
@@ -270,6 +329,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         environments: checkData.environments || [],
         cron_expression: checkData.cronExpression || null,
         project_id: checkData.projectId,
+        next_ping_due: nextPingDue?.toISOString(),
         created_at: now.toISOString()
       };
 
@@ -305,7 +365,16 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       const now = new Date();
       const prevStatus = check.status;
-      const nextPingDue = addMinutes(now, check.period);
+      
+      // Calculate the next ping due time based on the check type
+      let nextPingDue: Date;
+      if (check.cronExpression) {
+        // For CRON based checks, calculate the next execution time
+        nextPingDue = getNextCronDate(check.cronExpression, now);
+      } else {
+        // For period based checks, simply add the period to now
+        nextPingDue = addMinutes(now, check.period);
+      }
 
       const pingData = {
         check_id: id,
@@ -359,11 +428,26 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       // Ensure period is set to 0 when using CRON
       if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
         checkData.period = 0;
+        
+        // Calculate next ping due for CRON
+        try {
+          const nextPingDue = getNextCronDate(checkData.cronExpression);
+          checkData.nextPingDue = nextPingDue;
+        } catch (error) {
+          console.error("Invalid CRON expression:", error);
+          toast.error("Neplatný CRON výraz");
+          throw new Error("Invalid CRON expression");
+        }
       }
       
       // Ensure CRON is cleared when using period
       if (checkData.period !== 0) {
         checkData.cronExpression = "";
+        
+        // Calculate next ping due for period
+        if (checks[checkIndex].lastPing) {
+          checkData.nextPingDue = addMinutes(checks[checkIndex].lastPing!, checkData.period);
+        }
       }
       
       const dbCheckData = prepareCheckForSupabase(checkData);
@@ -375,7 +459,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error) {
         console.error('Error updating check:', error);
-        toast.error('Nepodarilo sa pingnúť kontrolu');
+        toast.error('Nepodarilo sa aktualizovať kontrolu');
         return undefined;
       }
 
@@ -388,7 +472,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }),
       };
 
-      toast.success('Pingnutie prebehlo úspešne');
+      toast.success('Kontrola úspešne aktualizovaná');
       return updatedCheck;
     } catch (error) {
       console.error('Error in updateCheck:', error);
