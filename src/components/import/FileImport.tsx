@@ -1,13 +1,23 @@
+
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useProjects } from "@/context/ProjectContext";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+interface ImportItem {
+  id: string;
+  name: string;
+  status: "created" | "updated" | "error";
+  error?: string;
+  original: any;
+}
 
 interface ImportError {
   line: number;
@@ -21,6 +31,7 @@ interface ImportSummary {
   errors: ImportError[];
   updated: number;
   created: number;
+  items: ImportItem[];
 }
 
 const FileImport = () => {
@@ -54,6 +65,7 @@ const FileImport = () => {
       errors: [],
       updated: 0,
       created: 0,
+      items: [],
     };
 
     for (let i = 0; i < projects.length; i++) {
@@ -79,6 +91,8 @@ const FileImport = () => {
         };
 
         let result;
+        let status: "created" | "updated" | "error" = "error";
+        
         if (existingProject) {
           result = await supabase
             .from("projects")
@@ -91,6 +105,7 @@ const FileImport = () => {
           
           if (result.error) throw new Error(result.error.message);
           summary.updated++;
+          status = "updated";
         } else {
           result = await supabase
             .from("projects")
@@ -98,14 +113,31 @@ const FileImport = () => {
           
           if (result.error) throw new Error(result.error.message);
           summary.created++;
+          status = "created";
         }
+
+        summary.items.push({
+          id: project.ID,
+          name: project.NAME,
+          status,
+          original: project
+        });
 
         summary.success++;
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Unknown error";
         summary.errors.push({
           line: i + 1,
           data: JSON.stringify(projects[i]),
-          reason: error instanceof Error ? error.message : "Unknown error",
+          reason: errorMsg,
+        });
+        
+        summary.items.push({
+          id: projects[i].ID || `unknown-${i}`,
+          name: projects[i].NAME || `Unnamed Project (Line ${i+1})`,
+          status: "error",
+          error: errorMsg,
+          original: projects[i]
         });
       }
     }
@@ -135,6 +167,7 @@ const FileImport = () => {
       errors: [],
       updated: 0,
       created: 0,
+      items: [],
     };
 
     for (let i = 0; i < checks.length; i++) {
@@ -154,7 +187,7 @@ const FileImport = () => {
           throw new Error(`Project with ID ${check.PROJECT_ID} not found`);
         }
 
-        const tags = check.TAGS ? [check.TAGS] : [];
+        const tags = check.TAGS ? Array.isArray(check.TAGS) ? check.TAGS : [check.TAGS] : [];
 
         const { data: existingCheck } = await supabase
           .from("checks")
@@ -177,6 +210,8 @@ const FileImport = () => {
         };
 
         let result;
+        let status: "created" | "updated" | "error" = "error";
+        
         if (existingCheck) {
           result = await supabase
             .from("checks")
@@ -193,6 +228,7 @@ const FileImport = () => {
           
           if (result.error) throw new Error(result.error.message);
           summary.updated++;
+          status = "updated";
         } else {
           result = await supabase
             .from("checks")
@@ -200,14 +236,31 @@ const FileImport = () => {
           
           if (result.error) throw new Error(result.error.message);
           summary.created++;
+          status = "created";
         }
 
+        summary.items.push({
+          id: check.ID,
+          name: check.NAME,
+          status,
+          original: check
+        });
+        
         summary.success++;
       } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : "Unknown error";
         summary.errors.push({
           line: i + 1,
           data: JSON.stringify(checks[i]),
-          reason: error instanceof Error ? error.message : "Unknown error",
+          reason: errorMsg,
+        });
+        
+        summary.items.push({
+          id: checks[i].ID || `unknown-${i}`,
+          name: checks[i].NAME || `Unnamed Check (Line ${i+1})`,
+          status: "error",
+          error: errorMsg,
+          original: checks[i]
         });
       }
     }
@@ -281,6 +334,140 @@ const FileImport = () => {
     }
   };
 
+  const getStatusBadge = (status: "created" | "updated" | "error") => {
+    switch (status) {
+      case "created":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+          <CheckCircle2 className="w-3 h-3 mr-1" /> Vytvorený
+        </Badge>;
+      case "updated":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+          <RefreshCw className="w-3 h-3 mr-1" /> Aktualizovaný
+        </Badge>;
+      case "error":
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <AlertCircle className="w-3 h-3 mr-1" /> Chyba
+        </Badge>;
+    }
+  };
+
+  const renderSummary = (summary: ImportSummary | null, type: "projects" | "checks") => {
+    if (!summary) return null;
+    
+    return (
+      <div className="space-y-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-xl">Celkovo</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-3xl font-bold">{summary.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-xl text-green-600">Úspešné</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-3xl font-bold">{summary.success}</p>
+              <div className="flex gap-2 mt-2">
+                <Badge variant="outline" className="bg-green-50">
+                  {summary.created} vytvorených
+                </Badge>
+                <Badge variant="outline" className="bg-blue-50">
+                  {summary.updated} aktualizovaných
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4">
+              <CardTitle className="text-xl text-red-600">Chyby</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <p className="text-3xl font-bold">{summary.errors.length}</p>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {summary.items.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-3">Výsledky importu</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Názov</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Detaily</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {summary.items.map((item, index) => (
+                  <TableRow key={index} className={
+                    item.status === "error" ? "bg-red-50" : 
+                    item.status === "created" ? "bg-green-50" : 
+                    item.status === "updated" ? "bg-blue-50" : ""
+                  }>
+                    <TableCell className="font-mono text-xs">{item.id}</TableCell>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell>
+                      {item.status === "error" && item.error ? (
+                        <span className="text-red-600 text-xs">{item.error}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {item.status === "created" ? "Nová položka" : "Existujúca položka aktualizovaná"}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        
+        {summary.errors.length > 0 && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Vyskytli sa chyby pri importe</AlertTitle>
+            <AlertDescription>
+              Niektoré položky nebolo možné importovať. Skontrolujte detaily chýb nižšie.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {summary.errors.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-3">Detaily chýb pri importovaní</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Riadok</TableHead>
+                  <TableHead>Dáta</TableHead>
+                  <TableHead>Dôvod chyby</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {summary.errors.map((error, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{error.line}</TableCell>
+                    <TableCell className="font-mono text-xs break-all">
+                      {error.data}
+                    </TableCell>
+                    <TableCell>{error.reason}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -333,68 +520,7 @@ const FileImport = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl">Celkovo</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{projectsSummary.total}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl text-green-600">Úspešné</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{projectsSummary.success}</p>
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline" className="bg-green-50">
-                          {projectsSummary.created} vytvorených
-                        </Badge>
-                        <Badge variant="outline" className="bg-blue-50">
-                          {projectsSummary.updated} aktualizovaných
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl text-red-600">Chyby</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{projectsSummary.errors.length}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                {projectsSummary.errors.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">Chyby pri importovaní</h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[80px]">Riadok</TableHead>
-                          <TableHead>Dáta</TableHead>
-                          <TableHead>Dôvod chyby</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {projectsSummary.errors.map((error, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{error.line}</TableCell>
-                            <TableCell className="font-mono text-xs break-all">
-                              {error.data}
-                            </TableCell>
-                            <TableCell>{error.reason}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
+              renderSummary(projectsSummary, "projects")
             )}
           </TabsContent>
           <TabsContent value="checks">
@@ -431,68 +557,7 @@ const FileImport = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl">Celkovo</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{checksSummary.total}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl text-green-600">Úspešné</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{checksSummary.success}</p>
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline" className="bg-green-50">
-                          {checksSummary.created} vytvorených
-                        </Badge>
-                        <Badge variant="outline" className="bg-blue-50">
-                          {checksSummary.updated} aktualizovaných
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-xl text-red-600">Chyby</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-3xl font-bold">{checksSummary.errors.length}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                {checksSummary.errors.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-3">Chyby pri importovaní</h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[80px]">Riadok</TableHead>
-                          <TableHead>Dáta</TableHead>
-                          <TableHead>Dôvod chyby</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {checksSummary.errors.map((error, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{error.line}</TableCell>
-                            <TableCell className="font-mono text-xs break-all">
-                              {error.data}
-                            </TableCell>
-                            <TableCell>{error.reason}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
+              renderSummary(checksSummary, "checks")
             )}
           </TabsContent>
         </Tabs>
