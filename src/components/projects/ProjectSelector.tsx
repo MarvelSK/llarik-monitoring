@@ -34,8 +34,6 @@ const ProjectSelector = ({
       try {
         const currentValue = control._formValues?.[name];
         if (!currentValue && currentProject.id) {
-          // Access the setValue method through useFormContext if needed
-          // For now, we'll use field.onChange in the rendered component below
           // This will be handled by the defaultValue in the form initialization instead
         }
       } catch (error) {

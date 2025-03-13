@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +13,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ProjectSelector from "@/components/projects/ProjectSelector";
+import { useEffect, useState } from "react";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -26,7 +26,7 @@ const environmentOptions: CheckEnvironment[] = ["produkcia", "test", "manuál"];
 const formSchema = z.object({
   name: z.string().min(1, "Názov je povinný"),
   description: z.string().optional(),
-  period: z.coerce.number().min(1, "Perióda musí byť aspoň 1 minúta"),
+  period: z.coerce.number().min(0, "Perióda musí byť aspoň 0 minút"),
   grace: z.coerce.number().min(1, "Doba odkladu musí byť aspoň 1 minúta"),
   tags: z.string().optional(),
   environments: z.array(z.string()).optional(),
@@ -36,13 +36,16 @@ const formSchema = z.object({
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
   const navigate = useNavigate();
+  
+  const initialTab = defaultValues?.period === 0 ? "cron" : "simple";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: defaultValues?.name || "",
       description: defaultValues?.description || "",
-      period: defaultValues?.period || 5,
+      period: defaultValues?.period !== undefined ? defaultValues.period : 5,
       grace: defaultValues?.grace || 5,
       tags: defaultValues?.tags?.join(", ") || "",
       environments: defaultValues?.environments || [],
@@ -50,6 +53,14 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       projectId: defaultValues?.projectId || "",
     },
   });
+  
+  const periodValue = form.watch("period");
+  
+  useEffect(() => {
+    if (periodValue === 0 && activeTab !== "cron") {
+      setActiveTab("cron");
+    }
+  }, [periodValue, activeTab]);
 
   const toggleEnvironment = (env: CheckEnvironment) => {
     const currentEnvs = form.getValues().environments || [];
@@ -72,6 +83,11 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const tags = values.tags ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) : undefined;
     
+    if (values.period === 0 && (!values.cronExpression || values.cronExpression.trim() === "")) {
+      toast.error("Pre periódu 0 je potrebné zadať Cron výraz");
+      return;
+    }
+    
     onSubmit({
       ...values,
       tags,
@@ -82,6 +98,18 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
     
     if (!isEdit) {
       navigate("/");
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    if (value === "cron" && periodValue !== 0) {
+      form.setValue("period", 0);
+    }
+    
+    if (value === "simple" && periodValue === 0) {
+      form.setValue("period", 5);
     }
   };
 
@@ -137,7 +165,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
 
             <Separator />
             
-            <Tabs defaultValue="simple">
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="mb-4">
                 <TabsTrigger value="simple">Jednoduchá</TabsTrigger>
                 <TabsTrigger value="cron">Cron</TabsTrigger>
@@ -210,10 +238,21 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                       <FormDescription>
                         Ako dlho čakať pred upozornením
                       </FormDescription>
-                      <FormMessage />
+                        <FormMessage />
                     </FormItem>
                   )}
                 />
+                {activeTab === "cron" && (
+                  <FormField
+                    control={form.control}
+                    name="period"
+                    render={({ field }) => (
+                      <FormItem className="hidden">
+                        <Input type="hidden" value="0" {...field} />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </TabsContent>
             </Tabs>
 
