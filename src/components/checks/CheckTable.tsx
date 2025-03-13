@@ -292,7 +292,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                     )}
                     <TableCell className="hidden lg:table-cell">
                       <div className="flex items-center gap-1">
-                        {check.period === 0 && check.cronExpression ? (
+                        {check.cronExpression ? (
                           <>
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                             <code className="text-xs bg-muted px-1 py-0.5 rounded">{check.cronExpression}</code>
