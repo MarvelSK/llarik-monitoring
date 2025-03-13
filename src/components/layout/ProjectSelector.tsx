@@ -19,7 +19,7 @@ export function ProjectSelector() {
       onValueChange={(value) => {
         const project = projects.find(p => p.id === value)
         if (project) {
-          setCurrentProject(project)
+          setCurrentProject(value)
         }
       }}
     >

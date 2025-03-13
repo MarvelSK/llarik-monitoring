@@ -1,6 +1,6 @@
+
 import { MainNav } from "@/components/layout/MainNav"
 import { ProjectSelector } from "@/components/layout/ProjectSelector"
-import { SiteSwitcher } from "@/components/layout/SiteSwitcher"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -41,7 +41,6 @@ const Header = () => {
               <Upload className="h-5 w-5" />
               <span className="sr-only">Import</span>
             </Link>
-            <SiteSwitcher />
             <ThemeToggle />
           </nav>
         </div>

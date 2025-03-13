@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Upload, AlertCircle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useProjects } from "@/context/ProjectContext";
 
 interface ImportError {
   line: number;
@@ -30,16 +30,15 @@ const FileImport = () => {
   const [checksSummary, setChecksSummary] = useState<ImportSummary | null>(null);
   const projectsFileRef = useRef<HTMLInputElement>(null);
   const checksFileRef = useRef<HTMLInputElement>(null);
+  const { getAllProjects } = useProjects();
 
   const parseProjectsFile = async (content: string): Promise<ImportSummary> => {
     let projects = [];
     
     try {
-      // Try to parse as JSON array first
       if (content.trim().startsWith('[')) {
         projects = JSON.parse(content);
       } else {
-        // Otherwise parse as newline-delimited JSON
         projects = content.split("\n")
           .filter((line) => line.trim())
           .map(line => JSON.parse(line));
@@ -61,12 +60,10 @@ const FileImport = () => {
       try {
         const project = projects[i];
         
-        // Validate required fields
         if (!project.ID || !project.NAME || !project.OWNER) {
           throw new Error("Missing required fields (ID, NAME, or OWNER)");
         }
 
-        // Check if project exists
         const { data: existingProject } = await supabase
           .from("projects")
           .select("id")
@@ -83,7 +80,6 @@ const FileImport = () => {
 
         let result;
         if (existingProject) {
-          // Update existing project
           result = await supabase
             .from("projects")
             .update({
@@ -96,7 +92,6 @@ const FileImport = () => {
           if (result.error) throw new Error(result.error.message);
           summary.updated++;
         } else {
-          // Create new project
           result = await supabase
             .from("projects")
             .insert(projectData);
@@ -122,11 +117,9 @@ const FileImport = () => {
     let checks = [];
     
     try {
-      // Try to parse as JSON array first
       if (content.trim().startsWith('[')) {
         checks = JSON.parse(content);
       } else {
-        // Otherwise parse as newline-delimited JSON
         checks = content.split("\n")
           .filter((line) => line.trim())
           .map(line => JSON.parse(line));
@@ -148,12 +141,10 @@ const FileImport = () => {
       try {
         const check = checks[i];
         
-        // Validate required fields
         if (!check.ID || !check.NAME || !check.PROJECT_ID) {
           throw new Error("Missing required fields (ID, NAME, or PROJECT_ID)");
         }
 
-        // Verify project exists
         const { data: existingProject } = await supabase
           .from("projects")
           .select("id")
@@ -163,10 +154,8 @@ const FileImport = () => {
           throw new Error(`Project with ID ${check.PROJECT_ID} not found`);
         }
 
-        // Prepare tags array
         const tags = check.TAGS ? [check.TAGS] : [];
 
-        // Check if check exists
         const { data: existingCheck } = await supabase
           .from("checks")
           .select("id")
@@ -189,7 +178,6 @@ const FileImport = () => {
 
         let result;
         if (existingCheck) {
-          // Update existing check
           result = await supabase
             .from("checks")
             .update({
@@ -206,7 +194,6 @@ const FileImport = () => {
           if (result.error) throw new Error(result.error.message);
           summary.updated++;
         } else {
-          // Create new check
           result = await supabase
             .from("checks")
             .insert(checkData);
@@ -237,6 +224,8 @@ const FileImport = () => {
       const content = await file.text();
       const summary = await parseProjectsFile(content);
       setProjectsSummary(summary);
+      
+      await getAllProjects();
       
       toast.success(`Import dokončený: ${summary.success} z ${summary.total} projektov úspešne importovaných`);
       if (summary.errors.length > 0) {
