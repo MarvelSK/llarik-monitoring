@@ -12,6 +12,14 @@ const CheckCreate = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (data: Partial<Check>) => {
+    // Handle CRON vs Period logic
+    if (data.cronExpression && data.cronExpression.trim() !== "") {
+      data.period = 0; // If CRON is provided, set period to 0
+    } else if (data.period === 0) {
+      // If period is 0 but no CRON is provided, it's invalid
+      data.period = 5; // Set a default period
+    }
+    
     // Use the projectId from the form data directly
     await createCheck(data);
     navigate("/");

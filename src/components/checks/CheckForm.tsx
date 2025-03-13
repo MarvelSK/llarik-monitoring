@@ -38,7 +38,8 @@ const formSchema = z.object({
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
   const navigate = useNavigate();
   
-  const initialTab = defaultValues?.period === 0 ? "cron" : "simple";
+  // Determine the initial tab based on whether the check uses CRON or period
+  const initialTab = defaultValues?.cronExpression && defaultValues.cronExpression.trim() !== "" ? "cron" : "simple";
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,12 +57,14 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   });
   
   const periodValue = form.watch("period");
+  const cronExpression = form.watch("cronExpression");
   
   useEffect(() => {
-    if (periodValue === 0 && activeTab !== "cron") {
-      setActiveTab("cron");
+    // When cron expression is set and period is not 0, set period to 0
+    if (cronExpression && cronExpression.trim() !== "" && periodValue !== 0 && activeTab === "cron") {
+      form.setValue("period", 0);
     }
-  }, [periodValue, activeTab]);
+  }, [cronExpression, periodValue, form, activeTab]);
 
   const toggleEnvironment = (env: CheckEnvironment) => {
     const currentEnvs = form.getValues().environments || [];
@@ -86,8 +89,13 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
     
     // Validate that if period is 0, cronExpression must be provided
     if (values.period === 0 && (!values.cronExpression || values.cronExpression.trim() === "")) {
-      toast.error("Pre periódu 0 je potrebné zadať Cron výraz");
+      toast.error("Pre periódu 0 je potrebné zadať CRON výraz");
       return;
+    }
+    
+    // Clear CRON expression if period is not 0
+    if (values.period > 0) {
+      values.cronExpression = "";
     }
     
     onSubmit({
@@ -107,7 +115,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
     setActiveTab(value);
     
     // When switching to cron tab, set period to 0
-    if (value === "cron" && periodValue !== 0) {
+    if (value === "cron") {
       form.setValue("period", 0);
     }
     
@@ -174,7 +182,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
             <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="mb-4">
                 <TabsTrigger value="simple">Jednoduchá perióda</TabsTrigger>
-                <TabsTrigger value="cron">Cron harmonogram</TabsTrigger>
+                <TabsTrigger value="cron">CRON harmonogram</TabsTrigger>
               </TabsList>
               
               <TabsContent value="simple">
@@ -221,13 +229,13 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   name="cronExpression"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cron výraz</FormLabel>
+                      <FormLabel>CRON výraz</FormLabel>
                       <FormControl>
                         <Input placeholder="napr., 0 3 * * *" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Zadajte cron harmonogram (napr., "0 3 * * *" pre každý deň o 3:00). 
-                        Formát: minute hour day-of-month month day-of-week
+                        Zadajte CRON harmonogram (napr., "45 16 * * 1,3" pre každý pondelok a stredu o 16:45). 
+                        Formát: minúta hodina deň-mesiaca mesiac deň-týždňa
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -249,17 +257,15 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                     </FormItem>
                   )}
                 />
-                {activeTab === "cron" && (
-                  <FormField
-                    control={form.control}
-                    name="period"
-                    render={({ field }) => (
-                      <FormItem className="hidden">
-                        <Input type="hidden" value="0" {...field} />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                <FormField
+                  control={form.control}
+                  name="period"
+                  render={({ field }) => (
+                    <FormItem className="hidden">
+                      <Input type="hidden" value="0" {...field} />
+                    </FormItem>
+                  )}
+                />
               </TabsContent>
             </Tabs>
 

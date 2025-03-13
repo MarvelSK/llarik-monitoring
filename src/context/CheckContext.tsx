@@ -38,6 +38,7 @@ function convertDatesToObjects(check: any): Check {
     nextPingDue: check.next_ping_due ? new Date(check.next_ping_due) : undefined,
     createdAt: new Date(check.created_at),
     projectId: check.project_id,
+    cronExpression: check.cron_expression,
     pings: [], // We'll load pings separately as needed
   };
 }
@@ -249,6 +250,16 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       const now = new Date();
       
+      // Ensure period is set to 0 when using CRON
+      if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
+        checkData.period = 0;
+      }
+      
+      // Ensure CRON is cleared when using period
+      if (checkData.period !== 0) {
+        checkData.cronExpression = "";
+      }
+      
       const newCheckData = {
         name: checkData.name || "Untitled Check",
         description: checkData.description,
@@ -257,7 +268,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         grace: checkData.grace || 30,
         tags: checkData.tags || [],
         environments: checkData.environments || [],
-        cron_expression: checkData.cronExpression,
+        cron_expression: checkData.cronExpression || null,
         project_id: checkData.projectId,
         created_at: now.toISOString()
       };
@@ -345,6 +356,16 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       const checkIndex = checks.findIndex((c) => c.id === id);
       if (checkIndex === -1) return undefined;
 
+      // Ensure period is set to 0 when using CRON
+      if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
+        checkData.period = 0;
+      }
+      
+      // Ensure CRON is cleared when using period
+      if (checkData.period !== 0) {
+        checkData.cronExpression = "";
+      }
+      
       const dbCheckData = prepareCheckForSupabase(checkData);
       
       const { error } = await supabase

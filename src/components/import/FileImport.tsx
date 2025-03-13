@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -195,16 +194,25 @@ const FileImport = () => {
           .eq("id", check.ID)
           .single();
 
+        let period = check.PERIOD;
+        const cronExpression = check.CRON_EXPRESSION || null;
+        
+        if ((period === 0 || period === undefined) && cronExpression) {
+          period = 0;
+        } else if (period === 0 && !cronExpression) {
+          period = 60;
+        }
+
         const checkData = {
           id: check.ID,
           name: check.NAME,
           description: check.DESCRIPTION || null,
           status: "new",
-          period: check.PERIOD || 60,
+          period: period || 60,
           grace: check.GRACE || 30,
           tags: tags,
           environments: ["produkcia"],
-          cron_expression: check.CRON_EXPRESSION || null,
+          cron_expression: cronExpression,
           project_id: check.PROJECT_ID,
           created_at: new Date().toISOString(),
         };
