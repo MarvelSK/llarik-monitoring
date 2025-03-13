@@ -11,15 +11,15 @@ import {
 import { useProjects } from "@/context/ProjectContext"
 
 export function ProjectSelector() {
-  const { projects, selectedProject, selectProject } = useProjects()
+  const { projects, currentProject, setCurrentProject } = useProjects()
 
   return (
     <Select
-      value={selectedProject?.id || ""}
+      value={currentProject?.id || ""}
       onValueChange={(value) => {
         const project = projects.find(p => p.id === value)
         if (project) {
-          selectProject(project)
+          setCurrentProject(project)
         }
       }}
     >

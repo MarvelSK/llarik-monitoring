@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -33,19 +32,34 @@ const FileImport = () => {
   const checksFileRef = useRef<HTMLInputElement>(null);
 
   const parseProjectsFile = async (content: string): Promise<ImportSummary> => {
-    const lines = content.split("\n").filter((line) => line.trim());
+    let projects = [];
+    
+    try {
+      // Try to parse as JSON array first
+      if (content.trim().startsWith('[')) {
+        projects = JSON.parse(content);
+      } else {
+        // Otherwise parse as newline-delimited JSON
+        projects = content.split("\n")
+          .filter((line) => line.trim())
+          .map(line => JSON.parse(line));
+      }
+    } catch (error) {
+      console.error("Error parsing JSON:", error);
+      throw new Error("Invalid JSON format");
+    }
+    
     const summary: ImportSummary = {
-      total: lines.length,
+      total: projects.length,
       success: 0,
       errors: [],
       updated: 0,
       created: 0,
     };
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < projects.length; i++) {
       try {
-        const line = lines[i];
-        const project = JSON.parse(line);
+        const project = projects[i];
         
         // Validate required fields
         if (!project.ID || !project.NAME || !project.OWNER) {
@@ -95,7 +109,7 @@ const FileImport = () => {
       } catch (error) {
         summary.errors.push({
           line: i + 1,
-          data: lines[i],
+          data: JSON.stringify(projects[i]),
           reason: error instanceof Error ? error.message : "Unknown error",
         });
       }
@@ -105,19 +119,34 @@ const FileImport = () => {
   };
 
   const parseChecksFile = async (content: string): Promise<ImportSummary> => {
-    const lines = content.split("\n").filter((line) => line.trim());
+    let checks = [];
+    
+    try {
+      // Try to parse as JSON array first
+      if (content.trim().startsWith('[')) {
+        checks = JSON.parse(content);
+      } else {
+        // Otherwise parse as newline-delimited JSON
+        checks = content.split("\n")
+          .filter((line) => line.trim())
+          .map(line => JSON.parse(line));
+      }
+    } catch (error) {
+      console.error("Error parsing JSON:", error);
+      throw new Error("Invalid JSON format");
+    }
+    
     const summary: ImportSummary = {
-      total: lines.length,
+      total: checks.length,
       success: 0,
       errors: [],
       updated: 0,
       created: 0,
     };
 
-    for (let i = 0; i < lines.length; i++) {
+    for (let i = 0; i < checks.length; i++) {
       try {
-        const line = lines[i];
-        const check = JSON.parse(line);
+        const check = checks[i];
         
         // Validate required fields
         if (!check.ID || !check.NAME || !check.PROJECT_ID) {
@@ -190,7 +219,7 @@ const FileImport = () => {
       } catch (error) {
         summary.errors.push({
           line: i + 1,
-          data: lines[i],
+          data: JSON.stringify(checks[i]),
           reason: error instanceof Error ? error.message : "Unknown error",
         });
       }
