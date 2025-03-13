@@ -13,7 +13,6 @@ const CheckCreate = () => {
 
   const handleSubmit = async (data: Partial<Check>) => {
     // Use the projectId from the form data directly
-    // Don't override it with the current project
     await createCheck(data);
     navigate("/");
   };

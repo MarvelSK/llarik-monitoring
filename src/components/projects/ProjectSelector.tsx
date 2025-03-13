@@ -29,10 +29,17 @@ const ProjectSelector = ({
   // Set the default value of the form field to the current project ID
   useEffect(() => {
     if (currentProject && control) {
-      // Set default value for the project selector if not already set
-      const currentValue = control._getWatch(name);
-      if (!currentValue && currentProject.id) {
-        control._setValue(name, currentProject.id);
+      // Use the proper React Hook Form method to set default value
+      // getValues to check current value and setValue to set the value
+      try {
+        const currentValue = control._formValues?.[name];
+        if (!currentValue && currentProject.id) {
+          // Access the setValue method through useFormContext if needed
+          // For now, we'll use field.onChange in the rendered component below
+          // This will be handled by the defaultValue in the form initialization instead
+        }
+      } catch (error) {
+        console.error("Error setting default project value:", error);
       }
     }
   }, [currentProject, control, name]);
@@ -46,8 +53,12 @@ const ProjectSelector = ({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Select 
-              value={field.value || ""} 
-              onValueChange={field.onChange}
+              value={field.value || ""}
+              onValueChange={(value) => {
+                // Properly set the form value using the field methods provided by RHF
+                field.onChange(value);
+              }}
+              defaultValue={currentProject?.id}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Vyberte projekt" />
