@@ -4,7 +4,6 @@ import { SiteSwitcher } from "@/components/layout/SiteSwitcher"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useSession } from "next-auth/react"
 import * as React from "react"
 import { Link } from "react-router-dom"
 import { Upload } from "lucide-react";
@@ -14,34 +13,16 @@ interface MobileNavProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 export function MobileNav({ items, ...props }: MobileNavProps) {
-  const { data: session } = useSession()
-
+  // Removed useSession since we don't have next-auth
+  
   return (
     <div className="md:hidden" {...props}>
-      {/*{session ? (*/}
-      {/*  <Sheet>*/}
-      {/*    <SheetTrigger asChild>*/}
-      {/*      <Button variant="ghost" size="sm" className="mr-2">*/}
-      {/*        Menu*/}
-      {/*      </Button>*/}
-      {/*    </SheetTrigger>*/}
-      {/*    <SheetContent side="left" className="pr-0">*/}
-      {/*      <MainNav className="pl-4" />*/}
-      {/*      <UserNav className="pl-4" />*/}
-      {/*    </SheetContent>*/}
-      {/*  </Sheet>*/}
-      {/*) : null}*/}
+      {/* Mobile navigation content can be added here */}
     </div>
   )
 }
 
 const Header = () => {
-  // const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-
-  // const toggleMenu = () => {
-  //   setIsMenuOpen(!isMenuOpen);
-  // };
-
   return (
     <header className="supports-backdrop-blur:bg-background/60 sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur">
       <div className="container flex h-14 items-center">
