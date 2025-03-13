@@ -108,6 +108,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         let allProjects: any[] = [];
         
         if (isAdmin) {
+          // Admin gets all projects
           const { data: adminProjects, error: adminError } = await supabase
             .from('projects')
             .select('*')
@@ -121,6 +122,8 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           
           allProjects = adminProjects || [];
         } else {
+          // Regular users get only their own projects and projects they're members of
+          // First, get owned projects
           const { data: ownedProjects, error: ownedError } = await supabase
             .from('projects')
             .select('*')
@@ -133,6 +136,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
             return;
           }
           
+          // Then, get projects where user is a member
           const { data: memberProjects, error: memberError } = await supabase
             .from('project_members')
             .select(`
@@ -430,27 +434,29 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   };
 
   const getAllProjects = async (): Promise<Project[]> => {
-    if (!isAdmin) {
-      return projects;
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (isAdmin) {
+      // Admin gets all projects
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching all projects:', error);
+          toast.error('Zlyhalo načítanie všetkých projektov');
+          return [];
+        }
         
-      if (error) {
-        console.error('Error fetching all projects:', error);
-        toast.error('Zlyhalo načítanie všetkých projektov');
+        return (data || []).map(convertDatesToObjects);
+      } catch (error) {
+        console.error('Error in getAllProjects:', error);
+        toast.error('Zlyhalo načítanie projektov');
         return [];
       }
-      
-      return (data || []).map(convertDatesToObjects);
-    } catch (error) {
-      console.error('Error in getAllProjects:', error);
-      toast.error('Zlyhalo načítanie projektov');
-      return [];
+    } else {
+      // Regular users only get their accessible projects
+      return projects;
     }
   };
 
