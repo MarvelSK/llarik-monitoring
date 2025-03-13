@@ -19,6 +19,7 @@ const CheckCreate = lazy(() => import("./pages/CheckCreate"));
 const CheckEdit = lazy(() => import("./pages/CheckEdit"));
 const Login = lazy(() => import("./pages/Login"));
 const Projects = lazy(() => import("./pages/Projects"));
+const Import = lazy(() => import("./pages/Import"));
 
 // Configure QueryClient for better performance
 const queryClient = new QueryClient({
@@ -68,6 +69,11 @@ const App = () => (
                 <Route path="/projects" element={
                   <RequireAuth>
                     <Projects />
+                  </RequireAuth>
+                } />
+                <Route path="/import" element={
+                  <RequireAuth>
+                    <Import />
                   </RequireAuth>
                 } />
                 <Route path="/checks/new" element={

@@ -1,77 +1,72 @@
+import { MainNav } from "@/components/layout/MainNav"
+import { ProjectSelector } from "@/components/layout/ProjectSelector"
+import { SiteSwitcher } from "@/components/layout/SiteSwitcher"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { useSession } from "next-auth/react"
+import * as React from "react"
+import { Link } from "react-router-dom"
+import { Upload } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useProjects } from "@/context/ProjectContext";
-import { Building, ChevronDown, FolderKanban, LogOut, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+interface MobileNavProps extends React.HTMLAttributes<HTMLElement> {
+  items?: any[]
+}
+
+export function MobileNav({ items, ...props }: MobileNavProps) {
+  const { data: session } = useSession()
+
+  return (
+    <div className="md:hidden" {...props}>
+      {/*{session ? (*/}
+      {/*  <Sheet>*/}
+      {/*    <SheetTrigger asChild>*/}
+      {/*      <Button variant="ghost" size="sm" className="mr-2">*/}
+      {/*        Menu*/}
+      {/*      </Button>*/}
+      {/*    </SheetTrigger>*/}
+      {/*    <SheetContent side="left" className="pr-0">*/}
+      {/*      <MainNav className="pl-4" />*/}
+      {/*      <UserNav className="pl-4" />*/}
+      {/*    </SheetContent>*/}
+      {/*  </Sheet>*/}
+      {/*) : null}*/}
+    </div>
+  )
+}
 
 const Header = () => {
-  const navigate = useNavigate();
-  const {
-    currentProject,
-    projects,
-    setCurrentProject
-  } = useProjects();
-  
-  const handleLogout = () => {
-    // For now, just navigate to login
-    navigate("/login");
-  };
-  
-  return <header className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
-      <div className="container flex items-center justify-between h-16 px-4 mx-auto sm:px-6 lg:px-8">
-        <div className="flex items-center">
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-healthy rounded-md flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-white">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </div>
-            <span className="font-bold text-xl text-gray-900 dark:text-white">LLarik Monitoring</span>
-          </Link>
+  // const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
-          {projects.length > 0 && <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="ml-4 gap-1">
-                  <Building className="w-4 h-4 mr-1" />
-                  {currentProject ? currentProject.name : "Všetky Projekty"}
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setCurrentProject("")}>
-                  Všetky Projekty
-                </DropdownMenuItem>
-                {projects.map(project => <DropdownMenuItem key={project.id} onClick={() => setCurrentProject(project.id)}>
-                    {project.name}
-                  </DropdownMenuItem>)}
-              </DropdownMenuContent>
-            </DropdownMenu>}
-            
-            <Button variant="ghost" asChild className="ml-2">
-              <Link to="/projects">
-                <FolderKanban className="w-4 h-4 mr-2" />
-                Správa Projektov
-              </Link>
-            </Button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="ml-2">
-                <User className="w-5 h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Odhlásiť sa
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+  // const toggleMenu = () => {
+  //   setIsMenuOpen(!isMenuOpen);
+  // };
+
+  return (
+    <header className="supports-backdrop-blur:bg-background/60 sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur">
+      <div className="container flex h-14 items-center">
+        <MainNav />
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          <nav className="flex items-center">
+            <ProjectSelector />
+            <Link 
+              to="/import" 
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "mr-1"
+              )}
+              title="Import"
+            >
+              <Upload className="h-5 w-5" />
+              <span className="sr-only">Import</span>
+            </Link>
+            <SiteSwitcher />
+            <ThemeToggle />
+          </nav>
         </div>
       </div>
-    </header>;
+    </header>
+  );
 };
 
 export default Header;

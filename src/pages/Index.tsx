@@ -9,12 +9,17 @@ import { toast } from "sonner";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatusCards from "@/components/dashboard/StatusCards";
 import { useNavigate } from "react-router-dom";
+import FileImport from "@/components/import/FileImport";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Upload } from "lucide-react";
 
 const Index = () => {
   const { checks, loading } = useChecks();
   const { currentProject, projects } = useProjects();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Get all accessible project IDs
   const accessibleProjectIds = projects.map(project => project.id);
@@ -47,6 +52,27 @@ const Index = () => {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           onAddNew={() => navigate("/checks/new")}
+          extraButtons={
+            <Sheet open={showImport} onOpenChange={setShowImport}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importovať
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Hromadný import</SheetTitle>
+                  <SheetDescription>
+                    Importujte projekty alebo kontroly z JSON súborov
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="mt-6">
+                  <FileImport />
+                </div>
+              </SheetContent>
+            </Sheet>
+          }
         />
 
         {loading ? (

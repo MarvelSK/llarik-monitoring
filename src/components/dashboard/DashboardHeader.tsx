@@ -1,44 +1,57 @@
 
 import { Button } from "@/components/ui/button";
-import { PlusCircle, RefreshCcw } from "lucide-react";
+import { RefreshCcw, Plus } from "lucide-react";
+import { ReactNode } from "react";
 
 interface DashboardHeaderProps {
   title: string;
-  subtitle: string;
-  onRefresh: () => void;
-  refreshing: boolean;
-  onAddNew: () => void;
+  subtitle?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  onAddNew?: () => void;
+  extraButtons?: ReactNode;
 }
 
 const DashboardHeader = ({
   title,
   subtitle,
   onRefresh,
-  refreshing,
-  onAddNew
+  refreshing = false,
+  onAddNew,
+  extraButtons,
 }: DashboardHeaderProps) => {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-2">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">{subtitle}</p>
+        {subtitle && (
+          <p className="text-muted-foreground">{subtitle}</p>
+        )}
       </div>
-      <div className="flex gap-2">
-        <Button 
-          variant="outline"
-          size="icon"
-          onClick={onRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-        </Button>
-        <Button 
-          onClick={onAddNew}
-          className="gap-2"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Nová kontrola
-        </Button>
+      <div className="flex gap-2 mt-3 sm:mt-0">
+        {extraButtons}
+        {onRefresh && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={onRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCcw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Obnoviť
+          </Button>
+        )}
+        {onAddNew && (
+          <Button
+            size="sm"
+            className="h-9"
+            onClick={onAddNew}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nová kontrola
+          </Button>
+        )}
       </div>
     </div>
   );
