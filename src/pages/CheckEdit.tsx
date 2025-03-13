@@ -30,6 +30,16 @@ const CheckEdit = () => {
   }
 
   const handleSubmit = (data: Partial<Check>) => {
+    // Make sure that if we're using CRON, we set period to 0
+    if (data.cronExpression && data.cronExpression.trim() !== "") {
+      data.period = 0;
+    }
+    
+    // If period is not 0, clear the CRON expression
+    if (data.period !== 0) {
+      data.cronExpression = "";
+    }
+    
     updateCheck(check.id, data);
     navigate(`/checks/${check.id}`);
   };

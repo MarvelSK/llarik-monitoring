@@ -1,4 +1,3 @@
-
 import { Check, CheckEnvironment } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { formatDistanceToNow } from "date-fns";
@@ -7,14 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Copy, ArrowUpDown, Tag } from "lucide-react";
+import { Search, Copy, ArrowUpDown, Tag, Calendar, Clock } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
 import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CheckTableProps {
@@ -34,19 +33,15 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     direction: 'descending'
   });
 
-  // Sort and filter checks
   const processedChecks = useMemo(() => {
-    // First filter
     let result = checks.filter(check => 
       check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (check.description && check.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (check.tags && check.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
     );
     
-    // Then sort
     result.sort((a, b) => {
       if (sortConfig.key === 'lastPingFormatted') {
-        // Sort by lastPing date
         const dateA = a.lastPing || new Date(0);
         const dateB = b.lastPing || new Date(0);
         
@@ -66,7 +61,6 @@ const CheckTable = ({ checks }: CheckTableProps) => {
           ? a.period - b.period
           : b.period - a.period;
       } else {
-        // Default sort by lastPing
         const dateA = a.lastPing || new Date(0);
         const dateB = b.lastPing || new Date(0);
         
@@ -238,7 +232,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       onClick={() => handleSort('period')} 
                       className="h-8 px-2"
                     >
-                      Perióda / Odklad
+                      Časovanie / Odklad
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
@@ -297,7 +291,19 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       </TableCell>
                     )}
                     <TableCell className="hidden lg:table-cell">
-                      <div>{check.period} minút</div>
+                      <div className="flex items-center gap-1">
+                        {check.period === 0 && check.cronExpression ? (
+                          <>
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                            <code className="text-xs bg-muted px-1 py-0.5 rounded">{check.cronExpression}</code>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{check.period} minút</span>
+                          </>
+                        )}
+                      </div>
                       <div className="text-muted-foreground text-sm">{check.grace} minút odklad</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">

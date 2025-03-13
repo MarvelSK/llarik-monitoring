@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -83,6 +84,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     const tags = values.tags ? values.tags.split(",").map(tag => tag.trim()).filter(Boolean) : undefined;
     
+    // Validate that if period is 0, cronExpression must be provided
     if (values.period === 0 && (!values.cronExpression || values.cronExpression.trim() === "")) {
       toast.error("Pre periódu 0 je potrebné zadať Cron výraz");
       return;
@@ -104,12 +106,16 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     
+    // When switching to cron tab, set period to 0
     if (value === "cron" && periodValue !== 0) {
       form.setValue("period", 0);
     }
     
+    // When switching to simple tab, set a default period if it was previously 0
     if (value === "simple" && periodValue === 0) {
       form.setValue("period", 5);
+      // Clear the cron expression when switching to simple mode
+      form.setValue("cronExpression", "");
     }
   };
 
@@ -167,8 +173,8 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
             
             <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="mb-4">
-                <TabsTrigger value="simple">Jednoduchá</TabsTrigger>
-                <TabsTrigger value="cron">Cron</TabsTrigger>
+                <TabsTrigger value="simple">Jednoduchá perióda</TabsTrigger>
+                <TabsTrigger value="cron">Cron harmonogram</TabsTrigger>
               </TabsList>
               
               <TabsContent value="simple">
@@ -220,7 +226,8 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                         <Input placeholder="napr., 0 3 * * *" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Zadajte cron harmonogram (napr., "0 3 * * *" pre každý deň o 3:00)
+                        Zadajte cron harmonogram (napr., "0 3 * * *" pre každý deň o 3:00). 
+                        Formát: minute hour day-of-month month day-of-week
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

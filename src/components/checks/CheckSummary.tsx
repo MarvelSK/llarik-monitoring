@@ -40,12 +40,21 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
       <CardContent>
         <div className="space-y-6">
           <div className="flex flex-col gap-3">
-            <div className="flex items-center text-sm">
-              <Clock className="w-4 h-4 mr-2 text-gray-500" />
-              <span className="text-gray-700 dark:text-gray-300">
-                Perióda: <span className="font-medium">{check.period} minút</span>
-              </span>
-            </div>
+            {check.period === 0 && check.cronExpression ? (
+              <div className="flex items-center text-sm">
+                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Cron: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{check.cronExpression}</code>
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center text-sm">
+                <Clock className="w-4 h-4 mr-2 text-gray-500" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  Perióda: <span className="font-medium">{check.period} minút</span>
+                </span>
+              </div>
+            )}
             
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2 text-gray-500" />
@@ -53,15 +62,6 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
                 Čas odkladu: <span className="font-medium">{check.grace} minút</span>
               </span>
             </div>
-
-            {check.cronExpression && (
-              <div className="flex items-center text-sm">
-                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                <span className="text-gray-700 dark:text-gray-300">
-                  Cron: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{check.cronExpression}</code>
-                </span>
-              </div>
-            )}
           </div>
 
           <Separator />
