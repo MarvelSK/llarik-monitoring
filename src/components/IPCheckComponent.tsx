@@ -1,35 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import axios from 'axios';
 
-const ALLOWED_IP = '195.12.137.16';
+const ALLOWED_IP = '195.12.137.16';  // Replace with the specific allowed IP address.
 
-const IPCheckComponent: React.FC = () => {
-    const [accessGranted, setAccessGranted] = useState<boolean | null>(null);
+interface IPCheckComponentProps {
+    onAuthorized: (authorized: boolean) => void; // Callback to inform parent about authorization status
+}
 
+const IPCheckComponent: React.FC<IPCheckComponentProps> = ({ onAuthorized }) => {
     useEffect(() => {
-        axios.get('https://ipinfo.io/json?token=14cac399fd3a49')
+        // Fetch the user's IP address from ipinfo.io API
+        axios.get('https://ipinfo.io/json?token=14cac399fd3a49') // Replace 'YOUR_TOKEN' with your API token from ipinfo.io
             .then(response => {
                 const userIP = response.data.ip;
                 if (userIP === ALLOWED_IP) {
-                    setAccessGranted(true);
+                    onAuthorized(true);  // User is authorized
                 } else {
-                    setAccessGranted(false);
+                    onAuthorized(false); // User is not authorized
                 }
             })
             .catch(() => {
-                setAccessGranted(false);
+                onAuthorized(false); // In case of error (e.g., network issues, API limit)
             });
-    }, []);
+    }, [onAuthorized]);
 
-    if (accessGranted === null) {
-        return <div>Načítavam...</div>;
-    }
-
-    if (accessGranted === false) {
-        return <div>Prístup zamietnutý</div>;
-    }
-
-    return <div>Vítajte</div>;
+    return null; // Do not render anything itself
 };
 
 export default IPCheckComponent;

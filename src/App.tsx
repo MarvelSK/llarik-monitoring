@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useState } from "react";
 import { CheckProvider } from "./context/CheckContext";
 import { ProjectProvider } from "./context/ProjectContext";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -47,60 +47,76 @@ const PageLoader = () => (
     </div>
 );
 
-const App = () => (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <ProjectProvider>
-          <CheckProvider>
-            <BrowserRouter>
-              <Suspense fallback={<PageLoader />}>
-                <IPCheckComponent /> {/* Insert the IP check component here */}
-                <Routes>
-                  {/* Public route */}
-                  <Route path="/login" element={<Login />} />
+const App = () => {
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-                  {/* Protected routes */}
-                  <Route path="/" element={
-                    <RequireAuth>
-                      <Index />
-                    </RequireAuth>
-                  } />
-                  <Route path="/projects" element={
-                    <RequireAuth>
-                      <Projects />
-                    </RequireAuth>
-                  } />
-                  <Route path="/import" element={
-                    <RequireAuth>
-                      <Import />
-                    </RequireAuth>
-                  } />
-                  <Route path="/checks/new" element={
-                    <RequireAuth>
-                      <CheckCreate />
-                    </RequireAuth>
-                  } />
-                  <Route path="/checks/:id" element={
-                    <RequireAuth>
-                      <CheckDetail />
-                    </RequireAuth>
-                  } />
-                  <Route path="/checks/:id/edit" element={
-                    <RequireAuth>
-                      <CheckEdit />
-                    </RequireAuth>
-                  } />
-                  <Route path="/ping/:id" element={<PingHandler />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </CheckProvider>
-        </ProjectProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
-);
+  const handleAuthorization = (authorized: boolean) => {
+    setIsAuthorized(authorized);
+  };
+
+  return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ProjectProvider>
+            <CheckProvider>
+              <BrowserRouter>
+                <Suspense fallback={<PageLoader />}>
+                  {/* Only render routes if authorized */}
+                  {isAuthorized === null ? (
+                      <div>Loading...</div> // Optionally show a loading state while checking IP
+                  ) : isAuthorized ? (
+                      <>
+                        <Routes>
+                          {/* Public route */}
+                          <Route path="/login" element={<Login />} />
+
+                          {/* Protected routes */}
+                          <Route path="/" element={
+                            <RequireAuth>
+                              <Index />
+                            </RequireAuth>
+                          } />
+                          <Route path="/projects" element={
+                            <RequireAuth>
+                              <Projects />
+                            </RequireAuth>
+                          } />
+                          <Route path="/import" element={
+                            <RequireAuth>
+                              <Import />
+                            </RequireAuth>
+                          } />
+                          <Route path="/checks/new" element={
+                            <RequireAuth>
+                              <CheckCreate />
+                            </RequireAuth>
+                          } />
+                          <Route path="/checks/:id" element={
+                            <RequireAuth>
+                              <CheckDetail />
+                            </RequireAuth>
+                          } />
+                          <Route path="/checks/:id/edit" element={
+                            <RequireAuth>
+                              <CheckEdit />
+                            </RequireAuth>
+                          } />
+                          <Route path="/ping/:id" element={<PingHandler />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </>
+                  ) : (
+                      <div>Access Denied</div> // Show this if IP is not authorized
+                  )}
+                </Suspense>
+              </BrowserRouter>
+            </CheckProvider>
+          </ProjectProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+  );
+};
 
 export default App;
