@@ -65,7 +65,7 @@ const App = () => {
                 <Suspense fallback={<PageLoader />}>
                   {/* Only render routes if authorized */}
                   {isAuthorized === null ? (
-                      <div>Loading...</div> // Optionally show a loading state while checking IP
+                      <div>Neautorizovaná adresa.</div> // Optionally show a loading state while checking IP
                   ) : isAuthorized ? (
                       <>
                         <Routes>
