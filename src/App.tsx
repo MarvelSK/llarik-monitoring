@@ -63,50 +63,51 @@ const App = () => {
             <CheckProvider>
               <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
+                  {/* Render IPCheckComponent to check the user's IP */}
+                  <IPCheckComponent onAuthorized={handleAuthorization} />
+
                   {/* Only render routes if authorized */}
                   {isAuthorized === null ? (
                       <div>Neautorizovaná adresa.</div> // Optionally show a loading state while checking IP
                   ) : isAuthorized ? (
-                      <>
-                        <Routes>
-                          {/* Public route */}
-                          <Route path="/login" element={<Login />} />
+                      <Routes>
+                        {/* Public route */}
+                        <Route path="/login" element={<Login />} />
 
-                          {/* Protected routes */}
-                          <Route path="/" element={
-                            <RequireAuth>
-                              <Index />
-                            </RequireAuth>
-                          } />
-                          <Route path="/projects" element={
-                            <RequireAuth>
-                              <Projects />
-                            </RequireAuth>
-                          } />
-                          <Route path="/import" element={
-                            <RequireAuth>
-                              <Import />
-                            </RequireAuth>
-                          } />
-                          <Route path="/checks/new" element={
-                            <RequireAuth>
-                              <CheckCreate />
-                            </RequireAuth>
-                          } />
-                          <Route path="/checks/:id" element={
-                            <RequireAuth>
-                              <CheckDetail />
-                            </RequireAuth>
-                          } />
-                          <Route path="/checks/:id/edit" element={
-                            <RequireAuth>
-                              <CheckEdit />
-                            </RequireAuth>
-                          } />
-                          <Route path="/ping/:id" element={<PingHandler />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </>
+                        {/* Protected routes */}
+                        <Route path="/" element={
+                          <RequireAuth>
+                            <Index />
+                          </RequireAuth>
+                        } />
+                        <Route path="/projects" element={
+                          <RequireAuth>
+                            <Projects />
+                          </RequireAuth>
+                        } />
+                        <Route path="/import" element={
+                          <RequireAuth>
+                            <Import />
+                          </RequireAuth>
+                        } />
+                        <Route path="/checks/new" element={
+                          <RequireAuth>
+                            <CheckCreate />
+                          </RequireAuth>
+                        } />
+                        <Route path="/checks/:id" element={
+                          <RequireAuth>
+                            <CheckDetail />
+                          </RequireAuth>
+                        } />
+                        <Route path="/checks/:id/edit" element={
+                          <RequireAuth>
+                            <CheckEdit />
+                          </RequireAuth>
+                        } />
+                        <Route path="/ping/:id" element={<PingHandler />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
                   ) : (
                       <div>Access Denied</div> // Show this if IP is not authorized
                   )}

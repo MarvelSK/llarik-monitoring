@@ -9,10 +9,10 @@ interface IPCheckComponentProps {
 
 const IPCheckComponent: React.FC<IPCheckComponentProps> = ({ onAuthorized }) => {
     useEffect(() => {
-        // Fetch the user's IP address from ipinfo.io API
-        axios.get('https://ipinfo.io/json?token=14cac399fd3a49') // Replace 'YOUR_TOKEN' with your API token from ipinfo.io
+        axios.get('https://ipinfo.io/json?token=14cac399fd3a49')
             .then(response => {
                 const userIP = response.data.ip;
+                console.log('IP:', userIP); // Log the IP for debugging
                 if (userIP === ALLOWED_IP) {
                     onAuthorized(true);  // User is authorized
                 } else {
@@ -23,6 +23,7 @@ const IPCheckComponent: React.FC<IPCheckComponentProps> = ({ onAuthorized }) => 
                 onAuthorized(false); // In case of error (e.g., network issues, API limit)
             });
     }, [onAuthorized]);
+
 
     return null; // Do not render anything itself
 };
