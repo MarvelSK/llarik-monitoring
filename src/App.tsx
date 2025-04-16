@@ -71,7 +71,8 @@ const setupPingRequestListener = () => {
         
         console.log(`Intercepted ${method} request to ping endpoint:`, id);
         
-        // Send a message to the PingHandler component
+        // IMPORTANT: Don't completely bypass the original fetch - we need to actually process the ping
+        // Instead, post a message first, then continue with original fetch
         window.postMessage({ 
           type: 'api-ping', 
           id, 
@@ -79,23 +80,31 @@ const setupPingRequestListener = () => {
           timestamp: new Date().toISOString()
         }, window.location.origin);
         
-        // For API requests, create a simple JSON response
-        // Ensure we respond to all API requests
-        return Promise.resolve(new Response(JSON.stringify({
-          success: true,
-          message: "Ping prijatý a spracovaný",
-          id,
-          timestamp: new Date().toISOString()
-        }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Ping-Processed': 'true',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-          }
-        }));
+        // For direct API requests, still return a success response
+        // But allow the original request to be processed by the PingHandler
+        const originalResponse = await originalFetch.apply(this, [input, init]);
+        
+        // If the response is HTML (from our app), we should return JSON instead for API clients
+        const contentType = originalResponse.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          return new Response(JSON.stringify({
+            success: true,
+            message: "Ping prijatý a spracovaný",
+            id,
+            timestamp: new Date().toISOString()
+          }), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Ping-Processed': 'true',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Headers': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+            }
+          });
+        }
+        
+        return originalResponse;
       }
     }
     
@@ -103,6 +112,17 @@ const setupPingRequestListener = () => {
     return originalFetch.apply(this, [input, init]);
   };
   
+  // Handle OPTIONS preflight requests for CORS
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    if (typeof url === 'string' && url.includes('/ping/')) {
+      // Add a meta tag to mark this as an API request
+      document.head.innerHTML += '<meta name="x-api-request" content="true">';
+      console.log('XHR request to ping endpoint:', url);
+    }
+    originalXHROpen.apply(this, arguments);
+  };
+
   // Handle direct HTTP requests to ping URLs
   // This will trigger on initial page load if we're navigating to a ping URL
   const handleDirectRequests = () => {
@@ -153,6 +173,7 @@ const setupPingRequestListener = () => {
     cleanup: () => {
       console.log('Cleaning up ping request listener');
       window.fetch = originalFetch;
+      XMLHttpRequest.prototype.open = originalXHROpen;
       observer.disconnect();
     }
   };

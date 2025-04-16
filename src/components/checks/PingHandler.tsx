@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { useChecks } from "@/context/CheckContext";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 const PingHandler = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +40,10 @@ const PingHandler = () => {
       // Check if there are any API indicators in headers
       const hasApiHeaders = document.head.querySelector('meta[name="x-api-request"]') !== null;
       
+      console.log('API detection - User Agent:', navigator.userAgent);
+      console.log('Is API User Agent:', isApiUserAgent);
+      console.log('Has API Headers:', hasApiHeaders);
+      
       // Create a promise that will resolve when we receive a message or timeout
       const messagePromise = new Promise<boolean>((resolve) => {
         const handleApiRequest = (event: MessageEvent) => {
@@ -61,24 +65,26 @@ const PingHandler = () => {
       });
       
       // If we detect API request from headers or user agent, process immediately
+      // This is the key change - always process API requests!
       if (isApiUserAgent || hasApiHeaders) {
-        console.log('Detected API request from headers or user agent');
+        console.log('Detected API request from headers or user agent, processing immediately');
         setIsApiRequest(true);
         setRequestMethod(methodFromUrl || 'POST'); // Default to POST for API calls
         // Always process for API requests
-        return await processPing(true);
+        processPing(true);
+        return;
       }
       
       // Wait for potential message event
       const receivedMessage = await messagePromise;
       
       if (receivedMessage) {
-        console.log('Processed ping based on message event');
-        return await processPing(true);
+        console.log('Processing ping based on message event');
+        processPing(true);
       } else {
         // For browser visits, process ping normally
         console.log('Processing as browser visit');
-        return await processPing(false);
+        processPing(false);
       }
     };
 
@@ -102,9 +108,74 @@ const PingHandler = () => {
         const check = getCheck(id);
         if (!check) {
           console.error("Check not found:", id);
-          setError(true);
-          setLoading(false);
-          return;
+          
+          // Direct database check for API requests
+          if (isApi) {
+            // Try to get the check directly from database for API requests
+            // This handles cases where the React context might not be loaded
+            const { data: checkData, error: checkError } = await supabase
+              .from('checks')
+              .select('*')
+              .eq('id', id)
+              .single();
+              
+            if (checkError || !checkData) {
+              console.error("Check not found in database:", checkError);
+              setError(true);
+              setLoading(false);
+              return;
+            }
+            
+            console.log("Found check in database:", checkData);
+            
+            // Direct database ping for API requests
+            const now = new Date();
+            const nextPingDue = checkData.cron_expression 
+              ? calculateNextCronDate(checkData.cron_expression, now)
+              : new Date(now.getTime() + checkData.period * 60 * 1000);
+              
+            // Log ping directly
+            const { error: pingError } = await supabase
+              .from('check_pings')
+              .insert({
+                check_id: id,
+                status: 'success',
+                timestamp: now.toISOString()
+              });
+              
+            if (pingError) {
+              console.error('Error adding ping:', pingError);
+              setError(true);
+              setLoading(false);
+              return;
+            }
+            
+            // Update check
+            const { error: updateError } = await supabase
+              .from('checks')
+              .update({
+                last_ping: now.toISOString(),
+                next_ping_due: nextPingDue.toISOString(),
+                status: "up"
+              })
+              .eq('id', id);
+              
+            if (updateError) {
+              console.error('Error updating check:', updateError);
+              setError(true);
+              setLoading(false);
+              return;
+            }
+            
+            console.log('Direct database ping successful');
+            setProcessed(true);
+            setLoading(false);
+            return;
+          } else {
+            setError(true);
+            setLoading(false);
+            return;
+          }
         }
         
         // For API requests, always process the ping
@@ -132,6 +203,26 @@ const PingHandler = () => {
     
   }, [id, pingCheck, getCheck]);
 
+  // Helper function to calculate next CRON date
+  const calculateNextCronDate = (cronExpression: string, fromDate = new Date()): Date => {
+    try {
+      // Simple parsing for the common pattern "*/60 * * * *" (every X minutes)
+      if (cronExpression.startsWith('*/')) {
+        const minutes = parseInt(cronExpression.split(' ')[0].substring(2), 10);
+        if (!isNaN(minutes)) {
+          return new Date(fromDate.getTime() + minutes * 60 * 1000);
+        }
+      }
+      
+      // Default fallback - add 60 minutes
+      return new Date(fromDate.getTime() + 60 * 60 * 1000);
+    } catch (error) {
+      console.error("Error parsing CRON expression:", error);
+      // Return a date in the far future as fallback
+      return new Date(Date.now() + 60 * 60 * 1000);
+    }
+  };
+
   // For API requests, return a simple JSON response
   if (isApiRequest) {
     // Add headers to indicate this is an API response
@@ -143,7 +234,8 @@ const PingHandler = () => {
           success: !error,
           message: error ? "Chyba pri spracovaní pingu" : "Ping úspešne prijatý",
           id: id,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          processed: processed
         })}
       </div>
     );
