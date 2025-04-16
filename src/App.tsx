@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -81,23 +80,22 @@ const setupPingRequestListener = () => {
         }, window.location.origin);
         
         // For API requests, create a simple JSON response
-        if (method === 'POST' || method === 'PUT' || method === 'GET') {
-          return Promise.resolve(new Response(JSON.stringify({
-            success: true,
-            message: "Ping prijatý a spracovaný",
-            id,
-            timestamp: new Date().toISOString()
-          }), {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Ping-Processed': 'true',
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Headers': '*',
-              'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS'
-            }
-          }));
-        }
+        // Ensure we respond to all API requests
+        return Promise.resolve(new Response(JSON.stringify({
+          success: true,
+          message: "Ping prijatý a spracovaný",
+          id,
+          timestamp: new Date().toISOString()
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ping-Processed': 'true',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+          }
+        }));
       }
     }
     
@@ -119,7 +117,7 @@ const setupPingRequestListener = () => {
         window.postMessage({ 
           type: 'api-ping', 
           id, 
-          method: 'GET',
+          method: 'POST', // Assume POST for direct navigation
           timestamp: new Date().toISOString()
         }, window.location.origin);
       }

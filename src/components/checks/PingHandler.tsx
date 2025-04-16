@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -18,7 +19,9 @@ const PingHandler = () => {
     if (!id) return;
 
     // Check if this is an API request or browser visit
-    const checkIfApiRequest = () => {
+    const checkIfApiRequest = async () => {
+      console.log('Checking if API request for ID:', id);
+      
       // API requests can come from:
       // 1. Direct API calls with specific headers
       // 2. Our event messages from the fetch interceptor
@@ -37,39 +40,54 @@ const PingHandler = () => {
       // Check if there are any API indicators in headers
       const hasApiHeaders = document.head.querySelector('meta[name="x-api-request"]') !== null;
       
-      // Check if there's a message indicating this is an API request
-      const handleApiRequest = (event: MessageEvent) => {
-        if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
-          console.log('Received API ping message:', event.data);
-          setIsApiRequest(true);
-          setRequestMethod(event.data.method || "GET");
-          processPing(true);
-        }
-      };
+      // Create a promise that will resolve when we receive a message or timeout
+      const messagePromise = new Promise<boolean>((resolve) => {
+        const handleApiRequest = (event: MessageEvent) => {
+          if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
+            console.log('Received API ping message:', event.data);
+            setIsApiRequest(true);
+            setRequestMethod(event.data.method || "GET");
+            resolve(true);
+            return true;
+          }
+          return false;
+        };
 
-      // Listen for messages from our event listener
-      window.addEventListener('message', handleApiRequest);
+        // Listen for messages from our event listener
+        window.addEventListener('message', handleApiRequest, { once: true });
+        
+        // Set a timeout to resolve the promise if no message is received
+        setTimeout(() => resolve(false), 300);
+      });
       
-      // If we detect API request from headers or user agent
+      // If we detect API request from headers or user agent, process immediately
       if (isApiUserAgent || hasApiHeaders) {
         console.log('Detected API request from headers or user agent');
         setIsApiRequest(true);
-        setRequestMethod(methodFromUrl || 'GET');
-        processPing(true);
-      } else {
-        // For browser visits, process ping normally
-        processPing(false);
+        setRequestMethod(methodFromUrl || 'POST'); // Default to POST for API calls
+        // Always process for API requests
+        return await processPing(true);
       }
       
-      // Clean up the listener
-      return () => {
-        window.removeEventListener('message', handleApiRequest);
-      };
+      // Wait for potential message event
+      const receivedMessage = await messagePromise;
+      
+      if (receivedMessage) {
+        console.log('Processed ping based on message event');
+        return await processPing(true);
+      } else {
+        // For browser visits, process ping normally
+        console.log('Processing as browser visit');
+        return await processPing(false);
+      }
     };
 
     // Process ping based on the request type
     const processPing = async (isApi: boolean) => {
       try {
+        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}`);
+        setLoading(true);
+        
         // Check if this ping has already been processed in this session
         // Skip this check for API requests - we want them to always register
         const pingKey = `ping-${id}-${new Date().toDateString()}`;
@@ -80,7 +98,6 @@ const PingHandler = () => {
           return;
         }
 
-        setLoading(true);
         // First check if the check exists
         const check = getCheck(id);
         if (!check) {
@@ -90,8 +107,9 @@ const PingHandler = () => {
           return;
         }
         
-        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}`);
+        // For API requests, always process the ping
         await pingCheck(id, "success");
+        console.log(`Ping successfully processed for check ${id}`);
         
         // For browser visits, mark this ping as processed for this session
         // Don't do this for API requests so they can be called multiple times
