@@ -222,11 +222,11 @@ const App = () => {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </CheckProvider>
-          </ProjectProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </App>
+            </BrowserRouter>
+          </CheckProvider>
+        </ProjectProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
