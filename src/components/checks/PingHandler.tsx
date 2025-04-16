@@ -138,8 +138,12 @@ if (isApiRequest()) {
         check: updateData[0]
       }, null, 2);
       
-      // Force content type for PowerShell and other clients that look at content type
-      document.contentType = "application/json";
+      // Set content type for PowerShell and other clients that look at content type
+      // FIX: use meta tag instead of trying to set document.contentType
+      const meta = document.createElement('meta');
+      meta.httpEquiv = 'Content-Type';
+      meta.content = 'application/json';
+      document.head.appendChild(meta);
       
     } catch (error) {
       document.body.innerHTML = JSON.stringify({
