@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -18,33 +19,26 @@ const PingHandler = () => {
   useEffect(() => {
     if (!id) return;
 
-    // Check if this is an API request or browser visit
-    const checkIfApiRequest = async () => {
-      console.log('Checking if API request for ID:', id);
+    // Detect if request is API or browser visit
+    const detectRequestType = async () => {
+      console.log('Processing ping for check ID:', id);
       
-      // API requests can come from:
-      // 1. Direct API calls with specific headers
-      // 2. Our event messages from the fetch interceptor
-      // 3. The Content-Type header might indicate an API request
-
-      // Check for API request headers
-      const isApiUserAgent = navigator.userAgent.includes('curl') || 
-                            navigator.userAgent.includes('wget') ||
-                            navigator.userAgent.includes('PostmanRuntime') ||
-                            navigator.userAgent === '-'; // Case from the example
+      // Check for API request indicators
+      const isApiUserAgent = 
+        navigator.userAgent.includes('curl') || 
+        navigator.userAgent.includes('wget') ||
+        navigator.userAgent.includes('PostmanRuntime') ||
+        navigator.userAgent.includes('Java') ||  // Added for Java detection
+        navigator.userAgent === '-';
       
       // Get request method from URL params if available
       const urlParams = new URLSearchParams(window.location.search);
       const methodFromUrl = urlParams.get('_method');
       
-      // Check if there are any API indicators in headers
-      const hasApiHeaders = document.head.querySelector('meta[name="x-api-request"]') !== null;
-      
       console.log('API detection - User Agent:', navigator.userAgent);
       console.log('Is API User Agent:', isApiUserAgent);
-      console.log('Has API Headers:', hasApiHeaders);
       
-      // Create a promise that will resolve when we receive a message or timeout
+      // Create a promise for message event detection
       const messagePromise = new Promise<boolean>((resolve) => {
         const handleApiRequest = (event: MessageEvent) => {
           if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
@@ -57,20 +51,15 @@ const PingHandler = () => {
           return false;
         };
 
-        // Listen for messages from our event listener
         window.addEventListener('message', handleApiRequest, { once: true });
-        
-        // Set a timeout to resolve the promise if no message is received
         setTimeout(() => resolve(false), 300);
       });
       
-      // If we detect API request from headers or user agent, process immediately
-      // This is the key change - always process API requests!
-      if (isApiUserAgent || hasApiHeaders) {
-        console.log('Detected API request from headers or user agent, processing immediately');
+      // For Java HTTP requests, we should process immediately
+      if (isApiUserAgent) {
+        console.log('Detected API request, processing immediately');
         setIsApiRequest(true);
-        setRequestMethod(methodFromUrl || 'POST'); // Default to POST for API calls
-        // Always process for API requests
+        setRequestMethod(methodFromUrl || 'GET'); // Default to GET for Java clients
         processPing(true);
         return;
       }
@@ -79,12 +68,9 @@ const PingHandler = () => {
       const receivedMessage = await messagePromise;
       
       if (receivedMessage) {
-        console.log('Processing ping based on message event');
         processPing(true);
       } else {
-        // For browser visits, process ping normally
-        console.log('Processing as browser visit');
-        processPing(false);
+        processPing(false); // Browser visit
       }
     };
 
@@ -94,8 +80,7 @@ const PingHandler = () => {
         console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}`);
         setLoading(true);
         
-        // Check if this ping has already been processed in this session
-        // Skip this check for API requests - we want them to always register
+        // Skip session check for API requests
         const pingKey = `ping-${id}-${new Date().toDateString()}`;
         if (!isApi && sessionStorage.getItem(pingKey)) {
           console.log('This ping was already processed in this session');
@@ -104,92 +89,92 @@ const PingHandler = () => {
           return;
         }
 
-        // First check if the check exists
-        const check = getCheck(id);
-        if (!check) {
-          console.error("Check not found:", id);
-          
-          // Direct database check for API requests
-          if (isApi) {
-            // Try to get the check directly from database for API requests
-            // This handles cases where the React context might not be loaded
-            const { data: checkData, error: checkError } = await supabase
-              .from('checks')
-              .select('*')
-              .eq('id', id)
-              .single();
-              
-            if (checkError || !checkData) {
-              console.error("Check not found in database:", checkError);
-              setError(true);
-              setLoading(false);
-              return;
-            }
+        // Direct database ping for all requests - works for both API and browser
+        const now = new Date();
+        
+        try {
+          // Get the check from database
+          const { data: checkData, error: checkError } = await supabase
+            .from('checks')
+            .select('*')
+            .eq('id', id)
+            .single();
             
-            console.log("Found check in database:", checkData);
-            
-            // Direct database ping for API requests
-            const now = new Date();
-            const nextPingDue = checkData.cron_expression 
-              ? calculateNextCronDate(checkData.cron_expression, now)
-              : new Date(now.getTime() + checkData.period * 60 * 1000);
-              
-            // Log ping directly
-            const { error: pingError } = await supabase
-              .from('check_pings')
-              .insert({
-                check_id: id,
-                status: 'success',
-                timestamp: now.toISOString()
-              });
-              
-            if (pingError) {
-              console.error('Error adding ping:', pingError);
-              setError(true);
-              setLoading(false);
-              return;
-            }
-            
-            // Update check
-            const { error: updateError } = await supabase
-              .from('checks')
-              .update({
-                last_ping: now.toISOString(),
-                next_ping_due: nextPingDue.toISOString(),
-                status: "up"
-              })
-              .eq('id', id);
-              
-            if (updateError) {
-              console.error('Error updating check:', updateError);
-              setError(true);
-              setLoading(false);
-              return;
-            }
-            
-            console.log('Direct database ping successful');
-            setProcessed(true);
-            setLoading(false);
-            return;
-          } else {
+          if (checkError || !checkData) {
+            console.error("Check not found in database:", checkError);
             setError(true);
             setLoading(false);
             return;
           }
+          
+          console.log("Found check in database:", checkData);
+          
+          // Calculate next ping due time
+          let nextPingDue: Date;
+          if (checkData.cron_expression) {
+            // For CRON based checks
+            try {
+              if (checkData.cron_expression.startsWith('*/')) {
+                const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
+                nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
+              } else {
+                // Default fallback - add 60 minutes
+                nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+              }
+            } catch (error) {
+              console.error("Error parsing CRON expression:", error);
+              nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+            }
+          } else {
+            // For period-based checks
+            nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
+          }
+            
+          // Record the ping
+          const { error: pingError } = await supabase
+            .from('check_pings')
+            .insert({
+              check_id: id,
+              status: 'success',
+              timestamp: now.toISOString()
+            });
+            
+          if (pingError) {
+            console.error('Error adding ping:', pingError);
+            setError(true);
+            setLoading(false);
+            return;
+          }
+          
+          // Update check status
+          const { error: updateError } = await supabase
+            .from('checks')
+            .update({
+              last_ping: now.toISOString(),
+              next_ping_due: nextPingDue.toISOString(),
+              status: "up"
+            })
+            .eq('id', id);
+            
+          if (updateError) {
+            console.error('Error updating check:', updateError);
+            setError(true);
+            setLoading(false);
+            return;
+          }
+          
+          console.log('Ping successfully processed');
+          setProcessed(true);
+          setError(false);
+          
+          // For browser visits, mark this ping as processed for this session
+          if (!isApi) {
+            sessionStorage.setItem(pingKey, "true");
+          }
+        } catch (error) {
+          console.error("Error processing direct database ping:", error);
+          setError(true);
         }
-        
-        // For API requests, always process the ping
-        await pingCheck(id, "success");
-        console.log(`Ping successfully processed for check ${id}`);
-        
-        // For browser visits, mark this ping as processed for this session
-        // Don't do this for API requests so they can be called multiple times
-        if (!isApi) {
-          sessionStorage.setItem(pingKey, "true");
-        }
-        
-        setProcessed(true);
-        setError(false); // Make sure error is set to false on success
       } catch (error) {
         console.error("Error processing ping:", error);
         setError(true);
@@ -198,30 +183,10 @@ const PingHandler = () => {
       }
     };
 
-    // Start the API request check
-    checkIfApiRequest();
+    // Start detection and processing
+    detectRequestType();
     
   }, [id, pingCheck, getCheck]);
-
-  // Helper function to calculate next CRON date
-  const calculateNextCronDate = (cronExpression: string, fromDate = new Date()): Date => {
-    try {
-      // Simple parsing for the common pattern "*/60 * * * *" (every X minutes)
-      if (cronExpression.startsWith('*/')) {
-        const minutes = parseInt(cronExpression.split(' ')[0].substring(2), 10);
-        if (!isNaN(minutes)) {
-          return new Date(fromDate.getTime() + minutes * 60 * 1000);
-        }
-      }
-      
-      // Default fallback - add 60 minutes
-      return new Date(fromDate.getTime() + 60 * 60 * 1000);
-    } catch (error) {
-      console.error("Error parsing CRON expression:", error);
-      // Return a date in the far future as fallback
-      return new Date(Date.now() + 60 * 60 * 1000);
-    }
-  };
 
   // For API requests, return a simple JSON response
   if (isApiRequest) {
@@ -232,7 +197,7 @@ const PingHandler = () => {
       <div id="api-response" data-status={error ? "error" : "success"} data-method={requestMethod}>
         {JSON.stringify({
           success: !error,
-          message: error ? "Chyba pri spracovaní pingu" : "Ping úspešne prijatý",
+          message: error ? "Error processing ping" : "Ping successfully received",
           id: id,
           timestamp: new Date().toISOString(),
           processed: processed
@@ -261,12 +226,12 @@ const PingHandler = () => {
           <div className="h-12 w-12 mx-auto mb-4 flex items-center justify-center bg-red-100 dark:bg-red-900 rounded-full">
             <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Chyba pri spracovaní pingu</h1>
+          <h1 className="text-2xl font-bold mb-2">Error processing ping</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Nemohli sme spracovať váš ping. Kontrola neexistuje alebo bola odstránená.
+            We couldn't process your ping. The check doesn't exist or was deleted.
           </p>
           <Button asChild>
-            <Link to="/">Späť na nástenku</Link>
+            <Link to="/">Back to dashboard</Link>
           </Button>
         </div>
       </div>
@@ -280,12 +245,12 @@ const PingHandler = () => {
         <div className="h-12 w-12 mx-auto mb-4 flex items-center justify-center bg-green-100 dark:bg-green-900 rounded-full">
           <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Ping úspešne prijatý</h1>
+        <h1 className="text-2xl font-bold mb-2">Ping successfully received</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Vaša kontrola bola aktualizovaná a stav je teraz FUNKČNÝ.
+          Your check has been updated and the status is now ACTIVE.
         </p>
         <Button asChild>
-          <Link to="/">Späť na nástenku</Link>
+          <Link to="/">Back to dashboard</Link>
         </Button>
       </div>
     </div>
