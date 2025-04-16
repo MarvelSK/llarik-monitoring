@@ -1,24 +1,21 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
-import { useChecks } from "@/context/CheckContext";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 
 const PingHandler = () => {
   const { id } = useParams<{ id: string }>();
-  const { pingCheck, getCheck } = useChecks();
   const [processed, setProcessed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isApiRequest, setIsApiRequest] = useState(false);
-  const [requestMethod, setRequestMethod] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
 
-    // Detect if request is API or browser visit
     const detectRequestType = async () => {
       console.log('Processing ping for check ID:', id);
       
@@ -27,77 +24,41 @@ const PingHandler = () => {
         navigator.userAgent.includes('curl') || 
         navigator.userAgent.includes('wget') ||
         navigator.userAgent.includes('PostmanRuntime') ||
-        navigator.userAgent.includes('Java') ||  // Java detection
+        navigator.userAgent.includes('Java') ||
         navigator.userAgent === '-';
       
-      // Get request method from URL params if available
       const urlParams = new URLSearchParams(window.location.search);
-      const methodFromUrl = urlParams.get('_method');
+      const isApiParam = urlParams.get('api') === 'true';
       
-      console.log('API detection - User Agent:', navigator.userAgent);
-      console.log('Is API User Agent:', isApiUserAgent);
+      // Set API request flag based on indicators
+      const isApi = isApiUserAgent || isApiParam;
+      setIsApiRequest(isApi);
       
-      // Create a promise for message event detection
-      const messagePromise = new Promise<boolean>((resolve) => {
-        const handleApiRequest = (event: MessageEvent) => {
-          if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
-            console.log('Received API ping message:', event.data);
-            setIsApiRequest(true);
-            setRequestMethod(event.data.method || "GET");
-            resolve(true);
-            return true;
-          }
-          return false;
-        };
-
-        window.addEventListener('message', handleApiRequest, { once: true });
-        setTimeout(() => resolve(false), 300);
+      console.log('Request type detection:', {
+        userAgent: navigator.userAgent,
+        isApiUserAgent,
+        isApiParam,
+        isApi
       });
       
-      // For external API requests (Java, curl, etc.), we process immediately
-      if (isApiUserAgent) {
-        console.log('Detected API request from Java/external client, processing immediately');
-        setIsApiRequest(true);
-        // For external clients, always treat as POST to ensure processing
-        setRequestMethod('POST');
-        processPing(true);
-        return;
-      }
-      
-      // Wait for potential message event from fetch/XHR interceptors
-      const receivedMessage = await messagePromise;
-      
-      if (receivedMessage) {
-        processPing(true);
-      } else {
-        processPing(false); // Browser visit
-      }
+      // Process ping directly using Supabase
+      await processPingDirect(id);
     };
 
-    // Process ping based on the request type
-    const processPing = async (isApi: boolean) => {
+    // Direct database ping using Supabase client
+    const processPingDirect = async (checkId: string) => {
       try {
-        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}, method: ${requestMethod || 'unknown'}`);
         setLoading(true);
+        console.log('Processing direct Supabase ping for check:', checkId);
         
-        // Skip session check for API requests
-        const pingKey = `ping-${id}-${new Date().toDateString()}`;
-        if (!isApi && sessionStorage.getItem(pingKey)) {
-          console.log('This ping was already processed in this session');
-          setProcessed(true);
-          setLoading(false);
-          return;
-        }
-
-        // Direct database ping for all requests - works for both API and browser
         const now = new Date();
         
         try {
-          // Get the check from database with explicit API key
+          // Get the check from database
           const { data: checkData, error: checkError } = await supabase
             .from('checks')
             .select('*')
-            .eq('id', id)
+            .eq('id', checkId)
             .single();
             
           if (checkError || !checkData) {
@@ -112,7 +73,6 @@ const PingHandler = () => {
           // Calculate next ping due time
           let nextPingDue: Date;
           if (checkData.cron_expression) {
-            // For CRON based checks
             try {
               if (checkData.cron_expression.startsWith('*/')) {
                 const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
@@ -129,12 +89,12 @@ const PingHandler = () => {
             // For period-based checks
             nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
           }
-            
+          
           // Record the ping
           const { error: pingError } = await supabase
             .from('check_pings')
             .insert({
-              check_id: id,
+              check_id: checkId,
               status: 'success',
               timestamp: now.toISOString()
             });
@@ -146,7 +106,7 @@ const PingHandler = () => {
             return;
           }
           
-          // Update check status - CRITICAL for ensuring processed = true
+          // Update check status
           const updateData = {
             last_ping: now.toISOString(),
             next_ping_due: nextPingDue.toISOString(),
@@ -158,7 +118,7 @@ const PingHandler = () => {
           const { error: updateError } = await supabase
             .from('checks')
             .update(updateData)
-            .eq('id', id);
+            .eq('id', checkId);
             
           if (updateError) {
             console.error('Error updating check:', updateError);
@@ -171,18 +131,15 @@ const PingHandler = () => {
           setProcessed(true);
           setError(false);
           
-          // For browser visits, mark this ping as processed for this session
-          if (!isApi) {
-            sessionStorage.setItem(pingKey, "true");
-          }
         } catch (error) {
           console.error("Error processing direct database ping:", error);
           setError(true);
+        } finally {
+          setLoading(false);
         }
       } catch (error) {
         console.error("Error processing ping:", error);
         setError(true);
-      } finally {
         setLoading(false);
       }
     };
@@ -190,15 +147,15 @@ const PingHandler = () => {
     // Start detection and processing
     detectRequestType();
     
-  }, [id, pingCheck, getCheck]);
+  }, [id]);
 
-  // For API requests, return a simple JSON response with processed flag explicitly set
+  // For API requests, return a simple JSON response
   if (isApiRequest) {
     // Add headers to indicate this is an API response
     document.head.innerHTML += '<meta name="x-api-response" content="true">';
     
     return (
-      <div id="api-response" data-status={error ? "error" : "success"} data-method={requestMethod} data-processed={processed.toString()}>
+      <div id="api-response" data-status={error ? "error" : "success"} data-processed={processed.toString()}>
         {JSON.stringify({
           success: !error,
           message: error ? "Error processing ping" : "Ping successfully received and processed",

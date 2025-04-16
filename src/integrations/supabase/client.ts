@@ -14,10 +14,10 @@ export const supabase = createClient<Database>(
   SUPABASE_URL, 
   SUPABASE_PUBLISHABLE_KEY,
   {
-    realtime: {
-      params: {
-        eventsPerSecond: 10
-      }
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
     },
     global: {
       headers: {
@@ -26,31 +26,7 @@ export const supabase = createClient<Database>(
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
-      },
-      fetch: (url, options) => {
-        // Log Supabase API requests for debugging
-        console.log(`Supabase ${options?.method || 'GET'} request to ${url}`);
-        
-        // Ensure headers are properly set for CORS and API key
-        if (!options) options = {};
-        if (!options.headers) options.headers = {};
-        
-        options.headers = {
-          ...options.headers,
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
-        };
-        
-        return fetch(url, options);
       }
-    },
-    auth: {
-      persistSession: true,
-      detectSessionInUrl: true,
-      autoRefreshToken: true,
     }
   }
 );
