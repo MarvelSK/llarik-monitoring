@@ -1,9 +1,147 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+
+// This function will be used outside the component to detect API requests
+const isApiRequest = () => {
+  // Check URL parameters for API flag
+  const urlParams = new URLSearchParams(window.location.search);
+  const isApiParam = urlParams.get('api') === 'true';
+  
+  // User-Agent detection for non-browser clients
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isApiUserAgent = 
+    userAgent.includes('curl') || 
+    userAgent.includes('wget') ||
+    userAgent.includes('postman') ||
+    userAgent.includes('insomnia') ||
+    userAgent.includes('java') ||
+    userAgent === '-' ||
+    userAgent.includes('python-requests') ||
+    userAgent.includes('apache-httpclient') ||
+    userAgent.includes('axios') ||
+    userAgent.length < 20; // Short user agents are often API clients
+  
+  // Check if the accept header prefers JSON
+  const acceptHeader = /json/.test(document.cookie);
+  
+  console.log('API detection:', { 
+    userAgent, 
+    isApiParam, 
+    isApiUserAgent
+  });
+  
+  return isApiParam || isApiUserAgent;
+};
+
+// Direct API handler for non-React environments
+if (isApiRequest()) {
+  // For direct API requests, we'll handle processing and bypass React rendering
+  const processApiPing = async () => {
+    const pathParts = window.location.pathname.split('/');
+    const id = pathParts[pathParts.length - 1];
+    
+    if (!id) {
+      document.write(JSON.stringify({
+        success: false,
+        error: "Missing check ID"
+      }));
+      return;
+    }
+    
+    try {
+      console.log('Processing direct API ping for', id);
+      const now = new Date();
+      
+      // Get the check
+      const { data: checkData, error: checkError } = await supabase
+        .from('checks')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (checkError || !checkData) {
+        document.write(JSON.stringify({
+          success: false,
+          error: "Check not found",
+          id
+        }));
+        return;
+      }
+      
+      // Calculate next ping due
+      let nextPingDue = new Date();
+      if (checkData.cron_expression) {
+        try {
+          if (checkData.cron_expression.startsWith('*/')) {
+            const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
+            nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
+          } else {
+            // Default to 60 minutes
+            nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+          }
+        } catch (error) {
+          nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+        }
+      } else {
+        // Period-based
+        nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
+      }
+      
+      // Add ping record
+      await supabase
+        .from('check_pings')
+        .insert({
+          check_id: id,
+          status: 'success',
+          timestamp: now.toISOString()
+        });
+      
+      // FORCE update check status to "up"
+      const { error: updateError, data: updateData } = await supabase
+        .from('checks')
+        .update({
+          last_ping: now.toISOString(),
+          next_ping_due: nextPingDue.toISOString(),
+          status: "up"  // Always forced to "up"
+        })
+        .eq('id', id)
+        .select('status, last_ping');
+      
+      if (updateError) {
+        document.write(JSON.stringify({
+          success: false,
+          error: "Failed to update check",
+          id
+        }));
+        return;
+      }
+      
+      // Return success response
+      document.write(JSON.stringify({
+        success: true,
+        message: "Ping successfully received and processed, status set to UP",
+        id,
+        timestamp: now.toISOString(),
+        check: updateData[0]
+      }, null, 2));
+      
+    } catch (error) {
+      document.write(JSON.stringify({
+        success: false,
+        error: "Internal server error",
+        id
+      }));
+    }
+  };
+  
+  // Execute API processing immediately
+  processApiPing();
+}
 
 const PingHandler = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,14 +154,10 @@ const PingHandler = () => {
     if (!id) return;
 
     const detectRequestType = async () => {
-      console.log('Processing ping for check ID:', id);
-      
-      // Enhanced API request detection
-      // Check URL parameters for API flag
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
-      // More thorough User-Agent detection
+      // User-Agent detection
       const userAgent = navigator.userAgent.toLowerCase();
       console.log('User agent detected:', userAgent);
       
@@ -37,25 +171,19 @@ const PingHandler = () => {
         userAgent.includes('apache-httpclient') ||
         userAgent.includes('axios');
       
-      // Set API request flag based on any indicator
       const isApi = isApiUserAgent || isApiParam;
       setIsApiRequest(isApi);
       
-      console.log('Request type detection:', {
-        userAgent,
-        isApiParam,
-        isApiUserAgent,
-        finalIsApi: isApi
-      });
-      
-      // Process ping using Supabase
-      await processPingInSupabase(id, isApi);
+      // Only process if not an API request (API requests handled above)
+      if (!isApi) {
+        await processPingInSupabase(id);
+      }
     };
 
-    const processPingInSupabase = async (checkId: string, isApi: boolean) => {
+    const processPingInSupabase = async (checkId: string) => {
       try {
         setLoading(true);
-        console.log('Processing Supabase ping for check:', checkId, 'isApi:', isApi);
+        console.log('Processing Supabase ping for check:', checkId);
         
         const now = new Date();
         
@@ -119,8 +247,6 @@ const PingHandler = () => {
         };
         
         console.log('Updating check with data:', updateData);
-        
-        // Debug the current check status before update
         console.log('Current check status before update:', checkData.status);
         
         // Make direct update to ensure status is changed to "up"
@@ -162,32 +288,7 @@ const PingHandler = () => {
     
   }, [id]);
 
-  // For API requests, provide a JSON response instead of HTML
-  if (isApiRequest) {
-    // Prevent rendering HTML for API requests
-    if (typeof document !== 'undefined') {
-      // In browser context, add header for API response
-      document.head.innerHTML += '<meta name="x-api-response" content="true">';
-    }
-    
-    const jsonResponse = JSON.stringify({
-      success: !error && processed,
-      message: error ? "Error processing ping" : "Ping successfully received and processed, status set to UP",
-      id: id,
-      timestamp: new Date().toISOString(),
-      processed: processed,
-      status: "up"
-    }, null, 2);
-    
-    return (
-      <div id="api-response" data-status={error ? "error" : "success"} data-processed={processed.toString()}>
-        <pre style={{ display: 'block', whiteSpace: 'pre', padding: '10px', background: '#f0f0f0' }}>
-          {jsonResponse}
-        </pre>
-      </div>
-    );
-  }
-
+  // Only render React UI for browser requests
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
