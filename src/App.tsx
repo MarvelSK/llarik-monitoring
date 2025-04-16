@@ -63,13 +63,16 @@ const App = () => {
             <CheckProvider>
               <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
-                  {/* Render IPCheckComponent to check the user's IP */}
-                  {/* <IPCheckComponent onAuthorized={handleAuthorization} /> */}
 
-                  {/* Only render routes if authorized */}
+      {/*
+
+                  <IPCheckComponent onAuthorized={handleAuthorization} />
+
                   {isAuthorized === null ? (
                       <div>Neautorizovaná adresa.</div> // Optionally show a loading state while checking IP
                   ) : isAuthorized ? (
+
+        */}
                       <Routes>
                         {/* Public route */}
                         <Route path="/login" element={<Login />} />
