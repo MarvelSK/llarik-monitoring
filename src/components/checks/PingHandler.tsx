@@ -12,20 +12,41 @@ const PingHandler = () => {
   const [processed, setProcessed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isApiRequest, setIsApiRequest] = useState(false);
 
   useEffect(() => {
     if (!id) return;
 
-    // Check if this ping has already been processed in this session
-    const pingKey = `ping-${id}-${new Date().toDateString()}`;
-    if (sessionStorage.getItem(pingKey)) {
-      setProcessed(true);
-      setLoading(false);
-      return;
-    }
+    // Check if this is an API request or browser visit
+    const checkIfApiRequest = async () => {
+      // If this was a POST request, we'll receive it as a message from our event listener
+      const handleApiRequest = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
+          setIsApiRequest(true);
+          processPing();
+        }
+      };
 
+      // Listen for messages from our event listener
+      window.addEventListener('message', handleApiRequest);
+      
+      // Clean up the listener
+      return () => {
+        window.removeEventListener('message', handleApiRequest);
+      };
+    };
+
+    // For browser visits, process ping normally
     const processPing = async () => {
       try {
+        // Check if this ping has already been processed in this session
+        const pingKey = `ping-${id}-${new Date().toDateString()}`;
+        if (sessionStorage.getItem(pingKey)) {
+          setProcessed(true);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         // First check if the check exists
         const check = getCheck(id);
@@ -38,7 +59,7 @@ const PingHandler = () => {
         
         await pingCheck(id, "success");
         // Mark this ping as processed for this session
-        sessionStorage.setItem(pingKey, "true");
+        sessionStorage.getItem(pingKey) || sessionStorage.setItem(pingKey, "true");
         setProcessed(true);
         setError(false); // Make sure error is set to false on success
       } catch (error) {
@@ -49,8 +70,27 @@ const PingHandler = () => {
       }
     };
 
-    processPing();
-  }, [id, pingCheck, getCheck]);
+    // Start the API request check
+    checkIfApiRequest();
+    
+    // For browser visits, process ping immediately
+    if (!isApiRequest) {
+      processPing();
+    }
+  }, [id, pingCheck, getCheck, isApiRequest]);
+
+  // For API requests, return a simple JSON response
+  if (isApiRequest) {
+    return (
+      <div id="api-response" data-status={error ? "error" : "success"} style={{ display: 'none' }}>
+        {JSON.stringify({
+          success: !error,
+          message: error ? "Chyba pri spracovaní pingu" : "Ping úspešne prijatý",
+          id: id
+        })}
+      </div>
+    );
+  }
 
   if (loading) {
     return (

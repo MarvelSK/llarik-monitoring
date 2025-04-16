@@ -1,9 +1,10 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useEffect } from "react"; // Added useEffect
 import { CheckProvider } from "./context/CheckContext";
 import { ProjectProvider } from "./context/ProjectContext";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -47,12 +48,43 @@ const PageLoader = () => (
     </div>
 );
 
+// Global HTTP request handler for ping endpoints
+const setupPingRequestListener = () => {
+  // Use a MutationObserver to detect when we navigate to a ping URL
+  // This is a workaround to capture POST requests in a React SPA
+  const observer = new MutationObserver((mutations) => {
+    const path = window.location.pathname;
+    if (path.startsWith('/ping/')) {
+      const id = path.split('/ping/')[1];
+      if (id) {
+        // Send a message to the PingHandler component
+        window.postMessage({ type: 'api-ping', id, method: 'POST' }, window.location.origin);
+      }
+    }
+  });
+
+  // Start observing the document
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  
+  return observer;
+};
+
 const App = () => {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   const handleAuthorization = (authorized: boolean) => {
     setIsAuthorized(authorized);
   };
+
+  useEffect(() => {
+    // Setup the listener for ping requests
+    const observer = setupPingRequestListener();
+    
+    return () => {
+      // Clean up the observer on unmount
+      observer.disconnect();
+    };
+  }, []);
 
   return (
       <QueryClientProvider client={queryClient}>
