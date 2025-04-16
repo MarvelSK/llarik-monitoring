@@ -50,15 +50,68 @@ const PageLoader = () => (
 
 // Global HTTP request handler for ping endpoints
 const setupPingRequestListener = () => {
+  // Create a fetch interceptor to capture API calls to ping URLs
+  const originalFetch = window.fetch;
+  
+  window.fetch = async function(input, init) {
+    const url = input instanceof Request ? input.url : input.toString();
+    
+    if (url.includes('/ping/')) {
+      // Extract the ID from the URL
+      const urlObj = new URL(url, window.location.origin);
+      const pathSegments = urlObj.pathname.split('/');
+      const pingIndex = pathSegments.indexOf('ping');
+      
+      if (pingIndex !== -1 && pingIndex + 1 < pathSegments.length) {
+        const id = pathSegments[pingIndex + 1];
+        
+        // Get the HTTP method
+        const method = init?.method || 'GET';
+        
+        // Send a message to the PingHandler component
+        window.postMessage({ 
+          type: 'api-ping', 
+          id, 
+          method,
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+        
+        // For API requests, create a simple JSON response
+        if (method === 'POST' || method === 'PUT' || method === 'GET') {
+          return Promise.resolve(new Response(JSON.stringify({
+            success: true,
+            message: "Ping prijatý a spracovaný",
+            id,
+            timestamp: new Date().toISOString()
+          }), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Ping-Processed': 'true'
+            }
+          }));
+        }
+      }
+    }
+    
+    // Default behavior for non-ping URLs
+    return originalFetch.apply(this, [input, init]);
+  };
+  
   // Use a MutationObserver to detect when we navigate to a ping URL
-  // This is a workaround to capture POST requests in a React SPA
+  // This is a workaround for regular page navigation
   const observer = new MutationObserver((mutations) => {
     const path = window.location.pathname;
     if (path.startsWith('/ping/')) {
       const id = path.split('/ping/')[1];
       if (id) {
         // Send a message to the PingHandler component
-        window.postMessage({ type: 'api-ping', id, method: 'POST' }, window.location.origin);
+        window.postMessage({ 
+          type: 'api-ping', 
+          id, 
+          method: 'GET',
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
       }
     }
   });
@@ -66,7 +119,10 @@ const setupPingRequestListener = () => {
   // Start observing the document
   observer.observe(document.documentElement, { childList: true, subtree: true });
   
-  return observer;
+  return { observer, cleanup: () => {
+    window.fetch = originalFetch;
+    observer.disconnect();
+  }};
 };
 
 const App = () => {
@@ -78,11 +134,11 @@ const App = () => {
 
   useEffect(() => {
     // Setup the listener for ping requests
-    const observer = setupPingRequestListener();
+    const { cleanup } = setupPingRequestListener();
     
     return () => {
-      // Clean up the observer on unmount
-      observer.disconnect();
+      // Clean up the observer and fetch override on unmount
+      cleanup();
     };
   }, []);
 

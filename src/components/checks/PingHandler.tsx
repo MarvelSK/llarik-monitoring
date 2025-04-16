@@ -13,6 +13,7 @@ const PingHandler = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isApiRequest, setIsApiRequest] = useState(false);
+  const [requestMethod, setRequestMethod] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -23,6 +24,7 @@ const PingHandler = () => {
       const handleApiRequest = (event: MessageEvent) => {
         if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
           setIsApiRequest(true);
+          setRequestMethod(event.data.method || "GET");
           processPing();
         }
       };
@@ -36,12 +38,13 @@ const PingHandler = () => {
       };
     };
 
-    // For browser visits, process ping normally
+    // For browser visits or API requests, process ping
     const processPing = async () => {
       try {
         // Check if this ping has already been processed in this session
+        // Skip this check for API requests - we want them to always register
         const pingKey = `ping-${id}-${new Date().toDateString()}`;
-        if (sessionStorage.getItem(pingKey)) {
+        if (!isApiRequest && sessionStorage.getItem(pingKey)) {
           setProcessed(true);
           setLoading(false);
           return;
@@ -58,8 +61,13 @@ const PingHandler = () => {
         }
         
         await pingCheck(id, "success");
-        // Mark this ping as processed for this session
-        sessionStorage.getItem(pingKey) || sessionStorage.setItem(pingKey, "true");
+        
+        // For browser visits, mark this ping as processed for this session
+        // Don't do this for API requests so they can be called multiple times
+        if (!isApiRequest) {
+          sessionStorage.setItem(pingKey, "true");
+        }
+        
         setProcessed(true);
         setError(false); // Make sure error is set to false on success
       } catch (error) {
@@ -81,12 +89,16 @@ const PingHandler = () => {
 
   // For API requests, return a simple JSON response
   if (isApiRequest) {
+    // Add a header to indicate this is an API response
+    document.head.innerHTML += '<meta name="x-api-response" content="true">';
+    
     return (
-      <div id="api-response" data-status={error ? "error" : "success"} style={{ display: 'none' }}>
+      <div id="api-response" data-status={error ? "error" : "success"} data-method={requestMethod}>
         {JSON.stringify({
           success: !error,
           message: error ? "Chyba pri spracovaní pingu" : "Ping úspešne prijatý",
-          id: id
+          id: id,
+          timestamp: new Date().toISOString()
         })}
       </div>
     );
