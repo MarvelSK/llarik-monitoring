@@ -59,7 +59,7 @@ const PingHandler = () => {
       if (isApiUserAgent) {
         console.log('Detected API request, processing immediately');
         setIsApiRequest(true);
-        setRequestMethod(methodFromUrl || 'GET'); // Default to GET for Java clients
+        setRequestMethod(methodFromUrl || window.location.pathname.includes('/ping/') ? 'POST' : 'GET'); // Default to POST for API clients on ping endpoints
         processPing(true);
         return;
       }
@@ -77,7 +77,7 @@ const PingHandler = () => {
     // Process ping based on the request type
     const processPing = async (isApi: boolean) => {
       try {
-        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}`);
+        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}, method: ${window.location.pathname.includes('/ping/') ? 'POST' : 'GET'}`);
         setLoading(true);
         
         // Skip session check for API requests
@@ -146,14 +146,18 @@ const PingHandler = () => {
             return;
           }
           
-          // Update check status
+          // Update check status - IMPORTANT: This is where we set processed = true
+          const updateData = {
+            last_ping: now.toISOString(),
+            next_ping_due: nextPingDue.toISOString(),
+            status: "up"
+          };
+          
+          console.log('Updating check with data:', updateData);
+          
           const { error: updateError } = await supabase
             .from('checks')
-            .update({
-              last_ping: now.toISOString(),
-              next_ping_due: nextPingDue.toISOString(),
-              status: "up"
-            })
+            .update(updateData)
             .eq('id', id);
             
           if (updateError) {
@@ -194,10 +198,10 @@ const PingHandler = () => {
     document.head.innerHTML += '<meta name="x-api-response" content="true">';
     
     return (
-      <div id="api-response" data-status={error ? "error" : "success"} data-method={requestMethod}>
+      <div id="api-response" data-status={error ? "error" : "success"} data-method={requestMethod} data-processed={processed.toString()}>
         {JSON.stringify({
           success: !error,
-          message: error ? "Error processing ping" : "Ping successfully received",
+          message: error ? "Error processing ping" : "Ping successfully received and processed",
           id: id,
           timestamp: new Date().toISOString(),
           processed: processed

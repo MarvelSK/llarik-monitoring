@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -67,12 +68,11 @@ const setupPingRequestListener = () => {
         const id = pathSegments[pingIndex + 1];
         
         // Get the HTTP method
-        const method = init?.method || 'GET';
+        const method = init?.method || 'POST'; // Default to POST for ping endpoints
         
         console.log(`Intercepted ${method} request to ping endpoint:`, id);
         
-        // IMPORTANT: Don't completely bypass the original fetch - we need to actually process the ping
-        // Instead, post a message first, then continue with original fetch
+        // Post a message first, then continue with original fetch
         window.postMessage({ 
           type: 'api-ping', 
           id, 
@@ -91,7 +91,8 @@ const setupPingRequestListener = () => {
             success: true,
             message: "Ping prijatý a spracovaný",
             id,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            processed: true
           }), {
             status: 200,
             headers: {
@@ -119,12 +120,17 @@ const setupPingRequestListener = () => {
       // Add a meta tag to mark this as an API request
       document.head.innerHTML += '<meta name="x-api-request" content="true">';
       console.log('XHR request to ping endpoint:', url);
+      
+      // Force method to POST for ping URLs
+      if (url.toString().includes('/ping/') && method.toUpperCase() === 'GET') {
+        console.log('Changing GET request to POST for ping endpoint');
+        arguments[0] = 'POST';
+      }
     }
     originalXHROpen.apply(this, arguments);
   };
 
   // Handle direct HTTP requests to ping URLs
-  // This will trigger on initial page load if we're navigating to a ping URL
   const handleDirectRequests = () => {
     const path = window.location.pathname;
     if (path.startsWith('/ping/')) {
@@ -137,7 +143,7 @@ const setupPingRequestListener = () => {
         window.postMessage({ 
           type: 'api-ping', 
           id, 
-          method: 'POST', // Assume POST for direct navigation
+          method: 'POST', // Always use POST for direct ping requests
           timestamp: new Date().toISOString()
         }, window.location.origin);
       }

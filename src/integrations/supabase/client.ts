@@ -25,6 +25,23 @@ export const supabase = createClient<Database>(
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
+      fetch: (url, options) => {
+        // Log Supabase API requests for debugging
+        console.log(`Supabase ${options?.method || 'GET'} request to ${url}`);
+        
+        // Ensure headers are properly set for CORS
+        if (!options) options = {};
+        if (!options.headers) options.headers = {};
+        
+        options.headers = {
+          ...options.headers,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        };
+        
+        return fetch(url, options);
+      }
     },
     auth: {
       persistSession: true,
