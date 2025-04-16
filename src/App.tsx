@@ -95,16 +95,13 @@ const App = () => {
             <CheckProvider>
               <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
-
-      {/*
-
+                  {/* 
                   <IPCheckComponent onAuthorized={handleAuthorization} />
 
                   {isAuthorized === null ? (
                       <div>Neautorizovaná adresa.</div> // Optionally show a loading state while checking IP
                   ) : isAuthorized ? (
-
-        */}
+                  */}
                       <Routes>
                         {/* Public route */}
                         <Route path="/login" element={<Login />} />
@@ -143,9 +140,9 @@ const App = () => {
                         <Route path="/ping/:id" element={<PingHandler />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
-                  ) : (
+                  {/* ) : (
                       <div>Access Denied</div> // Show this if IP is not authorized
-                  )}
+                  )} */}
                 </Suspense>
               </BrowserRouter>
             </CheckProvider>
