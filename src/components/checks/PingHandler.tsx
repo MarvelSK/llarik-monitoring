@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -28,7 +27,7 @@ const PingHandler = () => {
         navigator.userAgent.includes('curl') || 
         navigator.userAgent.includes('wget') ||
         navigator.userAgent.includes('PostmanRuntime') ||
-        navigator.userAgent.includes('Java') ||  // Added for Java detection
+        navigator.userAgent.includes('Java') ||  // Java detection
         navigator.userAgent === '-';
       
       // Get request method from URL params if available
@@ -55,16 +54,17 @@ const PingHandler = () => {
         setTimeout(() => resolve(false), 300);
       });
       
-      // For Java HTTP requests, we should process immediately
+      // For external API requests (Java, curl, etc.), we process immediately
       if (isApiUserAgent) {
-        console.log('Detected API request, processing immediately');
+        console.log('Detected API request from Java/external client, processing immediately');
         setIsApiRequest(true);
-        setRequestMethod(methodFromUrl || window.location.pathname.includes('/ping/') ? 'POST' : 'GET'); // Default to POST for API clients on ping endpoints
+        // For external clients, always treat as POST to ensure processing
+        setRequestMethod('POST');
         processPing(true);
         return;
       }
       
-      // Wait for potential message event
+      // Wait for potential message event from fetch/XHR interceptors
       const receivedMessage = await messagePromise;
       
       if (receivedMessage) {
@@ -77,7 +77,7 @@ const PingHandler = () => {
     // Process ping based on the request type
     const processPing = async (isApi: boolean) => {
       try {
-        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}, method: ${window.location.pathname.includes('/ping/') ? 'POST' : 'GET'}`);
+        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}, method: ${requestMethod || 'unknown'}`);
         setLoading(true);
         
         // Skip session check for API requests
@@ -146,7 +146,7 @@ const PingHandler = () => {
             return;
           }
           
-          // Update check status - IMPORTANT: This is where we set processed = true
+          // Update check status - CRITICAL for ensuring processed = true
           const updateData = {
             last_ping: now.toISOString(),
             next_ping_due: nextPingDue.toISOString(),
@@ -192,7 +192,7 @@ const PingHandler = () => {
     
   }, [id, pingCheck, getCheck]);
 
-  // For API requests, return a simple JSON response
+  // For API requests, return a simple JSON response with processed flag explicitly set
   if (isApiRequest) {
     // Add headers to indicate this is an API response
     document.head.innerHTML += '<meta name="x-api-response" content="true">';

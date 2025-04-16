@@ -25,7 +25,7 @@ export const supabase = createClient<Database>(
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
       },
       fetch: (url, options) => {
         // Log Supabase API requests for debugging
@@ -41,7 +41,7 @@ export const supabase = createClient<Database>(
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
         };
         
         return fetch(url, options);
