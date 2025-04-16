@@ -19,19 +19,24 @@ const PingHandler = () => {
     const detectRequestType = async () => {
       console.log('Processing ping for check ID:', id);
       
+      // Improved API request detection
       // Check URL parameters for API flag
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
-      // Check user agent for API client indicators
+      // Better User-Agent detection for command-line tools
+      const userAgent = navigator.userAgent.toLowerCase();
       const isApiUserAgent = 
-        navigator.userAgent.includes('curl') || 
-        navigator.userAgent.includes('wget') ||
-        navigator.userAgent.includes('PostmanRuntime') ||
-        navigator.userAgent.includes('Java') ||
-        navigator.userAgent === '-';
+        userAgent.includes('curl') || 
+        userAgent.includes('wget') ||
+        userAgent.includes('postman') ||
+        userAgent.includes('java') ||
+        userAgent === '-' ||
+        userAgent.includes('python-requests') ||
+        userAgent.includes('apache-httpclient') ||
+        userAgent.includes('axios');
       
-      // Set API request flag based on indicators
+      // Set API request flag based on any indicator
       const isApi = isApiUserAgent || isApiParam;
       setIsApiRequest(isApi);
       
@@ -104,11 +109,11 @@ const PingHandler = () => {
           return;
         }
         
-        // Update check status - always set to "up" and update last_ping
+        // ALWAYS update check status to "up" regardless of previous status - THIS IS THE FIX
         const updateData = {
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"  // Set status to "up" regardless of previous status
+          status: "up"  // Always set status to "up"
         };
         
         console.log('Updating check with data:', updateData);
@@ -142,7 +147,7 @@ const PingHandler = () => {
     
   }, [id]);
 
-  // For API requests, return a simple JSON response
+  // Return JSON response for API requests immediately after processing
   if (isApiRequest) {
     // Add headers to indicate this is an API response
     document.head.innerHTML += '<meta name="x-api-response" content="true">';
