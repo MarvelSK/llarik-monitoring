@@ -93,7 +93,7 @@ const PingHandler = () => {
         const now = new Date();
         
         try {
-          // Get the check from database
+          // Get the check from database with explicit API key
           const { data: checkData, error: checkError } = await supabase
             .from('checks')
             .select('*')
