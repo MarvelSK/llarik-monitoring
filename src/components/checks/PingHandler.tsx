@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -19,13 +18,15 @@ const PingHandler = () => {
     const detectRequestType = async () => {
       console.log('Processing ping for check ID:', id);
       
-      // Improved API request detection
+      // Enhanced API request detection
       // Check URL parameters for API flag
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
-      // Better User-Agent detection for command-line tools
+      // More thorough User-Agent detection
       const userAgent = navigator.userAgent.toLowerCase();
+      console.log('User agent detected:', userAgent);
+      
       const isApiUserAgent = 
         userAgent.includes('curl') || 
         userAgent.includes('wget') ||
@@ -41,19 +42,20 @@ const PingHandler = () => {
       setIsApiRequest(isApi);
       
       console.log('Request type detection:', {
-        userAgent: navigator.userAgent,
+        userAgent,
         isApiParam,
-        isApi
+        isApiUserAgent,
+        finalIsApi: isApi
       });
       
       // Process ping using Supabase
-      await processPingInSupabase(id);
+      await processPingInSupabase(id, isApi);
     };
 
-    const processPingInSupabase = async (checkId: string) => {
+    const processPingInSupabase = async (checkId: string, isApi: boolean) => {
       try {
         setLoading(true);
-        console.log('Processing Supabase ping for check:', checkId);
+        console.log('Processing Supabase ping for check:', checkId, 'isApi:', isApi);
         
         const now = new Date();
         
@@ -109,15 +111,19 @@ const PingHandler = () => {
           return;
         }
         
-        // ALWAYS update check status to "up" regardless of previous status - THIS IS THE FIX
+        // CRITICAL: ALWAYS update check status to "up" regardless of previous status
         const updateData = {
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"  // Always set status to "up"
+          status: "up"  // Force status to "up" always
         };
         
         console.log('Updating check with data:', updateData);
         
+        // Debug the current check status before update
+        console.log('Current check status before update:', checkData.status);
+        
+        // Make direct update to ensure status is changed to "up"
         const { error: updateError } = await supabase
           .from('checks')
           .update(updateData)
@@ -129,6 +135,15 @@ const PingHandler = () => {
           setLoading(false);
           return;
         }
+        
+        // Verify update worked by fetching check again
+        const { data: updatedCheck } = await supabase
+          .from('checks')
+          .select('status, last_ping')
+          .eq('id', checkId)
+          .single();
+          
+        console.log('Check after update:', updatedCheck);
         
         console.log('Ping successfully processed');
         setProcessed(true);
@@ -147,20 +162,28 @@ const PingHandler = () => {
     
   }, [id]);
 
-  // Return JSON response for API requests immediately after processing
+  // For API requests, provide a JSON response instead of HTML
   if (isApiRequest) {
-    // Add headers to indicate this is an API response
-    document.head.innerHTML += '<meta name="x-api-response" content="true">';
+    // Prevent rendering HTML for API requests
+    if (typeof document !== 'undefined') {
+      // In browser context, add header for API response
+      document.head.innerHTML += '<meta name="x-api-response" content="true">';
+    }
+    
+    const jsonResponse = JSON.stringify({
+      success: !error && processed,
+      message: error ? "Error processing ping" : "Ping successfully received and processed, status set to UP",
+      id: id,
+      timestamp: new Date().toISOString(),
+      processed: processed,
+      status: "up"
+    }, null, 2);
     
     return (
       <div id="api-response" data-status={error ? "error" : "success"} data-processed={processed.toString()}>
-        {JSON.stringify({
-          success: !error,
-          message: error ? "Error processing ping" : "Ping successfully received and processed",
-          id: id,
-          timestamp: new Date().toISOString(),
-          processed: processed
-        })}
+        <pre style={{ display: 'block', whiteSpace: 'pre', padding: '10px', background: '#f0f0f0' }}>
+          {jsonResponse}
+        </pre>
       </div>
     );
   }
