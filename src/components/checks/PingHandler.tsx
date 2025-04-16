@@ -6,14 +6,18 @@ import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 
-// This function will be used outside the component to detect API requests
+// Enhanced API detection to handle PowerShell, cURL, wget and other API clients
 const isApiRequest = () => {
-  // Check URL parameters for API flag
+  // 1. Check URL parameters for API flag (most reliable)
   const urlParams = new URLSearchParams(window.location.search);
   const isApiParam = urlParams.get('api') === 'true';
   
-  // User-Agent detection for non-browser clients
+  // 2. User-Agent detection for non-browser clients
   const userAgent = navigator.userAgent.toLowerCase();
+  // Console.log to help with debugging
+  console.log('User agent detected:', userAgent);
+  
+  // 3. Enhanced detection for PowerShell and other clients
   const isApiUserAgent = 
     userAgent.includes('curl') || 
     userAgent.includes('wget') ||
@@ -24,37 +28,41 @@ const isApiRequest = () => {
     userAgent.includes('python-requests') ||
     userAgent.includes('apache-httpclient') ||
     userAgent.includes('axios') ||
+    userAgent.includes('powershell') ||
     userAgent.length < 20; // Short user agents are often API clients
   
-  // Check if the accept header prefers JSON
+  // 4. Check Accept header via cookies (workaround since we can't access headers directly)
   const acceptHeader = /json/.test(document.cookie);
   
+  // Log all detection factors for debugging
   console.log('API detection:', { 
     userAgent, 
     isApiParam, 
-    isApiUserAgent
+    isApiUserAgent,
+    acceptHeader
   });
   
-  return isApiParam || isApiUserAgent;
+  return isApiParam || isApiUserAgent || acceptHeader;
 };
 
-// Direct API handler for non-React environments
+// Direct API response function - process and respond with JSON for API requests
+// This executes before React even starts rendering for API requests
 if (isApiRequest()) {
-  // For direct API requests, we'll handle processing and bypass React rendering
-  const processApiPing = async () => {
+  // Stop React rendering for API requests and return JSON directly
+  document.addEventListener('DOMContentLoaded', async () => {
     const pathParts = window.location.pathname.split('/');
     const id = pathParts[pathParts.length - 1];
     
     if (!id) {
-      document.write(JSON.stringify({
+      document.body.innerHTML = JSON.stringify({
         success: false,
         error: "Missing check ID"
-      }));
+      });
       return;
     }
     
     try {
-      console.log('Processing direct API ping for', id);
+      console.log('Processing API ping for check ID:', id);
       const now = new Date();
       
       // Get the check
@@ -65,11 +73,11 @@ if (isApiRequest()) {
         .single();
         
       if (checkError || !checkData) {
-        document.write(JSON.stringify({
+        document.body.innerHTML = JSON.stringify({
           success: false,
           error: "Check not found",
           id
-        }));
+        });
         return;
       }
       
@@ -101,46 +109,46 @@ if (isApiRequest()) {
           timestamp: now.toISOString()
         });
       
-      // FORCE update check status to "up"
+      // CRITICAL: ALWAYS Force update check status to "up" regardless of previous status
       const { error: updateError, data: updateData } = await supabase
         .from('checks')
         .update({
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"  // Always forced to "up"
+          status: "up"  // Always force to "up"
         })
         .eq('id', id)
         .select('status, last_ping');
       
       if (updateError) {
-        document.write(JSON.stringify({
+        document.body.innerHTML = JSON.stringify({
           success: false,
           error: "Failed to update check",
           id
-        }));
+        });
         return;
       }
       
-      // Return success response
-      document.write(JSON.stringify({
+      // Overwrite the entire page content with JSON response
+      document.body.innerHTML = JSON.stringify({
         success: true,
         message: "Ping successfully received and processed, status set to UP",
         id,
         timestamp: now.toISOString(),
         check: updateData[0]
-      }, null, 2));
+      }, null, 2);
+      
+      // Force content type for PowerShell and other clients that look at content type
+      document.contentType = "application/json";
       
     } catch (error) {
-      document.write(JSON.stringify({
+      document.body.innerHTML = JSON.stringify({
         success: false,
         error: "Internal server error",
         id
-      }));
+      });
     }
-  };
-  
-  // Execute API processing immediately
-  processApiPing();
+  }, { once: true });
 }
 
 const PingHandler = () => {
@@ -157,9 +165,9 @@ const PingHandler = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
-      // User-Agent detection
+      // Enhanced User-Agent detection
       const userAgent = navigator.userAgent.toLowerCase();
-      console.log('User agent detected:', userAgent);
+      console.log('User agent detected in React component:', userAgent);
       
       const isApiUserAgent = 
         userAgent.includes('curl') || 
@@ -169,6 +177,7 @@ const PingHandler = () => {
         userAgent === '-' ||
         userAgent.includes('python-requests') ||
         userAgent.includes('apache-httpclient') ||
+        userAgent.includes('powershell') ||
         userAgent.includes('axios');
       
       const isApi = isApiUserAgent || isApiParam;
@@ -183,7 +192,7 @@ const PingHandler = () => {
     const processPingInSupabase = async (checkId: string) => {
       try {
         setLoading(true);
-        console.log('Processing Supabase ping for check:', checkId);
+        console.log('Processing browser ping for check:', checkId);
         
         const now = new Date();
         
