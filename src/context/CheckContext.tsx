@@ -1,4 +1,3 @@
-
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -357,66 +356,85 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
   const pingCheck = async (id: string, status: CheckPing["status"]) => {
     try {
-      const check = getCheck(id);
-      if (!check) {
-        toast.error('Check not found');
-        return;
-      }
-
       const now = new Date();
-      const prevStatus = check.status;
       
-      // Calculate the next ping due time based on the check type
-      let nextPingDue: Date;
-      if (check.cronExpression) {
-        // For CRON based checks, calculate the next execution time
-        nextPingDue = getNextCronDate(check.cronExpression, now);
-      } else {
-        // For period based checks, simply add the period to now
-        nextPingDue = addMinutes(now, check.period);
-      }
+      // Direct database ping for API requests
+      const nextPingDue = await calculateNextPingDue(id, now);
 
-      const pingData = {
-        check_id: id,
-        status,
-        timestamp: now.toISOString()
-      };
-
+      // Insert ping record
       const { error: pingError } = await supabase
         .from('check_pings')
-        .insert(pingData);
+        .insert({
+          check_id: id,
+          status,
+          timestamp: now.toISOString(),
+          duration: 0 // You might want to calculate actual duration
+        });
 
       if (pingError) {
         console.error('Error adding ping:', pingError);
-        toast.error('Failed to record ping');
         return;
       }
 
-      const updateData = {
-        last_ping: now.toISOString(),
-        next_ping_due: nextPingDue.toISOString(),
-        status: "up"
-      };
-
+      // Update check status
       const { error: checkError } = await supabase
         .from('checks')
-        .update(updateData)
+        .update({
+          last_ping: now.toISOString(),
+          next_ping_due: nextPingDue.toISOString(),
+          status: "up"
+        })
         .eq('id', id);
 
       if (checkError) {
-        console.error('Error updating check after ping:', checkError);
-        toast.error('Failed to update check status');
+        console.error('Error updating check status:', checkError);
         return;
       }
+    } catch (error) {
+      console.error('Error processing ping:', error);
+    }
+  };
 
-      toast.success('Pingnutie prebehlo úspešne');
-      
-      if (prevStatus === 'down' || prevStatus === 'grace') {
-        triggerIntegrations(id, 'up');
+  // Helper function to calculate next ping due
+  const calculateNextPingDue = async (id: string, now: Date): Promise<Date> => {
+    try {
+      // Fetch the check to determine next ping calculation method
+      const { data: check, error } = await supabase
+        .from('checks')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !check) {
+        console.error('Check not found', error);
+        return new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+      }
+
+      if (check.cron_expression) {
+        // For CRON based checks, calculate next execution
+        return new Date(parseNextCronDate(check.cron_expression, now));
+      } else {
+        // For period-based checks, simply add the period
+        return new Date(now.getTime() + check.period * 60 * 1000);
       }
     } catch (error) {
-      console.error('Error in pingCheck:', error);
-      toast.error('Nepodarilo sa pingnúť kontrolu');
+      console.error('Error calculating next ping due:', error);
+      return new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+    }
+  };
+
+  // Parse and calculate next CRON date
+  const parseNextCronDate = (cronExpression: string, fromDate: Date): Date => {
+    try {
+      // Simple parsing for common minute-based CRON patterns
+      if (cronExpression.startsWith('*/')) {
+        const minutes = parseInt(cronExpression.split(' ')[0].substring(2), 10);
+        return new Date(fromDate.getTime() + minutes * 60 * 1000);
+      }
+      return new Date(fromDate.getTime() + 60 * 60 * 1000); // Default to 1 hour
+    } catch (error) {
+      console.error('Error parsing CRON expression:', error);
+      return new Date(fromDate.getTime() + 60 * 60 * 1000);
     }
   };
 
