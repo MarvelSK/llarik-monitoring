@@ -64,7 +64,7 @@ const App = () => {
               <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
                   {/* Render IPCheckComponent to check the user's IP */}
-                  <IPCheckComponent onAuthorized={handleAuthorization} />
+                  {/* <IPCheckComponent onAuthorized={handleAuthorization} /> */}
 
                   {/* Only render routes if authorized */}
                   {isAuthorized === null ? (
