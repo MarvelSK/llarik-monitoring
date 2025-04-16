@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -19,18 +18,48 @@ const PingHandler = () => {
     if (!id) return;
 
     // Check if this is an API request or browser visit
-    const checkIfApiRequest = async () => {
-      // If this was a POST request, we'll receive it as a message from our event listener
+    const checkIfApiRequest = () => {
+      // API requests can come from:
+      // 1. Direct API calls with specific headers
+      // 2. Our event messages from the fetch interceptor
+      // 3. The Content-Type header might indicate an API request
+
+      // Check for API request headers
+      const isApiUserAgent = navigator.userAgent.includes('curl') || 
+                            navigator.userAgent.includes('wget') ||
+                            navigator.userAgent.includes('PostmanRuntime') ||
+                            navigator.userAgent === '-'; // Case from the example
+      
+      // Get request method from URL params if available
+      const urlParams = new URLSearchParams(window.location.search);
+      const methodFromUrl = urlParams.get('_method');
+      
+      // Check if there are any API indicators in headers
+      const hasApiHeaders = document.head.querySelector('meta[name="x-api-request"]') !== null;
+      
+      // Check if there's a message indicating this is an API request
       const handleApiRequest = (event: MessageEvent) => {
         if (event.data && event.data.type === 'api-ping' && event.data.id === id) {
+          console.log('Received API ping message:', event.data);
           setIsApiRequest(true);
           setRequestMethod(event.data.method || "GET");
-          processPing();
+          processPing(true);
         }
       };
 
       // Listen for messages from our event listener
       window.addEventListener('message', handleApiRequest);
+      
+      // If we detect API request from headers or user agent
+      if (isApiUserAgent || hasApiHeaders) {
+        console.log('Detected API request from headers or user agent');
+        setIsApiRequest(true);
+        setRequestMethod(methodFromUrl || 'GET');
+        processPing(true);
+      } else {
+        // For browser visits, process ping normally
+        processPing(false);
+      }
       
       // Clean up the listener
       return () => {
@@ -38,13 +67,14 @@ const PingHandler = () => {
       };
     };
 
-    // For browser visits or API requests, process ping
-    const processPing = async () => {
+    // Process ping based on the request type
+    const processPing = async (isApi: boolean) => {
       try {
         // Check if this ping has already been processed in this session
         // Skip this check for API requests - we want them to always register
         const pingKey = `ping-${id}-${new Date().toDateString()}`;
-        if (!isApiRequest && sessionStorage.getItem(pingKey)) {
+        if (!isApi && sessionStorage.getItem(pingKey)) {
+          console.log('This ping was already processed in this session');
           setProcessed(true);
           setLoading(false);
           return;
@@ -60,11 +90,12 @@ const PingHandler = () => {
           return;
         }
         
+        console.log(`Processing ping for check ${id}, isApiRequest: ${isApi}`);
         await pingCheck(id, "success");
         
         // For browser visits, mark this ping as processed for this session
         // Don't do this for API requests so they can be called multiple times
-        if (!isApiRequest) {
+        if (!isApi) {
           sessionStorage.setItem(pingKey, "true");
         }
         
@@ -81,15 +112,11 @@ const PingHandler = () => {
     // Start the API request check
     checkIfApiRequest();
     
-    // For browser visits, process ping immediately
-    if (!isApiRequest) {
-      processPing();
-    }
-  }, [id, pingCheck, getCheck, isApiRequest]);
+  }, [id, pingCheck, getCheck]);
 
   // For API requests, return a simple JSON response
   if (isApiRequest) {
-    // Add a header to indicate this is an API response
+    // Add headers to indicate this is an API response
     document.head.innerHTML += '<meta name="x-api-response" content="true">';
     
     return (

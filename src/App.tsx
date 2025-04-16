@@ -50,6 +50,8 @@ const PageLoader = () => (
 
 // Global HTTP request handler for ping endpoints
 const setupPingRequestListener = () => {
+  console.log('Setting up ping request listener');
+  
   // Create a fetch interceptor to capture API calls to ping URLs
   const originalFetch = window.fetch;
   
@@ -67,6 +69,8 @@ const setupPingRequestListener = () => {
         
         // Get the HTTP method
         const method = init?.method || 'GET';
+        
+        console.log(`Intercepted ${method} request to ping endpoint:`, id);
         
         // Send a message to the PingHandler component
         window.postMessage({ 
@@ -87,7 +91,10 @@ const setupPingRequestListener = () => {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'X-Ping-Processed': 'true'
+              'X-Ping-Processed': 'true',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Headers': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS'
             }
           }));
         }
@@ -98,14 +105,35 @@ const setupPingRequestListener = () => {
     return originalFetch.apply(this, [input, init]);
   };
   
-  // Use a MutationObserver to detect when we navigate to a ping URL
-  // This is a workaround for regular page navigation
-  const observer = new MutationObserver((mutations) => {
+  // Handle direct HTTP requests to ping URLs
+  // This will trigger on initial page load if we're navigating to a ping URL
+  const handleDirectRequests = () => {
     const path = window.location.pathname;
     if (path.startsWith('/ping/')) {
       const id = path.split('/ping/')[1];
       if (id) {
+        console.log('Detected direct navigation to ping URL:', id);
+        // Mark this as an API request to ensure proper handling
+        document.head.innerHTML += '<meta name="x-api-request" content="true">';
         // Send a message to the PingHandler component
+        window.postMessage({ 
+          type: 'api-ping', 
+          id, 
+          method: 'GET',
+          timestamp: new Date().toISOString()
+        }, window.location.origin);
+      }
+    }
+  };
+
+  // Use a MutationObserver to detect DOM changes
+  // This helps with SPA navigation where the URL changes but page doesn't reload
+  const observer = new MutationObserver(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/ping/')) {
+      const id = path.split('/ping/')[1];
+      if (id) {
+        console.log('Detected navigation to ping URL via SPA:', id);
         window.postMessage({ 
           type: 'api-ping', 
           id, 
@@ -119,10 +147,17 @@ const setupPingRequestListener = () => {
   // Start observing the document
   observer.observe(document.documentElement, { childList: true, subtree: true });
   
-  return { observer, cleanup: () => {
-    window.fetch = originalFetch;
-    observer.disconnect();
-  }};
+  // Check for direct requests on initial load
+  handleDirectRequests();
+  
+  return { 
+    observer, 
+    cleanup: () => {
+      console.log('Cleaning up ping request listener');
+      window.fetch = originalFetch;
+      observer.disconnect();
+    }
+  };
 };
 
 const App = () => {
@@ -151,12 +186,13 @@ const App = () => {
             <CheckProvider>
               <BrowserRouter>
                 <Suspense fallback={<PageLoader />}>
+                  {/* This commented block has been fixed to use proper JSX comment syntax */}
                   {/* 
                   <IPCheckComponent onAuthorized={handleAuthorization} />
-
+                  
                   {isAuthorized === null ? (
-                      <div>Neautorizovaná adresa.</div> // Optionally show a loading state while checking IP
-                  ) : isAuthorized ? (
+                    <div>Neautorizovaná adresa.</div> 
+                  ) : isAuthorized ? ( 
                   */}
                       <Routes>
                         {/* Public route */}
@@ -197,7 +233,7 @@ const App = () => {
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                   {/* ) : (
-                      <div>Access Denied</div> // Show this if IP is not authorized
+                      <div>Access Denied</div>
                   )} */}
                 </Suspense>
               </BrowserRouter>
