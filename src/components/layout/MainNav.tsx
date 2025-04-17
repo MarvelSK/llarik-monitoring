@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Link } from "react-router-dom";
 export function MainNav({
@@ -17,7 +18,9 @@ export function MainNav({
         <Link to="/projects" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           Projekty
         </Link>
-        
+        <Link to="/import" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+          Import
+        </Link>
       </nav>
     </nav>;
 }
