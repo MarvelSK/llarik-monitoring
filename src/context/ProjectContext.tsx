@@ -162,13 +162,13 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         
         const savedProjectId = localStorage.getItem(CURRENT_PROJECT_KEY);
         
-        if (savedProjectId && projectsWithDates.some(p => p.id === savedProjectId)) {
+        if (!savedProjectId) {
+          setCurrentProject(null);
+        } else if (savedProjectId && projectsWithDates.some(p => p.id === savedProjectId)) {
           const savedProject = projectsWithDates.find(p => p.id === savedProjectId);
           if (savedProject) {
             setCurrentProject(savedProject);
           }
-        } else if (projectsWithDates.length > 0 && !currentProject) {
-          setCurrentProject(projectsWithDates[0]);
         }
 
         setLoading(false);
