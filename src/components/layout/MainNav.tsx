@@ -1,13 +1,10 @@
-
-import * as React from "react"
-import { Link } from "react-router-dom"
-
-export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
-  return (
-    <nav
-      className={className}
-      {...props}
-    >
+import * as React from "react";
+import { Link } from "react-router-dom";
+export function MainNav({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLElement>) {
+  return <nav className={className} {...props}>
       <Link to="/" className="mr-6 flex items-center space-x-2">
         <span className="hidden font-bold sm:inline-block">
           LLarik Monitoring
@@ -20,10 +17,7 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         <Link to="/projects" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           Projekty
         </Link>
-        <Link to="/import" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-          Import
-        </Link>
+        
       </nav>
-    </nav>
-  )
+    </nav>;
 }
