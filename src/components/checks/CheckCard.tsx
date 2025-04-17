@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface CheckCardProps {
   check: Check;
+  projectName?: string;
 }
 
-const CheckCard = ({ check }: CheckCardProps) => {
+const CheckCard = ({ check, projectName }: CheckCardProps) => {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
@@ -48,6 +49,14 @@ const CheckCard = ({ check }: CheckCardProps) => {
                 <span className="font-medium">
                   {formatDistanceToNow(check.lastPing, { addSuffix: true })}
                 </span>
+              </p>
+            </div>
+          )}
+
+          {projectName && (
+            <div className="text-sm">
+              <p>
+                Project: <span className="font-medium">{projectName}</span>
               </p>
             </div>
           )}

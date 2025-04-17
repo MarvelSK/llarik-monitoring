@@ -51,10 +51,8 @@ const CheckList = ({ checks }: CheckListProps) => {
           {filteredChecks.map((check) => (
             <CheckCard 
               key={check.id} 
-              check={{
-                ...check,
-                projectName: check.projectId ? (projectMap[check.projectId] || "Unknown Project") : undefined
-              }} 
+              check={check}
+              projectName={check.projectId ? (projectMap[check.projectId] || "Unknown Project") : undefined}
             />
           ))}
         </div>
