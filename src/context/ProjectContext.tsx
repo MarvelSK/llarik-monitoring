@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,12 +105,14 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         
         if (!currentUserId) {
           setProjects([]);
+          setLoading(false);
           return;
         }
         
         let allProjects: any[] = [];
         
         if (isAdmin) {
+          // Fixed: Use proper error handling and make sure admin can see all projects
           const { data: adminProjects, error: adminError } = await supabase
             .from('projects')
             .select('*')
@@ -118,6 +121,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           if (adminError) {
             console.error('Error fetching all projects for admin:', adminError);
             toast.error('Zlyhalo načítanie projektov');
+            setLoading(false);
             return;
           }
           
@@ -132,6 +136,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           if (ownedError) {
             console.error('Error fetching owned projects:', ownedError);
             toast.error('Zlyhalo načítanie vlastných projektov');
+            setLoading(false);
             return;
           }
           
@@ -146,6 +151,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
           if (memberError) {
             console.error('Error fetching member projects:', memberError);
             toast.error('Zlyhalo načítanie zdieľaných projektov');
+            setLoading(false);
             return;
           }
 
@@ -166,10 +172,11 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         } else if (projectsWithDates.length > 0 && !currentProject) {
           setCurrentProject(projectsWithDates[0]);
         }
+
+        setLoading(false);
       } catch (err) {
         console.error('Error in fetchProjects:', err);
         toast.error('Zlyhalo načítanie projektov');
-      } finally {
         setLoading(false);
       }
     }
@@ -185,7 +192,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newProject = convertDatesToObjects(payload.new);
-          if (newProject.ownerId === currentUserId) {
+          if (isAdmin || newProject.ownerId === currentUserId) {
             setProjects(prev => [newProject, ...prev]);
           }
         } else if (payload.eventType === 'UPDATE') {

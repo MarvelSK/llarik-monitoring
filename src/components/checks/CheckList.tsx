@@ -4,6 +4,7 @@ import CheckCard from "./CheckCard";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { useProjects } from "@/context/ProjectContext";
 
 interface CheckListProps {
   checks: Check[];
@@ -11,12 +12,19 @@ interface CheckListProps {
 
 const CheckList = ({ checks }: CheckListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const { projects } = useProjects();
 
   const filteredChecks = checks.filter(check => 
     check.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (check.description && check.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (check.tags && check.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
+
+  // Ensure project names are available
+  const projectMap = projects.reduce((acc, project) => {
+    acc[project.id] = project.name;
+    return acc;
+  }, {} as Record<string, string>);
 
   return (
     <div className="space-y-6">
@@ -41,7 +49,13 @@ const CheckList = ({ checks }: CheckListProps) => {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredChecks.map((check) => (
-            <CheckCard key={check.id} check={check} />
+            <CheckCard 
+              key={check.id} 
+              check={{
+                ...check,
+                projectName: check.projectId ? (projectMap[check.projectId] || "Unknown Project") : undefined
+              }} 
+            />
           ))}
         </div>
       )}

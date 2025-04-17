@@ -23,8 +23,8 @@ interface CheckTableProps {
 const CheckTable = ({ checks }: CheckTableProps) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const { getPingUrl, loading } = useChecks();
-  const { projects, isAdmin } = useProjects();
+  const { getPingUrl, loading: checksLoading } = useChecks();
+  const { projects, isAdmin, loading: projectsLoading } = useProjects();
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Check | 'lastPingFormatted';
     direction: 'ascending' | 'descending';
@@ -32,6 +32,15 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     key: 'lastPing',
     direction: 'descending'
   });
+
+  const loading = checksLoading || projectsLoading;
+
+  const projectMap = useMemo(() => {
+    return projects.reduce((acc, project) => {
+      acc[project.id] = project.name;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [projects]);
 
   const processedChecks = useMemo(() => {
     let result = checks.filter(check => 
@@ -106,8 +115,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
 
   const getProjectName = (projectId: string | null) => {
     if (!projectId) return "No Project";
-    const project = projects.find(p => p.id === projectId);
-    return project ? project.name : "Unknown Project";
+    return projectMap[projectId] || "Unknown Project";
   };
 
   if (loading) {
