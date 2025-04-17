@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { CheckProvider } from "./context/CheckContext";
 import { ProjectProvider } from "./context/ProjectContext";
 import RequireAuth from "./components/auth/RequireAuth";
@@ -46,6 +46,37 @@ const PageLoader = () => (
 );
 
 const App = () => {
+  const [isIPAuthorized, setIsIPAuthorized] = useState<boolean | null>(null);
+
+  // Display unauthorized message if IP check fails
+  if (isIPAuthorized === false) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="bg-red-500 text-white p-6 rounded-lg shadow-lg max-w-lg">
+          <h1 className="text-2xl font-bold mb-4">Neautorizovaný prístup</h1>
+          <p className="mb-2">Vaša IP adresa nie je autorizovaná na prístup k tejto aplikácii.</p>
+          <p>Kontaktujte administrátora systému pre získanie prístupu.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while checking IP
+  if (isIPAuthorized === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+            <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">Načítavanie...</span>
+          </div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Overujem IP adresu...</p>
+        </div>
+        <IPCheckComponent onAuthorized={setIsIPAuthorized} />
+      </div>
+    );
+  }
+
+  // Render the app only when IP is authorized
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
