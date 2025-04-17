@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -9,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useProjects } from "@/context/ProjectContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ImportItem {
   id: string;
@@ -38,12 +41,16 @@ const FileImport = () => {
   const [importing, setImporting] = useState(false);
   const [projectsSummary, setProjectsSummary] = useState<ImportSummary | null>(null);
   const [checksSummary, setChecksSummary] = useState<ImportSummary | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState<string>("");
   const projectsFileRef = useRef<HTMLInputElement>(null);
   const checksFileRef = useRef<HTMLInputElement>(null);
   const { getAllProjects } = useProjects();
 
   const parseProjectsFile = async (content: string): Promise<ImportSummary> => {
     let projects = [];
+    setProcessingStage("Analyzing file...");
+    setProgress(10);
     
     try {
       if (content.trim().startsWith('[')) {
@@ -67,8 +74,16 @@ const FileImport = () => {
       items: [],
     };
 
+    setProcessingStage(`Processing ${projects.length} projects...`);
+    setProgress(20);
+
     for (let i = 0; i < projects.length; i++) {
       try {
+        // Update progress based on current position
+        const currentProgress = Math.floor(20 + ((i / projects.length) * 60));
+        setProgress(currentProgress);
+        setProcessingStage(`Processing project ${i + 1} of ${projects.length}`);
+        
         const project = projects[i];
         
         if (!project.ID || !project.NAME || !project.OWNER) {
@@ -141,11 +156,15 @@ const FileImport = () => {
       }
     }
 
+    setProcessingStage("Finalizing import...");
+    setProgress(90);
     return summary;
   };
 
   const parseChecksFile = async (content: string): Promise<ImportSummary> => {
     let checks = [];
+    setProcessingStage("Analyzing file...");
+    setProgress(10);
     
     try {
       if (content.trim().startsWith('[')) {
@@ -169,8 +188,16 @@ const FileImport = () => {
       items: [],
     };
 
+    setProcessingStage(`Processing ${checks.length} checks...`);
+    setProgress(20);
+
     for (let i = 0; i < checks.length; i++) {
       try {
+        // Update progress based on current position
+        const currentProgress = Math.floor(20 + ((i / checks.length) * 60));
+        setProgress(currentProgress);
+        setProcessingStage(`Processing check ${i + 1} of ${checks.length}`);
+        
         const check = checks[i];
         
         if (!check.ID || !check.NAME || !check.PROJECT_ID) {
@@ -273,6 +300,8 @@ const FileImport = () => {
       }
     }
 
+    setProcessingStage("Finalizing import...");
+    setProgress(90);
     return summary;
   };
 
@@ -281,12 +310,21 @@ const FileImport = () => {
     if (!file) return;
 
     setImporting(true);
+    setProgress(5);
+    setProcessingStage("Reading file...");
+    
     try {
       const content = await file.text();
       const summary = await parseProjectsFile(content);
-      setProjectsSummary(summary);
+      
+      setProcessingStage("Refreshing projects...");
+      setProgress(95);
       
       await getAllProjects();
+      
+      setProcessingStage("Import complete");
+      setProgress(100);
+      setProjectsSummary(summary);
       
       toast.success(`Import dokončený: ${summary.success} z ${summary.total} projektov úspešne importovaných`);
       if (summary.errors.length > 0) {
@@ -296,7 +334,12 @@ const FileImport = () => {
       console.error("Import error:", error);
       toast.error("Zlyhalo načítanie súboru");
     } finally {
-      setImporting(false);
+      setTimeout(() => {
+        setImporting(false);
+        setProgress(0);
+        setProcessingStage("");
+      }, 500);
+      
       if (projectsFileRef.current) {
         projectsFileRef.current.value = "";
       }
@@ -308,9 +351,15 @@ const FileImport = () => {
     if (!file) return;
 
     setImporting(true);
+    setProgress(5);
+    setProcessingStage("Reading file...");
+    
     try {
       const content = await file.text();
       const summary = await parseChecksFile(content);
+      
+      setProcessingStage("Import complete");
+      setProgress(100);
       setChecksSummary(summary);
       
       toast.success(`Import dokončený: ${summary.success} z ${summary.total} kontrol úspešne importovaných`);
@@ -321,7 +370,12 @@ const FileImport = () => {
       console.error("Import error:", error);
       toast.error("Zlyhalo načítanie súboru");
     } finally {
-      setImporting(false);
+      setTimeout(() => {
+        setImporting(false);
+        setProgress(0);
+        setProcessingStage("");
+      }, 500);
+      
       if (checksFileRef.current) {
         checksFileRef.current.value = "";
       }
@@ -357,6 +411,20 @@ const FileImport = () => {
           <AlertCircle className="w-3 h-3 mr-1" /> Chyba
         </Badge>;
     }
+  };
+
+  const renderProgressBar = () => {
+    if (!importing) return null;
+    
+    return (
+      <div className="py-6 space-y-4">
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-sm font-medium">{processingStage}</div>
+          <div className="text-sm font-medium">{progress}%</div>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+    );
   };
 
   const renderSummary = (summary: ImportSummary | null, type: "projects" | "checks") => {
@@ -494,6 +562,9 @@ const FileImport = () => {
             <TabsTrigger value="projects">Projekty</TabsTrigger>
             <TabsTrigger value="checks">Kontroly</TabsTrigger>
           </TabsList>
+          
+          {renderProgressBar()}
+          
           <TabsContent value="projects">
             {!projectsSummary ? (
               <div className="flex flex-col items-center justify-center py-8">

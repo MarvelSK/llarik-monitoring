@@ -20,6 +20,9 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         <Link to="/projects" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           Projekty
         </Link>
+        <Link to="/import" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+          Import
+        </Link>
       </nav>
     </nav>
   )
