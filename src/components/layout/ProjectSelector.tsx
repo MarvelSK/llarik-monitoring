@@ -21,7 +21,7 @@ export function ProjectSelector() {
       }}
     >
       <SelectTrigger className="w-[180px] h-8 mr-1">
-        <SelectValue placeholder="Select project" />
+        <SelectValue placeholder="Vyberte projekt" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all" key="all">
