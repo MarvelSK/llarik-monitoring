@@ -25,9 +25,9 @@ const Index = () => {
   const accessibleProjectIds = projects.map(project => project.id);
 
   // Filter checks by current project or show all accessible project checks if no project selected
-  const filteredChecks = currentProject 
-    ? checks.filter(check => check.projectId === currentProject.id)
-    : checks.filter(check => check.projectId === null || accessibleProjectIds.includes(check.projectId)); 
+  const filteredChecks = !currentProject 
+    ? checks 
+    : checks.filter(check => check.projectId === currentProject.id);
 
   const allChecks = filteredChecks;
   const upChecks = filteredChecks.filter((check) => check.status === "up");

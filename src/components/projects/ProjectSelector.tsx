@@ -53,8 +53,7 @@ const ProjectSelector = ({
             <Select 
               value={field.value || ""}
               onValueChange={(value) => {
-                // Properly set the form value using the field methods provided by RHF
-                field.onChange(value);
+                field.onChange(value === "all" ? null : value);
               }}
               defaultValue={currentProject?.id}
             >
@@ -62,6 +61,9 @@ const ProjectSelector = ({
                 <SelectValue placeholder="Vyberte projekt" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all" key="all">
+                  Všetky projekty
+                </SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}

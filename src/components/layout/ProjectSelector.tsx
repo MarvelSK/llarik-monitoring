@@ -15,15 +15,18 @@ export function ProjectSelector() {
 
   return (
     <Select
-      value={currentProject?.id || ""}
+      value={currentProject?.id || "all"}
       onValueChange={(value) => {
-        setCurrentProject(value);
+        setCurrentProject(value === "all" ? null : value);
       }}
     >
       <SelectTrigger className="w-[180px] h-8 mr-1">
         <SelectValue placeholder="Select project" />
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value="all" key="all">
+          Všetky projekty
+        </SelectItem>
         {projects.map((project) => (
           <SelectItem key={project.id} value={project.id}>
             {project.name}

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Project, ProjectMember } from "@/types/project";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +10,7 @@ interface ProjectContextType {
   createProject: (project: Partial<Project>) => Promise<Project>;
   updateProject: (id: string, project: Partial<Project>) => Promise<Project | undefined>;
   deleteProject: (id: string) => void;
-  setCurrentProject: (projectId: string) => void;
+  setCurrentProject: (projectId: string | null) => void;
   loading: boolean;
   projectHasChecks: (id: string) => Promise<boolean>;
   getProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
@@ -112,7 +111,6 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
         let allProjects: any[] = [];
         
         if (isAdmin) {
-          // Fixed: Use proper error handling and make sure admin can see all projects
           const { data: adminProjects, error: adminError } = await supabase
             .from('projects')
             .select('*')
@@ -430,8 +428,8 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
     }
   };
 
-  const handleSetCurrentProject = (projectId: string) => {
-    if (projectId === "") {
+  const handleSetCurrentProject = (projectId: string | null) => {
+    if (projectId === null || projectId === "all") {
       setCurrentProject(null);
       localStorage.removeItem(CURRENT_PROJECT_KEY);
     } else {
