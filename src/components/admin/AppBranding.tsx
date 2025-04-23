@@ -1,40 +1,15 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Palette, Upload } from "lucide-react";
-
-interface BrandingSettings {
-  app_name: string;
-  app_logo: string | null;
-  app_favicon: string | null;
-  primary_color: string;
-  secondary_color: string;
-  accent_color: string;
-  custom_css: string;
-  company_name: string;
-  footer_text: string;
-  login_background: string | null;
-}
-
-const defaultSettings: BrandingSettings = {
-  app_name: "LLarik Monitoring",
-  app_logo: null,
-  app_favicon: null,
-  primary_color: "#0f172a",
-  secondary_color: "#64748b",
-  accent_color: "#3b82f6",
-  custom_css: "",
-  company_name: "LLarik",
-  footer_text: "© 2025 LLarik Monitoring. Všetky práva vyhradené.",
-  login_background: null,
-};
+import { getBrandingSettings, saveBrandingSettings, BrandingSettings as BrandingSettingsType } from "@/services/SettingsService";
+import { toast } from "sonner";
 
 const AppBranding = () => {
-  const [settings, setSettings] = useState<BrandingSettings>(defaultSettings);
+  const [settings, setSettings] = useState<BrandingSettingsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -42,31 +17,30 @@ const AppBranding = () => {
   const [loginBgPreview, setLoginBgPreview] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const loadSettings = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        // In a real app, you'd fetch these from a settings table in your database
-        // For this demo, we'll simulate a delay and use default values
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        const brandingSettings = await getBrandingSettings();
+        setSettings(brandingSettings);
         
-        // Simulate loading previews
-        setLogoPreview("/placeholder.svg");
-        setFaviconPreview("/favicon.ico");
-        setLoginBgPreview(null);
+        // Set previews if available
+        setLogoPreview(brandingSettings.app_logo);
+        setFaviconPreview(brandingSettings.app_favicon);
+        setLoginBgPreview(brandingSettings.login_background);
       } catch (error) {
-        console.error("Error fetching branding settings:", error);
-        toast.error("Nepodarilo sa načítať nastavenia vzhľadu");
+        console.error("Error loading branding settings:", error);
+        toast.error("Chyba pri načítavaní nastavení vzhľadu");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSettings();
+    loadSettings();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setSettings((prev) => ({ ...prev, [name]: value }));
+    setSettings((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'app_logo' | 'app_favicon' | 'login_background') => {
@@ -81,33 +55,29 @@ const AppBranding = () => {
       
       if (type === 'app_logo') {
         setLogoPreview(result);
-        setSettings(prev => ({ ...prev, app_logo: result }));
+        setSettings(prev => prev ? ({ ...prev, app_logo: result }) : null);
       } else if (type === 'app_favicon') {
         setFaviconPreview(result);
-        setSettings(prev => ({ ...prev, app_favicon: result }));
+        setSettings(prev => prev ? ({ ...prev, app_favicon: result }) : null);
       } else if (type === 'login_background') {
         setLoginBgPreview(result);
-        setSettings(prev => ({ ...prev, login_background: result }));
+        setSettings(prev => prev ? ({ ...prev, login_background: result }) : null);
       }
     };
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
+    if (!settings) return;
+
+    setSaving(true);
     try {
-      setSaving(true);
-      // In a real app, you'd save these to a settings table in your database
-      // For this demo, we'll simulate a delay and show a success message
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      toast.success("Nastavenia vzhľadu boli uložené");
-      // Instead of a toast with an object, do this (fixes the build error):
+      await saveBrandingSettings(settings);
       toast("Upozornenie: Zmeny vzhľadu sa prejavia po obnovení stránky", {
         description: "",
       });
     } catch (error) {
       console.error("Error saving branding settings:", error);
-      toast.error("Nepodarilo sa uložiť nastavenia vzhľadu");
     } finally {
       setSaving(false);
     }
@@ -117,6 +87,14 @@ const AppBranding = () => {
     return (
       <div className="h-64 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <p className="text-red-500">Chyba pri načítavaní nastavení</p>
       </div>
     );
   }
@@ -294,7 +272,7 @@ const AppBranding = () => {
                     <Input
                       type="color"
                       value={settings.primary_color}
-                      onChange={(e) => setSettings(prev => ({ ...prev, primary_color: e.target.value }))}
+                      onChange={(e) => setSettings(prev => prev ? ({ ...prev, primary_color: e.target.value }) : null)}
                       className="w-10 h-10 p-1"
                       aria-label="Výber primárnej farby"
                     />
@@ -322,7 +300,7 @@ const AppBranding = () => {
                     <Input
                       type="color"
                       value={settings.secondary_color}
-                      onChange={(e) => setSettings(prev => ({ ...prev, secondary_color: e.target.value }))}
+                      onChange={(e) => setSettings(prev => prev ? ({ ...prev, secondary_color: e.target.value }) : null)}
                       className="w-10 h-10 p-1"
                       aria-label="Výber sekundárnej farby"
                     />
@@ -350,7 +328,7 @@ const AppBranding = () => {
                     <Input
                       type="color"
                       value={settings.accent_color}
-                      onChange={(e) => setSettings(prev => ({ ...prev, accent_color: e.target.value }))}
+                      onChange={(e) => setSettings(prev => prev ? ({ ...prev, accent_color: e.target.value }) : null)}
                       className="w-10 h-10 p-1"
                       aria-label="Výber farby zvýraznenia"
                     />

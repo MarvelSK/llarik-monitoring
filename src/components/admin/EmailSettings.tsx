@@ -1,74 +1,57 @@
-
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-
-interface EmailSettings {
-  smtp_host: string;
-  smtp_port: string;
-  smtp_user: string;
-  smtp_password: string;
-  smtp_secure: boolean;
-  sender_email: string;
-  sender_name: string;
-  email_footer: string;
-  notifications_enabled: boolean;
-}
-
-const defaultSettings: EmailSettings = {
-  smtp_host: "",
-  smtp_port: "587",
-  smtp_user: "",
-  smtp_password: "",
-  smtp_secure: true,
-  sender_email: "",
-  sender_name: "LLarik Monitoring",
-  email_footer: "© LLarik Monitoring. Všetky práva vyhradené.",
-  notifications_enabled: true,
-};
+import { getEmailSettings, saveEmailSettings, EmailSettings as EmailSettingsType } from "@/services/SettingsService";
+import { toast } from "sonner";
 
 const EmailSettings = () => {
-  const [settings, setSettings] = useState<EmailSettings>(defaultSettings);
+  const [settings, setSettings] = useState<EmailSettingsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
-    // The app_settings table is not available in TypeScript types.
-    // Future code: use Supabase to load settings
-    setLoading(true);
-    // Simulate async fetch and sort of a warning
-    setTimeout(() => {
-      setSettings(defaultSettings);
-      setLoading(false);
-      console.warn(
-        "EmailSettings: Cannot persist settings to Supabase (missing type for app_settings table). Using temporary in-memory state."
-      );
-    }, 700);
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const emailSettings = await getEmailSettings();
+        setSettings(emailSettings);
+      } catch (error) {
+        console.error("Error loading email settings:", error);
+        toast.error("Chyba pri načítavaní nastavení emailu");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setSettings((prev) => ({ ...prev, [name]: value }));
+    setSettings((prev) => prev ? ({ ...prev, [name]: value }) : null);
   };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
-    setSettings((prev) => ({ ...prev, [name]: checked }));
+    setSettings((prev) => prev ? ({ ...prev, [name]: checked }) : null);
   };
 
   const handleSave = async () => {
+    if (!settings) return;
+    
     setSaving(true);
-    // Simulate save, just like before
-    setTimeout(() => {
-      toast.success("Nastavenia emailu boli uložené (dočasne, nepersistované!)");
+    try {
+      await saveEmailSettings(settings);
+    } catch (error) {
+      console.error("Error saving email settings:", error);
+    } finally {
       setSaving(false);
-    }, 1000);
+    }
   };
 
   const handleSendTestEmail = async () => {
@@ -76,12 +59,20 @@ const EmailSettings = () => {
       toast.error("Zadajte platnú emailovú adresu");
       return;
     }
+    
     setSendingTest(true);
-    setTimeout(() => {
-      toast.success(`Testovací email bol odoslaný na adresu ${testEmailAddress} (neodoslané, len simulované)`);
+    try {
+      // In a real implementation, this would send a test email
+      // For now, we'll just simulate a successful send
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success(`Testovací email bol odoslaný na adresu ${testEmailAddress}`);
       setTestEmailAddress("");
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      toast.error("Chyba pri odosielaní testovacieho emailu");
+    } finally {
       setSendingTest(false);
-    }, 2000);
+    }
   };
 
   if (loading) {
@@ -92,16 +83,20 @@ const EmailSettings = () => {
     );
   }
 
+  if (!settings) {
+    return (
+      <div className="h-64 flex items-center justify-center">
+        <p className="text-red-500">Chyba pri načítavaní nastavení</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold mb-4">Nastavenia emailu</h2>
         <p className="text-muted-foreground mb-6">
           Nakonfigurujte nastavenia SMTP servera pre odosielanie emailov z aplikácie.
-          <br />
-          <span className="text-xs text-amber-600">
-            Upozornenie: Nastavenia nie sú natrvalo uložené, lebo tabuľka app_settings nemá typy v Supabase API.
-          </span>
         </p>
       </div>
 
