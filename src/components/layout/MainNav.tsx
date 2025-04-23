@@ -17,7 +17,9 @@ export function MainNav({
         <Link to="/projects" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           Projekty
         </Link>
-        
+        <Link to="/notes" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
+          Poznámky
+        </Link>
       </nav>
     </nav>;
 }

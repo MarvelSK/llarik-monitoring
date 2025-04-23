@@ -1,8 +1,7 @@
-
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { lazy, Suspense, useState } from "react";
 import { CheckProvider } from "./context/CheckContext";
 import { ProjectProvider } from "./context/ProjectContext";
@@ -10,6 +9,7 @@ import RequireAuth from "./components/auth/RequireAuth";
 import PingHandler from "./components/checks/PingHandler";
 import { Skeleton } from "@/components/ui/skeleton";
 import IPCheckComponent from "./components/IPCheckComponent";
+import Notes from "./pages/Notes";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -44,10 +44,9 @@ const PageLoader = () => (
   </div>
 );
 
-const App = () => {
+function App() {
   const [isIPAuthorized, setIsIPAuthorized] = useState<boolean | null>(null);
 
-  // Display unauthorized message if IP check fails
   if (isIPAuthorized === false) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
@@ -60,7 +59,6 @@ const App = () => {
     );
   }
 
-  // Show loading state while checking IP
   if (isIPAuthorized === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -75,14 +73,13 @@ const App = () => {
     );
   }
 
-  // Render the app only when IP is authorized
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner />
         <ProjectProvider>
           <CheckProvider>
-            <BrowserRouter>
+            <Router>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                   <Route path="/login" element={<Login />} />
@@ -117,15 +114,16 @@ const App = () => {
                     </RequireAuth>
                   } />
                   <Route path="/ping/:id" element={<PingHandler />} />
+                  <Route path="/notes" element={<Notes />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </BrowserRouter>
+            </Router>
           </CheckProvider>
         </ProjectProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
