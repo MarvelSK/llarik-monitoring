@@ -164,7 +164,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           let newStatus: CheckStatus;
           
           try {
-            // Calculate status for each check independently, ignoring any tag associations
+            // Each check is evaluated completely independently
             newStatus = calculateCheckStatus(check);
           } catch (error) {
             console.error('Error calculating check status for check:', check.id, error);
@@ -259,7 +259,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   };
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
-    // Each check's status should be calculated independently without considering tags
+    // Each check is evaluated completely independently based on its own ping times only
     if (!check.lastPing) return "new";
     
     if (!check.nextPingDue) {
@@ -389,7 +389,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         .update({
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"
+          status: "up" // Always set status to "up" on ping
         })
         .eq('id', id);
 
@@ -416,26 +416,21 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       }
 
       if (check.cron_expression) {
-        return new Date(parseNextCronDate(check.cron_expression, now));
+        try {
+          const interval = parseExpression(check.cron_expression, {
+            currentDate: now
+          });
+          return interval.next().toDate();
+        } catch (error) {
+          console.error('Error parsing CRON expression:', error);
+          return new Date(now.getTime() + 60 * 60 * 1000);
+        }
       } else {
         return new Date(now.getTime() + check.period * 60 * 1000);
       }
     } catch (error) {
       console.error('Error calculating next ping due:', error);
       return new Date(now.getTime() + 60 * 60 * 1000);
-    }
-  };
-
-  const parseNextCronDate = (cronExpression: string, fromDate: Date): Date => {
-    try {
-      if (cronExpression.startsWith('*/')) {
-        const minutes = parseInt(cronExpression.split(' ')[0].substring(2), 10);
-        return new Date(fromDate.getTime() + minutes * 60 * 1000);
-      }
-      return new Date(fromDate.getTime() + 60 * 60 * 1000);
-    } catch (error) {
-      console.error('Error parsing CRON expression:', error);
-      return new Date(fromDate.getTime() + 60 * 60 * 1000);
     }
   };
 
