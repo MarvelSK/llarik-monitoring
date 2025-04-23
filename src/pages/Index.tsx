@@ -13,18 +13,28 @@ import FileImport from "@/components/import/FileImport";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Upload } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
   const { checks, loading } = useChecks();
-  const { currentProject, projects } = useProjects();
+  const { currentProject, projects, loading: projectsLoading } = useProjects();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  // Get all accessible project IDs
-  const accessibleProjectIds = projects.map(project => project.id);
+  // Ak sa ešte načítavajú projekty, zobrazíme loader (až potom dashboard)
+  if (projectsLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-col min-h-[60vh] items-center justify-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] mb-4" />
+          <div className="text-gray-800 dark:text-gray-200 text-lg">Načítavam projekty...</div>
+        </div>
+      </Layout>
+    );
+  }
 
-  // Filter checks by current project or show all accessible project checks if no project selected
+  // Filter podľa projektu až keď sú projekty načítané
   const filteredChecks = !currentProject 
     ? checks 
     : checks.filter(check => check.projectId === currentProject.id);
@@ -34,10 +44,10 @@ const Index = () => {
   const downChecks = filteredChecks.filter((check) => check.status === "down");
   const lateChecks = filteredChecks.filter((check) => check.status === "grace");
 
-  // Function to handle manual refresh
+  // Manuálny refresh dashboardu
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh with a delay
+    // Simulácia refreshu
     await new Promise(resolve => setTimeout(resolve, 800));
     setRefreshing(false);
     toast.success("Nástenka obnovená");
@@ -124,3 +134,4 @@ const Index = () => {
 };
 
 export default Index;
+
