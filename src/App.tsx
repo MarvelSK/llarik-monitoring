@@ -1,3 +1,4 @@
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ const CheckEdit = lazy(() => import("./pages/CheckEdit"));
 const Login = lazy(() => import("./pages/Login"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Import = lazy(() => import("./pages/Import"));
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +117,11 @@ function App() {
                   } />
                   <Route path="/ping/:id" element={<PingHandler />} />
                   <Route path="/notes" element={<Notes />} />
+                  <Route path="/admin/settings" element={
+                    <RequireAuth requireAdmin={true}>
+                      <AdminSettings />
+                    </RequireAuth>
+                  } />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
