@@ -13,8 +13,9 @@ import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
 import { toast } from "sonner";
 import { Skeleton } from "../ui/skeleton";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { explainCronExpression } from "@/utils/cronHelpers";
 
 interface CheckTableProps {
   checks: Check[];
