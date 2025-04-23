@@ -8,11 +8,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import Layout from "@/components/layout/Layout";
 
+// Updated Note interface to match the database schema
 interface Note {
   id: string;
   user_id: string;
   title: string;
-  content: string;
+  content: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +51,11 @@ const Notes = () => {
     }
     setAdding(true);
     const { error } = await supabase.from("notes").insert([
-      { title, content }
+      { 
+        title, 
+        content, 
+        user_id: (await supabase.auth.getUser()).data.user?.id 
+      }
     ]);
     setAdding(false);
     if (error) {
