@@ -4,7 +4,7 @@ import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChecks } from "@/context/CheckContext";
 import { useProjects } from "@/context/ProjectContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatusCards from "@/components/dashboard/StatusCards";
@@ -16,13 +16,21 @@ import { Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
-  const { checks, loading } = useChecks();
+  const { checks, loading: checksLoading } = useChecks();
   const { currentProject, projects, loading: projectsLoading } = useProjects();
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
+  
+  // Wait for both projects and checks to be loaded
+  useEffect(() => {
+    if (!projectsLoading && !checksLoading) {
+      setIsDataReady(true);
+    }
+  }, [projectsLoading, checksLoading]);
 
-  // Ak sa ešte načítavajú projekty, zobrazíme loader (až potom dashboard)
+  // If projects are still loading, show loader
   if (projectsLoading) {
     return (
       <Layout>
@@ -85,7 +93,7 @@ const Index = () => {
           }
         />
 
-        {loading ? (
+        {checksLoading ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {Array(4).fill(0).map((_, i) => (
               <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
@@ -134,4 +142,3 @@ const Index = () => {
 };
 
 export default Index;
-

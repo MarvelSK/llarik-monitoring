@@ -50,48 +50,56 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setCurrentUserId(session?.user?.id || null);
-      
-      if (session?.user?.id) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setCurrentUserId(session?.user?.id || null);
         
-        if (!error && data) {
-          setIsAdmin(data.is_admin);
-        }
-      }
-      
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setCurrentUserId(session?.user?.id || null);
+        if (session?.user?.id) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', session.user.id)
+            .single();
           
-          if (session?.user?.id) {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('is_admin')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (!error && data) {
-              setIsAdmin(data.is_admin);
-            }
+          if (!error && data) {
+            setIsAdmin(data.is_admin);
           }
-        } else if (event === 'SIGNED_OUT') {
-          setCurrentUserId(null);
-          setIsAdmin(false);
         }
-      });
-      
-      return () => {
-        subscription.unsubscribe();
-      };
+        
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setCurrentUserId(session?.user?.id || null);
+            
+            if (session?.user?.id) {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('is_admin')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (!error && data) {
+                setIsAdmin(data.is_admin);
+              }
+            }
+          } else if (event === 'SIGNED_OUT') {
+            setCurrentUserId(null);
+            setIsAdmin(false);
+          }
+        });
+        
+        setAuthInitialized(true);
+        
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        setAuthInitialized(true);
+      }
     };
     
     initializeAuth();
@@ -99,6 +107,10 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
 
   useEffect(() => {
     async function fetchProjects() {
+      if (!authInitialized) {
+        return;
+      }
+
       try {
         setLoading(true);
         
@@ -227,7 +239,7 @@ export const ProjectProvider = ({ children }: ProjectProviderProps) => {
       supabase.removeChannel(channel);
       supabase.removeChannel(membersChannel);
     };
-  }, [currentUserId, isAdmin]);
+  }, [currentUserId, isAdmin, authInitialized]);
 
   const getProject = (id: string) => {
     return projects.find((project) => project.id === id);
