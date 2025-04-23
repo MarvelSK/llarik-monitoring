@@ -8,7 +8,6 @@ import { Clock, Calendar, Tag, Link as LinkIcon, Copy, Bell, HelpCircle } from "
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
-import { toast } from "sonner";
 import { useState } from "react";
 import { IntegrationsPanel } from "../integrations/IntegrationsPanel";
 import {sk} from "date-fns/locale";
@@ -25,7 +24,6 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
   
   const copyPingUrl = () => {
     navigator.clipboard.writeText(getPingUrl(check.id));
-    toast.success('URL pingu skopírované do schránky');
   };
 
   return (

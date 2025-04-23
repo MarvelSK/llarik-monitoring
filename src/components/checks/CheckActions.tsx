@@ -21,7 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
-import { toast } from "sonner";
 
 interface CheckActionsProps {
   check: Check;
@@ -47,11 +46,9 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
     try {
       await onDelete();
       setShowDeleteDialog(false);
-      toast.success("Kontrola úspešne odstránená");
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Error deleting check:", error);
-      toast.error("Nepodarilo sa odstrániť kontrolu");
     } finally {
       setIsDeleting(false);
     }
@@ -59,12 +56,10 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
 
   const handlePing = (status: CheckPing["status"]) => {
     onPing(status);
-    toast.success(`Odoslaný ping "${status}"`);
   };
 
   const copyCheckUrl = () => {
     navigator.clipboard.writeText(`${window.location.origin}/ping/${check.id}`);
-    toast.success("URL pingu skopírované do schránky");
   };
 
   return (

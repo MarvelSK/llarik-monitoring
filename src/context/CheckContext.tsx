@@ -1,8 +1,6 @@
-
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
-import { toast } from "sonner";
 import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
 import { parseExpression } from 'cron-parser';
@@ -99,7 +97,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
         if (error) {
           console.error('Error fetching checks:', error);
-          toast.error('Failed to load checks');
           return;
         }
 
@@ -117,7 +114,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         setChecks(updatedChecks);
       } catch (err) {
         console.error('Error in fetchChecks:', err);
-        toast.error('Failed to load checks');
       } finally {
         setLoading(false);
       }
@@ -173,13 +169,13 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           
           if (newStatus !== prevStatus) {
             if (newStatus === 'grace') {
-              toast.warning(`Úloha "${check.name}" sa oneskorila`);
+              // Removed toast notification for grace status
               triggerIntegrations(check.id, 'grace');
             } else if (newStatus === 'down') {
-              toast.error(`Úloha "${check.name}" je v poruche`);
+              // Removed toast notification for down status
               triggerIntegrations(check.id, 'down');
             } else if (newStatus === 'up' && prevStatus !== 'new') {
-              toast.success(`Úloha "${check.name}" je aktívna`);
+              // Removed toast notification for up status
               triggerIntegrations(check.id, 'up');
             }
 
@@ -323,7 +319,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           nextPingDue = getNextCronDate(checkData.cronExpression);
         } catch (error) {
           console.error("Invalid CRON expression:", error);
-          toast.error("Neplatný CRON výraz");
           throw new Error("Invalid CRON expression");
         }
       }
@@ -350,16 +345,13 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error) {
         console.error('Error creating check:', error);
-        toast.error('Failed to create check');
         throw error;
       }
 
       const newCheck = convertDatesToObjects(data);
-      toast.success('Check created successfully');
       return newCheck;
     } catch (error) {
       console.error('Error in createCheck:', error);
-      toast.error('Failed to create check');
       throw error;
     }
   };
@@ -447,7 +439,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           checkData.nextPingDue = nextPingDue;
         } catch (error) {
           console.error("Invalid CRON expression:", error);
-          toast.error("Neplatný CRON výraz");
           throw new Error("Invalid CRON expression");
         }
       }
@@ -469,7 +460,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error) {
         console.error('Error updating check:', error);
-        toast.error('Nepodarilo sa aktualizovať kontrolu');
         return undefined;
       }
 
@@ -482,11 +472,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }),
       };
 
-      toast.success('Kontrola úspešne aktualizovaná');
       return updatedCheck;
     } catch (error) {
       console.error('Error in updateCheck:', error);
-      toast.error('Failed to update check');
       return undefined;
     }
   };
@@ -500,15 +488,12 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error) {
         console.error('Error deleting check:', error);
-        toast.error('Failed to delete check');
         throw error;
       }
 
       setChecks((prev) => prev.filter((check) => check.id !== id));
-      toast.success('Check deleted successfully');
     } catch (error) {
       console.error('Error in deleteCheck:', error);
-      toast.error('Failed to delete check');
       throw error;
     }
   };
