@@ -118,6 +118,33 @@ const CheckTable = ({ checks }: CheckTableProps) => {
     return projectMap[projectId] || "Unknown Project";
   };
 
+  const renderScheduleInfo = (check: Check) => {
+    if (check.cronExpression) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">{check.cronExpression}</code>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{explainCronExpression(check.cronExpression)}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    } else {
+      return (
+        <div className="flex items-center gap-1">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span>{check.period} minút</span>
+        </div>
+      );
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -299,19 +326,7 @@ const CheckTable = ({ checks }: CheckTableProps) => {
                       </TableCell>
                     )}
                     <TableCell className="hidden lg:table-cell">
-                      <div className="flex items-center gap-1">
-                        {check.cronExpression ? (
-                          <>
-                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                            <code className="text-xs bg-muted px-1 py-0.5 rounded">{check.cronExpression}</code>
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{check.period} minút</span>
-                          </>
-                        )}
-                      </div>
+                      {renderScheduleInfo(check)}
                       <div className="text-muted-foreground text-sm">{check.grace} minút odklad</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">

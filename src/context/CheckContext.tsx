@@ -75,7 +75,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return value;
   }
 
-  // Calculate next execution date for a CRON expression
   function getNextCronDate(cronExpression: string, fromDate = new Date()): Date {
     try {
       const interval = parseExpression(cronExpression, {
@@ -84,7 +83,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       return interval.next().toDate();
     } catch (error) {
       console.error("Error parsing CRON expression:", error);
-      // Return a date in the far future as fallback
       return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     }
   }
@@ -106,10 +104,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
         const checksWithDates = data.map(convertDatesToObjects);
         
-        // Calculate next ping due for CRON checks if not set
         const updatedChecks = checksWithDates.map(check => {
           if (check.cronExpression && (!check.nextPingDue || check.lastPing)) {
-            // If has CRON and either no nextPingDue or has lastPing (need to calculate next)
             const baseDate = check.lastPing || new Date();
             const nextDue = getNextCronDate(check.cronExpression, baseDate);
             return { ...check, nextPingDue: nextDue };
@@ -138,7 +134,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         if (payload.eventType === 'INSERT') {
           const newCheck = convertDatesToObjects(payload.new);
           
-          // Calculate next ping for CRON if needed
           if (newCheck.cronExpression && !newCheck.nextPingDue) {
             newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
           }
@@ -165,7 +160,14 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       setChecks((currentChecks) =>
         currentChecks.map((check) => {
           const prevStatus = check.status;
-          const newStatus = calculateCheckStatus(check);
+          let newStatus: CheckStatus;
+          
+          try {
+            newStatus = calculateCheckStatus(check);
+          } catch (error) {
+            console.error('Error calculating check status for check:', check.id, error);
+            newStatus = prevStatus;
+          }
           
           if (newStatus !== prevStatus) {
             if (newStatus === 'grace') {
@@ -256,32 +258,34 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
     if (!check.lastPing) return "new";
+    
     if (!check.nextPingDue) {
-      // If nextPingDue is not calculated yet, calculate it now
       if (check.cronExpression) {
-        // We should generate the next due ping time based on CRON
         const nextDue = getNextCronDate(check.cronExpression, check.lastPing);
         check.nextPingDue = nextDue;
       } else if (check.period > 0) {
-        // Regular period check
         check.nextPingDue = addMinutes(check.lastPing, check.period);
       } else {
-        // No schedule defined, assume it's up
         return "up";
       }
     }
     
     const now = new Date();
     
-    if (isPast(check.nextPingDue)) {
-      const graceEndTime = addMinutes(check.nextPingDue, check.grace);
-      if (isBefore(now, graceEndTime)) {
-        return "grace";
+    try {
+      if (isPast(check.nextPingDue)) {
+        const graceEndTime = addMinutes(check.nextPingDue, check.grace);
+        if (isBefore(now, graceEndTime)) {
+          return "grace";
+        }
+        return "down";
+      } else {
+        return "up";
       }
-      return "down";
+    } catch (error) {
+      console.error('Error calculating check status:', error, check);
+      return "up";
     }
-    
-    return "up";
   };
 
   const getPingUrl = (id: string): string => {
@@ -296,17 +300,14 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       const now = new Date();
       
-      // Ensure period is set to 0 when using CRON
       if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
         checkData.period = 0;
       }
       
-      // Ensure CRON is cleared when using period
       if (checkData.period !== 0) {
         checkData.cronExpression = "";
       }
       
-      // Calculate next_ping_due for CRON checks
       let nextPingDue = undefined;
       if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
         try {
@@ -358,17 +359,15 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       const now = new Date();
       
-      // Direct database ping for API requests
       const nextPingDue = await calculateNextPingDue(id, now);
 
-      // Insert ping record
       const { error: pingError } = await supabase
         .from('check_pings')
         .insert({
           check_id: id,
           status,
           timestamp: now.toISOString(),
-          duration: 0 // You might want to calculate actual duration
+          duration: 0
         });
 
       if (pingError) {
@@ -376,7 +375,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
 
-      // Update check status
       const { error: checkError } = await supabase
         .from('checks')
         .update({
@@ -395,10 +393,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
-  // Helper function to calculate next ping due
   const calculateNextPingDue = async (id: string, now: Date): Promise<Date> => {
     try {
-      // Fetch the check to determine next ping calculation method
       const { data: check, error } = await supabase
         .from('checks')
         .select('*')
@@ -407,31 +403,27 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
       if (error || !check) {
         console.error('Check not found', error);
-        return new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+        return new Date(now.getTime() + 60 * 60 * 1000);
       }
 
       if (check.cron_expression) {
-        // For CRON based checks, calculate next execution
         return new Date(parseNextCronDate(check.cron_expression, now));
       } else {
-        // For period-based checks, simply add the period
         return new Date(now.getTime() + check.period * 60 * 1000);
       }
     } catch (error) {
       console.error('Error calculating next ping due:', error);
-      return new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+      return new Date(now.getTime() + 60 * 60 * 1000);
     }
   };
 
-  // Parse and calculate next CRON date
   const parseNextCronDate = (cronExpression: string, fromDate: Date): Date => {
     try {
-      // Simple parsing for common minute-based CRON patterns
       if (cronExpression.startsWith('*/')) {
         const minutes = parseInt(cronExpression.split(' ')[0].substring(2), 10);
         return new Date(fromDate.getTime() + minutes * 60 * 1000);
       }
-      return new Date(fromDate.getTime() + 60 * 60 * 1000); // Default to 1 hour
+      return new Date(fromDate.getTime() + 60 * 60 * 1000);
     } catch (error) {
       console.error('Error parsing CRON expression:', error);
       return new Date(fromDate.getTime() + 60 * 60 * 1000);
@@ -443,11 +435,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       const checkIndex = checks.findIndex((c) => c.id === id);
       if (checkIndex === -1) return undefined;
 
-      // Ensure period is set to 0 when using CRON
       if (checkData.cronExpression && checkData.cronExpression.trim() !== "") {
         checkData.period = 0;
         
-        // Calculate next ping due for CRON
         try {
           const nextPingDue = getNextCronDate(checkData.cronExpression);
           checkData.nextPingDue = nextPingDue;
@@ -458,11 +448,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }
       }
       
-      // Ensure CRON is cleared when using period
       if (checkData.period !== 0) {
         checkData.cronExpression = "";
         
-        // Calculate next ping due for period
         if (checks[checkIndex].lastPing) {
           checkData.nextPingDue = addMinutes(checks[checkIndex].lastPing!, checkData.period);
         }

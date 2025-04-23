@@ -4,7 +4,7 @@ import { Check } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, formatDistance } from "date-fns";
-import { Clock, Calendar, Tag, Link as LinkIcon, Copy, Bell } from "lucide-react";
+import { Clock, Calendar, Tag, Link as LinkIcon, Copy, Bell, HelpCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useChecks } from "@/context/CheckContext";
@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { IntegrationsPanel } from "../integrations/IntegrationsPanel";
 import {sk} from "date-fns/locale";
+import { explainCronExpression } from "@/utils/cronHelpers";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CheckSummaryProps {
   check: Check;
@@ -41,11 +43,16 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
         <div className="space-y-6">
           <div className="flex flex-col gap-3">
             {check.cronExpression ? (
-              <div className="flex items-center text-sm">
-                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                <span className="text-gray-700 dark:text-gray-300">
-                  CRON: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{check.cronExpression}</code>
-                </span>
+              <div className="space-y-2">
+                <div className="flex items-center text-sm">
+                  <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                  <span className="text-gray-700 dark:text-gray-300">
+                    CRON: <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{check.cronExpression}</code>
+                  </span>
+                </div>
+                <div className="flex items-center text-sm pl-6 text-muted-foreground">
+                  <span className="italic">{explainCronExpression(check.cronExpression)}</span>
+                </div>
               </div>
             ) : (
               <div className="flex items-center text-sm">
@@ -90,7 +97,8 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
                   {check.status === 'down' 
                     ? 'Oneskorený' 
                     : formatDistance(new Date(), check.nextPingDue, { 
-                        addSuffix: true 
+                        addSuffix: true,
+                        locale: sk 
                       })
                   }
                 </span>
