@@ -160,7 +160,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           let newStatus: CheckStatus;
           
           try {
-            // Each check is evaluated completely independently
             newStatus = calculateCheckStatus(check);
           } catch (error) {
             console.error('Error calculating check status for check:', check.id, error);
@@ -169,13 +168,10 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           
           if (newStatus !== prevStatus) {
             if (newStatus === 'grace') {
-              // Removed toast notification for grace status
               triggerIntegrations(check.id, 'grace');
             } else if (newStatus === 'down') {
-              // Removed toast notification for down status
               triggerIntegrations(check.id, 'down');
             } else if (newStatus === 'up' && prevStatus !== 'new') {
-              // Removed toast notification for up status
               triggerIntegrations(check.id, 'up');
             }
 
@@ -204,17 +200,28 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   const triggerIntegrations = (checkId: string, status: 'up' | 'down' | 'grace') => {
     const savedIntegrations = localStorage.getItem(`integrations-${checkId}`);
     if (!savedIntegrations) return;
-    
+
+    function dateReviver(_key: string, value: any) {
+      if (typeof value === 'string') {
+        const iso8601Regex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
+        if (iso8601Regex.test(value)) {
+          return new Date(value);
+        }
+      }
+      return value;
+    }
+
     const integrations: Integration[] = JSON.parse(savedIntegrations, dateReviver);
+    const allowedTypes: Integration["type"][] = ["webhook", "email"];
     const activeIntegrations = integrations.filter(
-      integration => integration.enabled && integration.notifyOn.includes(status)
+      integration => integration.enabled && integration.notifyOn.includes(status) && allowedTypes.includes(integration.type)
     );
-    
+
     if (activeIntegrations.length === 0) return;
-    
+
     const check = getCheck(checkId);
     if (!check) return;
-    
+
     activeIntegrations.forEach(integration => {
       const payload = {
         check: {
@@ -230,7 +237,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         },
         timestamp: new Date().toISOString()
       };
-      
+
       if (integration.type === 'webhook' && integration.config.url) {
         try {
           fetch(integration.config.url, {
@@ -241,21 +248,19 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
             body: JSON.stringify(payload),
             mode: 'no-cors'
           });
-          
-          console.log(`Triggered ${integration.type} integration "${integration.name}" for status "${status}"`);
+          console.log(`Triggered webhook integration "${integration.name}" for status "${status}"`);
         } catch (error) {
           console.error('Failed to trigger webhook integration:', error);
         }
       }
-      
+
       if (integration.type === 'email' && integration.config.email) {
-        console.log(`Would send email to ${integration.config.email} for status "${status}"`);
+        console.log(`Would send email to ${integration.config.email} for status "${status}". In production, trigger this via Edge Function or backend API.`);
       }
     });
   };
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
-    // Each check is evaluated completely independently based on its own ping times only
     if (!check.lastPing) return "new";
     
     if (!check.nextPingDue) {
@@ -265,7 +270,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           check.nextPingDue = nextDue;
         } catch (error) {
           console.error("Error calculating next ping due:", error);
-          return "up"; // Default to up if there's an error
+          return "up";
         }
       } else if (check.period > 0) {
         check.nextPingDue = addMinutes(check.lastPing, check.period);
@@ -284,12 +289,11 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }
         return "down";
       } else {
-        // If the next ping is due in the future, the check is up
         return "up";
       }
     } catch (error) {
       console.error('Error calculating check status:', error, check);
-      return "up"; // Default to up if there's an error
+      return "up";
     }
   };
 
@@ -381,7 +385,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         .update({
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up" // Always set status to "up" on ping
+          status: "up"
         })
         .eq('id', id);
 

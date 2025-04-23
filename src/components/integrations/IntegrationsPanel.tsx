@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -8,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Integration, IntegrationType } from "@/types/integration";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusCircle, Trash2, Mail, Globe, MessageSquare } from "lucide-react";
+import { PlusCircle, Trash2, Mail, Webhook } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -22,7 +23,7 @@ interface IntegrationsPanelProps {
 }
 
 const formSchema = z.object({
-  type: z.enum(['email', 'webhook', 'slack', 'discord']),
+  type: z.enum(['webhook', 'email']),
   name: z.string().min(1).max(100),
   config: z.object({
     url: z.string().url().optional(),
@@ -49,6 +50,8 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
     return value;
   }
 
+  const allowedTypes: IntegrationType[] = ["webhook", "email"];
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -63,6 +66,15 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    // Only allow valid types at runtime in case user has old integrations in storage
+    if (!allowedTypes.includes(values.type)) {
+      toast({
+        title: "Invalid integration type",
+        description: "Only Webhook and Email integrations are supported.",
+      });
+      return;
+    }
+
     const newIntegration: Integration = {
       id: uuidv4(),
       type: values.type,
@@ -113,11 +125,9 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
       case 'email':
         return <Mail className="h-4 w-4" />;
       case 'webhook':
-      case 'slack':
-      case 'discord':
-        return <Globe className="h-4 w-4" />;
+        return <Webhook className="h-4 w-4" />;
       default:
-        return <MessageSquare className="h-4 w-4" />;
+        return null;
     }
   };
 
@@ -191,12 +201,11 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <Tabs defaultValue="webhook" onValueChange={(value) => form.setValue('type', value as IntegrationType)}>
-                  <TabsList className="grid grid-cols-4">
+                {/* Only allow Webhook and Email */}
+                <Tabs value={form.watch('type')} onValueChange={(value) => form.setValue('type', value as IntegrationType)}>
+                  <TabsList className="grid grid-cols-2">
                     <TabsTrigger value="webhook">Webhook</TabsTrigger>
                     <TabsTrigger value="email">Email</TabsTrigger>
-                    <TabsTrigger value="slack">Slack</TabsTrigger>
-                    <TabsTrigger value="discord">Discord</TabsTrigger>
                   </TabsList>
                 </Tabs>
                 
@@ -207,7 +216,7 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="My Webhook" {...field} />
+                        <Input placeholder="My Integration" {...field} />
                       </FormControl>
                       <FormDescription>
                         A name to help you identify this integration.
@@ -285,7 +294,9 @@ export function IntegrationsPanel({ checkId }: IntegrationsPanelProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          {integrations.map((integration) => (
+          {integrations
+            .filter(integration => allowedTypes.includes(integration.type))
+            .map((integration) => (
             <div 
               key={integration.id} 
               className="flex items-center justify-between p-3 border rounded-md"

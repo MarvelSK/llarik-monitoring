@@ -1,5 +1,5 @@
 
-export type IntegrationType = 'email' | 'webhook' | 'slack' | 'discord';
+export type IntegrationType = 'email' | 'webhook';
 
 export interface Integration {
   id: string;
