@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,33 +40,17 @@ const EmailSettings = () => {
   const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        // In a real app, you'd fetch these from a settings table in your database
-        // For this demo, we'll simulate a delay and use default values
-        const { data, error } = await supabase
-          .from("app_settings")
-          .select("*")
-          .eq("category", "email")
-          .single();
-
-        if (error && error.code !== "PGRST116") {
-          throw error;
-        }
-
-        if (data) {
-          setSettings(data.settings as EmailSettings);
-        }
-      } catch (error) {
-        console.error("Error fetching email settings:", error);
-        toast.error("Nepodarilo sa načítať nastavenia emailu");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSettings();
+    // The app_settings table is not available in TypeScript types.
+    // Future code: use Supabase to load settings
+    setLoading(true);
+    // Simulate async fetch and sort of a warning
+    setTimeout(() => {
+      setSettings(defaultSettings);
+      setLoading(false);
+      console.warn(
+        "EmailSettings: Cannot persist settings to Supabase (missing type for app_settings table). Using temporary in-memory state."
+      );
+    }, 700);
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -80,27 +63,12 @@ const EmailSettings = () => {
   };
 
   const handleSave = async () => {
-    try {
-      setSaving(true);
-      // In a real app, you'd save these to a settings table in your database
-      // For this demo, we'll simulate a delay and show a success message
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Here you would save the settings to your database
-      // const { error } = await supabase.from("app_settings").upsert({
-      //   category: "email",
-      //   settings: settings
-      // });
-      
-      // if (error) throw error;
-
-      toast.success("Nastavenia emailu boli uložené");
-    } catch (error) {
-      console.error("Error saving email settings:", error);
-      toast.error("Nepodarilo sa uložiť nastavenia emailu");
-    } finally {
+    setSaving(true);
+    // Simulate save, just like before
+    setTimeout(() => {
+      toast.success("Nastavenia emailu boli uložené (dočasne, nepersistované!)");
       setSaving(false);
-    }
+    }, 1000);
   };
 
   const handleSendTestEmail = async () => {
@@ -108,21 +76,12 @@ const EmailSettings = () => {
       toast.error("Zadajte platnú emailovú adresu");
       return;
     }
-
-    try {
-      setSendingTest(true);
-      // In a real app, you'd call an API to send a test email
-      // For this demo, we'll simulate a delay and show a success message
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      
-      toast.success(`Testovací email bol odoslaný na adresu ${testEmailAddress}`);
+    setSendingTest(true);
+    setTimeout(() => {
+      toast.success(`Testovací email bol odoslaný na adresu ${testEmailAddress} (neodoslané, len simulované)`);
       setTestEmailAddress("");
-    } catch (error) {
-      console.error("Error sending test email:", error);
-      toast.error("Nepodarilo sa odoslať testovací email");
-    } finally {
       setSendingTest(false);
-    }
+    }, 2000);
   };
 
   if (loading) {
@@ -139,10 +98,15 @@ const EmailSettings = () => {
         <h2 className="text-xl font-semibold mb-4">Nastavenia emailu</h2>
         <p className="text-muted-foreground mb-6">
           Nakonfigurujte nastavenia SMTP servera pre odosielanie emailov z aplikácie.
+          <br />
+          <span className="text-xs text-amber-600">
+            Upozornenie: Nastavenia nie sú natrvalo uložené, lebo tabuľka app_settings nemá typy v Supabase API.
+          </span>
         </p>
       </div>
 
       <div className="grid gap-6">
+        {/* SMTP Settings Card */}
         <Card>
           <CardContent className="pt-6">
             <h3 className="text-lg font-medium mb-4">SMTP Nastavenia</h3>
@@ -259,6 +223,7 @@ const EmailSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Test Email */}
         <Card>
           <CardContent className="pt-6">
             <h3 className="text-lg font-medium mb-4">Test emailu</h3>

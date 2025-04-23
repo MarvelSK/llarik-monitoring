@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -102,11 +101,9 @@ const AppBranding = () => {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
       toast.success("Nastavenia vzhľadu boli uložené");
-      
-      // In a real app, you might want to reload the page or update the app's theme
-      toast({
-        title: "Upozornenie",
-        description: "Zmeny vzhľadu sa prejavia po obnovení stránky",
+      // Instead of a toast with an object, do this (fixes the build error):
+      toast("Upozornenie: Zmeny vzhľadu sa prejavia po obnovení stránky", {
+        description: "",
       });
     } catch (error) {
       console.error("Error saving branding settings:", error);
