@@ -1,3 +1,4 @@
+
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -163,6 +164,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           let newStatus: CheckStatus;
           
           try {
+            // Calculate status for each check independently, ignoring any tag associations
             newStatus = calculateCheckStatus(check);
           } catch (error) {
             console.error('Error calculating check status for check:', check.id, error);
@@ -257,12 +259,18 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   };
 
   const calculateCheckStatus = (check: Check): CheckStatus => {
+    // Each check's status should be calculated independently without considering tags
     if (!check.lastPing) return "new";
     
     if (!check.nextPingDue) {
       if (check.cronExpression) {
-        const nextDue = getNextCronDate(check.cronExpression, check.lastPing);
-        check.nextPingDue = nextDue;
+        try {
+          const nextDue = getNextCronDate(check.cronExpression, check.lastPing);
+          check.nextPingDue = nextDue;
+        } catch (error) {
+          console.error("Error calculating next ping due:", error);
+          return "up"; // Default to up if there's an error
+        }
       } else if (check.period > 0) {
         check.nextPingDue = addMinutes(check.lastPing, check.period);
       } else {
@@ -280,11 +288,12 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }
         return "down";
       } else {
+        // If the next ping is due in the future, the check is up
         return "up";
       }
     } catch (error) {
       console.error('Error calculating check status:', error, check);
-      return "up";
+      return "up"; // Default to up if there's an error
     }
   };
 
