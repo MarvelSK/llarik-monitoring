@@ -10,27 +10,50 @@ export function MainNav({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (!user) return;
+        if (!session?.user) {
+          setLoading(false);
+          return;
+        }
 
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from("profiles")
           .select("is_admin")
-          .eq("id", user.id)
+          .eq("id", session.user.id)
           .single();
 
-        setIsAdmin(profile?.is_admin || false);
+        if (!error) {
+          setIsAdmin(profile?.is_admin || false);
+        } else {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        }
+        setLoading(false);
       } catch (error) {
         console.error("Error checking admin status:", error);
+        setLoading(false);
       }
     };
 
     checkAdminStatus();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        checkAdminStatus();
+      } else if (event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return <nav className={className} {...props}>
