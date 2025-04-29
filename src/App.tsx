@@ -10,8 +10,6 @@ import PingHandler from "./components/checks/PingHandler";
 import { Skeleton } from "@/components/ui/skeleton";
 import IPCheckComponent from "./components/IPCheckComponent";
 import Notes from "./pages/Notes";
-
-// Import CheckDetail normally instead of lazy loading to prevent dynamic import issues
 import CheckDetail from "./pages/CheckDetail";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -127,7 +125,6 @@ function App() {
                   } />
                   <Route path="/checks/:id" element={
                     <RequireAuth>
-                      {/* Use the directly imported CheckDetail component */}
                       <CheckDetail />
                     </RequireAuth>
                   } />
