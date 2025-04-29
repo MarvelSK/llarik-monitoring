@@ -1,10 +1,12 @@
 
 import { useEffect, useState } from "react";
-import { useParams, Link, Navigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { executeCheckHttpRequest } from "@/utils/httpRequestUtils";
+import { toast } from "sonner";
 
 // Enhanced API detection to handle PowerShell, cURL, wget and other API clients
 const isApiRequest = () => {
@@ -14,7 +16,6 @@ const isApiRequest = () => {
   
   // 2. User-Agent detection for non-browser clients
   const userAgent = navigator.userAgent.toLowerCase();
-  // Console.log to help with debugging
   console.log('User agent detected:', userAgent);
   
   // 3. Enhanced detection for PowerShell and other clients
@@ -34,7 +35,6 @@ const isApiRequest = () => {
   // 4. Check Accept header via cookies (workaround since we can't access headers directly)
   const acceptHeader = /json/.test(document.cookie);
   
-  // Log all detection factors for debugging
   console.log('API detection:', { 
     userAgent, 
     isApiParam, 
@@ -46,9 +46,7 @@ const isApiRequest = () => {
 };
 
 // Direct API response function - process and respond with JSON for API requests
-// This executes before React even starts rendering for API requests
 if (isApiRequest()) {
-  // Stop React rendering for API requests and return JSON directly
   document.addEventListener('DOMContentLoaded', async () => {
     const pathParts = window.location.pathname.split('/');
     const id = pathParts[pathParts.length - 1];
@@ -80,58 +78,78 @@ if (isApiRequest()) {
         return;
       }
       
-      // For HTTP request checks, we need to call the cron-request edge function
-      if (checkData.type === 'http_request') {
+      // For HTTP request checks, execute the request directly
+      if (checkData.type === 'http_request' && checkData.http_config) {
         try {
-          const { data, error } = await supabase.functions.invoke('cron-request', {
-            body: { checkId: id }
+          const httpConfig = typeof checkData.http_config === 'string' 
+            ? JSON.parse(checkData.http_config) 
+            : checkData.http_config;
+            
+          console.log("Executing HTTP request with config:", httpConfig);
+          
+          const result = await executeCheckHttpRequest(id, httpConfig);
+          
+          // Update the check status in the database
+          const now = new Date();
+          const nextPingDue = checkData.period > 0 
+            ? new Date(now.getTime() + checkData.period * 60 * 1000) 
+            : undefined;
+          
+          // Add ping record
+          await supabase
+            .from('check_pings')
+            .insert({
+              check_id: id,
+              status: result.success ? 'success' : 'failure',
+              timestamp: now.toISOString(),
+              response_code: result.responseCode,
+              method: result.method,
+              request_url: result.requestUrl,
+              duration: result.duration,
+            });
+            
+          // Update check status
+          await supabase
+            .from('checks')
+            .update({
+              last_ping: now.toISOString(),
+              next_ping_due: nextPingDue?.toISOString(),
+              status: 'up',
+              last_duration: result.duration
+            })
+            .eq('id', id);
+            
+          document.body.innerHTML = JSON.stringify({
+            success: result.success,
+            message: "HTTP request executed and check updated",
+            id,
+            result,
+            timestamp: now.toISOString(),
           });
           
-          if (error) {
-            document.body.innerHTML = JSON.stringify({
-              success: false,
-              error: `Failed to process HTTP request check: ${error.message}`,
-              id
-            });
-            return;
-          }
-          
-          document.body.innerHTML = JSON.stringify(data);
-          return;
         } catch (error) {
           document.body.innerHTML = JSON.stringify({
             success: false,
-            error: `Error processing HTTP request check: ${error.message}`,
+            error: `Failed to execute HTTP request: ${error instanceof Error ? error.message : 'Unknown error'}`,
             id
           });
-          return;
         }
       } else {
-        // For standard checks, call the update-check edge function
-        try {
-          const { data, error } = await supabase.functions.invoke('update-check', {
-            body: { checkId: id }
-          });
-          
-          if (error) {
-            document.body.innerHTML = JSON.stringify({
-              success: false,
-              error: `Failed to process standard check: ${error.message}`,
-              id
-            });
-            return;
-          }
-          
-          document.body.innerHTML = JSON.stringify(data);
-          return;
-        } catch (error) {
+        // For standard checks, use the update-check edge function
+        const { data, error } = await supabase.functions.invoke('update-check', {
+          body: { checkId: id }
+        });
+        
+        if (error) {
           document.body.innerHTML = JSON.stringify({
             success: false,
-            error: `Error processing standard check: ${error.message}`,
+            error: `Failed to process standard check: ${error.message}`,
             id
           });
           return;
         }
+        
+        document.body.innerHTML = JSON.stringify(data);
       }
     } catch (error) {
       document.body.innerHTML = JSON.stringify({
@@ -158,7 +176,6 @@ const PingHandler = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
-      // Enhanced User-Agent detection
       const userAgent = navigator.userAgent.toLowerCase();
       console.log('User agent detected in React component:', userAgent);
       
@@ -178,11 +195,10 @@ const PingHandler = () => {
       
       // Only process if not an API request (API requests handled above)
       if (!isApi) {
-        // First check the check type
         try {
           const { data: check, error } = await supabase
             .from('checks')
-            .select('type')
+            .select('type, http_config')
             .eq('id', id)
             .single();
             
@@ -195,9 +211,9 @@ const PingHandler = () => {
           const isHttpCheck = check.type === 'http_request';
           setIsHttpRequestCheck(isHttpCheck);
           
-          // Process the ping using the appropriate edge function
-          if (isHttpCheck) {
-            await processHttpRequestCheck(id);
+          // Process the ping based on check type
+          if (isHttpCheck && check.http_config) {
+            await processHttpRequestCheck(id, check.http_config);
           } else {
             await processStandardCheck(id);
           }
@@ -236,20 +252,94 @@ const PingHandler = () => {
       }
     };
     
-    const processHttpRequestCheck = async (checkId: string) => {
+    const processHttpRequestCheck = async (checkId: string, httpConfig: any) => {
       try {
         setLoading(true);
         console.log('Processing browser ping for HTTP request check:', checkId);
         
-        const { data, error } = await supabase.functions.invoke('cron-request', {
-          body: { checkId }
-        });
+        // Parse HTTP config if needed
+        const config = typeof httpConfig === 'string' 
+          ? JSON.parse(httpConfig) 
+          : httpConfig;
+          
+        // Execute the HTTP request directly
+        const result = await executeCheckHttpRequest(checkId, config);
         
-        if (error) {
-          console.error('Error processing HTTP request check:', error);
+        // Record the ping and update the check status
+        const now = new Date();
+        
+        // Add ping record
+        const { error: pingError } = await supabase
+          .from('check_pings')
+          .insert({
+            check_id: checkId,
+            status: result.success ? 'success' : 'failure',
+            timestamp: now.toISOString(),
+            response_code: result.responseCode,
+            method: result.method,
+            request_url: result.requestUrl,
+            duration: result.duration,
+          });
+          
+        if (pingError) {
+          console.error('Error recording ping:', pingError);
           setError(true);
           setLoading(false);
           return;
+        }
+        
+        // Get the check to determine next ping calculation
+        const { data: checkData, error: checkError } = await supabase
+          .from('checks')
+          .select('period, cron_expression')
+          .eq('id', checkId)
+          .single();
+          
+        if (checkError) {
+          console.error('Error getting check data:', checkError);
+          setError(true);
+          setLoading(false);
+          return;
+        }
+        
+        // Calculate next ping due
+        let nextPingDue;
+        if (checkData.cron_expression) {
+          // Simple parsing for common minute-based CRON patterns
+          if (checkData.cron_expression.startsWith('*/')) {
+            const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
+            nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
+          } else {
+            // Default to 60 minutes
+            nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+          }
+        } else if (checkData.period > 0) {
+          // Period-based
+          nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
+        }
+        
+        // Update the check status
+        const { error: updateError } = await supabase
+          .from('checks')
+          .update({
+            last_ping: now.toISOString(),
+            next_ping_due: nextPingDue?.toISOString(),
+            status: result.success ? 'up' : 'down',
+            last_duration: result.duration
+          })
+          .eq('id', checkId);
+          
+        if (updateError) {
+          console.error('Error updating check:', updateError);
+          setError(true);
+          setLoading(false);
+          return;
+        }
+        
+        if (result.success) {
+          toast.success(`HTTP request succeeded with status code ${result.responseCode}`);
+        } else {
+          toast.error(`HTTP request failed: ${result.error || `Status code ${result.responseCode} not in success codes`}`);
         }
         
         console.log('HTTP request check successfully processed');
@@ -260,6 +350,7 @@ const PingHandler = () => {
         console.error("Error processing HTTP request ping:", error);
         setError(true);
         setLoading(false);
+        toast.error(`Failed to execute HTTP request: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     };
 

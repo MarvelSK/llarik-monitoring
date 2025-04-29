@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Context and types
 import { useChecks } from "@/context/CheckContext";
 import { CheckPing } from "@/types/check";
+import { executeCheckHttpRequest } from "@/utils/httpRequestUtils";
 
 const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,7 @@ const CheckDetail = () => {
   const [check, setCheck] = useState<ReturnType<typeof getCheck>>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
+  const [manualPingInProgress, setManualPingInProgress] = useState(false);
 
   // Added defensive coding to prevent runtime errors
   useEffect(() => {
@@ -161,20 +163,31 @@ const CheckDetail = () => {
   const handlePing = async (status: CheckPing["status"]) => {
     if (!check) return;
     
+    setManualPingInProgress(true);
     try {
-      if (check.type === 'http_request') {
+      if (check.type === 'http_request' && check.httpConfig) {
         toast.info('Executing HTTP request check...', {
           description: 'This will send an actual HTTP request to the configured endpoint.'
         });
+        
+        // Execute HTTP request directly
+        const result = await executeCheckHttpRequest(check.id, check.httpConfig);
+        
+        if (result.success) {
+          toast.success(`HTTP request executed successfully with status ${result.responseCode}`);
+        } else {
+          toast.error(`HTTP request failed: ${result.error || `Status code ${result.responseCode} not in success codes`}`);
+        }
       } else {
         toast.info('Recording standard ping...');
+        await pingCheck(check.id, status);
+        toast.success('Check pinged successfully');
       }
-      
-      await pingCheck(check.id, status);
-      toast.success('Check pinged successfully');
     } catch (error) {
       console.error("Error sending ping:", error);
       toast.error("Failed to process ping");
+    } finally {
+      setManualPingInProgress(false);
     }
   };
 

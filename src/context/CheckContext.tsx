@@ -1,4 +1,3 @@
-
 import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -6,6 +5,7 @@ import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
 import { parseExpression } from 'cron-parser';
 import { toast } from 'sonner';
+import { executeCheckHttpRequest } from "@/utils/httpRequestUtils";
 
 interface CheckContextType {
   checks: Check[];
@@ -294,21 +294,69 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       console.log(`Executing HTTP request check for ${checkId}`);
       
-      // Call our new cron-request edge function
-      const { data, error } = await supabase.functions.invoke('cron-request', {
-        body: { checkId },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (error) {
-        console.error(`Error executing HTTP request check for ${checkId}:`, error);
-        toast.error(`Failed to execute HTTP check: ${error.message || 'Network error'}`);
+      // Get the check data and configuration
+      const check = getCheck(checkId);
+      if (!check || !check.httpConfig) {
+        console.error(`Check not found or has no HTTP configuration: ${checkId}`);
         return false;
       }
       
-      console.log(`Successfully executed HTTP request check for ${checkId}:`, data);
+      // Execute the HTTP request directly
+      const result = await executeCheckHttpRequest(checkId, check.httpConfig);
+      
+      if (!result.success) {
+        console.error(`HTTP request failed for check ${checkId}:`, result.error || `Status code ${result.responseCode}`);
+        toast.error(`Failed to execute HTTP check: ${result.error || 'Invalid response status'}`);
+        return false;
+      }
+      
+      // Record the ping
+      const now = new Date();
+      try {
+        await supabase
+          .from('check_pings')
+          .insert({
+            check_id: checkId,
+            status: result.success ? 'success' : 'failure',
+            timestamp: now.toISOString(),
+            response_code: result.responseCode,
+            method: result.method,
+            request_url: result.requestUrl,
+            duration: result.duration,
+          });
+      } catch (pingError) {
+        console.error(`Error recording ping for check ${checkId}:`, pingError);
+      }
+      
+      // Calculate next ping due time
+      let nextPingDue: Date | undefined;
+      if (check.cronExpression) {
+        try {
+          nextPingDue = getNextCronDate(check.cronExpression, now);
+        } catch (error) {
+          console.error(`Error calculating next ping due for check ${checkId}:`, error);
+        }
+      } else if (check.period > 0) {
+        nextPingDue = addMinutes(now, check.period);
+      }
+      
+      // Update the check status
+      try {
+        await supabase
+          .from('checks')
+          .update({
+            last_ping: now.toISOString(),
+            next_ping_due: nextPingDue?.toISOString(),
+            status: 'up',
+            last_duration: result.duration
+          })
+          .eq('id', checkId);
+      } catch (updateError) {
+        console.error(`Error updating check status for ${checkId}:`, updateError);
+        return false;
+      }
+      
+      console.log(`Successfully executed HTTP request check for ${checkId}:`, result);
       return true;
     } catch (error) {
       console.error(`Error executing HTTP request check for ${checkId}:`, error);
@@ -470,7 +518,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return checks.find((check) => check.id === id);
   };
 
-  // This function will choose the right function to ping based on check type
+  // This function will choose the right approach to ping based on check type
   const pingCheck = async (id: string, status: CheckPing["status"]) => {
     try {
       const check = getCheck(id);
@@ -480,29 +528,26 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
       
-      let endpoint;
-      
-      // Choose the appropriate endpoint based on check type
-      if (check.type === 'http_request') {
-        endpoint = 'cron-request'; 
+      // Choose the appropriate approach based on check type
+      if (check.type === 'http_request' && check.httpConfig) {
+        // Execute HTTP request directly
+        const result = await executeCheckHttpRequest(id, check.httpConfig);
+        console.log(`HTTP request execution result for check ${id}:`, result);
+        
+        // The success or failure will be handled by executeCheckHttpRequest already
       } else {
-        endpoint = 'update-check'; 
+        // For standard checks, use the edge function
+        const { data, error } = await supabase.functions.invoke('update-check', {
+          body: { checkId: id }
+        });
+        
+        if (error) {
+          console.error(`Error calling update-check:`, error);
+          return;
+        }
+        
+        console.log(`Successfully called update-check for check ${id}`, data);
       }
-      
-      // Call the appropriate edge function
-      const { data, error } = await supabase.functions.invoke(endpoint, {
-        body: { checkId: id }
-      });
-      
-      if (error) {
-        console.error(`Error calling ${endpoint}:`, error);
-        return;
-      }
-      
-      console.log(`Successfully called ${endpoint} for check ${id}`, data);
-      
-      // No need to update the check status here as the edge function will do it
-      // and our Supabase listener will receive the changes
       
     } catch (error) {
       console.error('Error processing ping:', error);
