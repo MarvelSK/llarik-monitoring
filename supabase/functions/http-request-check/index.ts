@@ -1,4 +1,3 @@
-
 // HTTP Request Check Edge Function
 // This function sends HTTP requests and updates check status based on response
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
@@ -113,56 +112,81 @@ function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date =
   console.log(`Calculating next execution time from CRON: ${cronExpression}`);
   
   try {
+    // Validate CRON expression format
+    const parts = cronExpression.trim().split(' ');
+    if (parts.length < 5) {
+      throw new Error(`Invalid CRON expression format: ${cronExpression}`);
+    }
+    
     // Handle common interval patterns like */15 * * * * (every 15 minutes)
-    if (cronExpression.startsWith('*/')) {
-      const parts = cronExpression.split(' ');
-      const firstPart = parts[0];
+    if (parts[0].startsWith('*/')) {
+      const minutes = parseInt(parts[0].substring(2), 10);
       
-      if (firstPart.startsWith('*/')) {
-        const minutes = parseInt(firstPart.substring(2), 10);
+      if (!isNaN(minutes) && minutes > 0 && minutes <= 59) {
+        // For minute-based intervals
+        const nextTime = new Date(fromTime);
+        nextTime.setSeconds(0);
+        nextTime.setMilliseconds(0);
         
-        if (!isNaN(minutes) && minutes > 0 && minutes <= 59) {
-          // For minute-based intervals
-          const nextTime = new Date(fromTime);
-          nextTime.setSeconds(0);
-          nextTime.setMilliseconds(0);
-          
-          const currentMinute = nextTime.getMinutes();
-          const remainder = currentMinute % minutes;
-          
-          // Set to next interval
-          nextTime.setMinutes(currentMinute + (minutes - remainder));
-          
-          return nextTime;
-        }
+        const currentMinute = nextTime.getMinutes();
+        const remainder = currentMinute % minutes;
+        
+        // Set to next interval
+        nextTime.setMinutes(currentMinute + (minutes - remainder));
+        
+        return nextTime;
       }
     }
     
     // For numeric patterns (e.g., "15 * * * *" - at minute 15 of every hour)
-    const parts = cronExpression.trim().split(' ');
-    if (parts.length >= 5) {
-      // Simple implementation for hourly patterns
-      if (parts[0] !== '*' && parts[1] === '*') {
-        const minute = parseInt(parts[0], 10);
-        if (!isNaN(minute) && minute >= 0 && minute <= 59) {
-          const nextTime = new Date(fromTime);
-          const currentMinute = nextTime.getMinutes();
-          
-          nextTime.setSeconds(0);
-          nextTime.setMilliseconds(0);
-          
-          if (currentMinute >= minute) {
-            // If we've already passed this minute in the current hour, go to next hour
-            nextTime.setHours(nextTime.getHours() + 1);
-          }
-          
-          nextTime.setMinutes(minute);
-          return nextTime;
+    if (!isNaN(parseInt(parts[0], 10)) && parts[1] === '*') {
+      const minute = parseInt(parts[0], 10);
+      if (minute >= 0 && minute <= 59) {
+        const nextTime = new Date(fromTime);
+        const currentMinute = nextTime.getMinutes();
+        
+        nextTime.setSeconds(0);
+        nextTime.setMilliseconds(0);
+        
+        if (currentMinute >= minute) {
+          // If we've already passed this minute in the current hour, go to next hour
+          nextTime.setHours(nextTime.getHours() + 1);
         }
+        
+        nextTime.setMinutes(minute);
+        return nextTime;
       }
     }
     
-    // Default fallback - add one hour
+    // Check for invalid values that would cause parsing errors
+    // Check minute (0-59)
+    if (parts[0] !== '*' && !parts[0].startsWith('*/')) {
+      const minute = parseInt(parts[0], 10);
+      if (isNaN(minute) || minute < 0 || minute > 59) {
+        console.error(`Invalid minute value in CRON: ${parts[0]}`);
+        throw new Error(`Invalid minute value: ${parts[0]}`);
+      }
+    }
+    
+    // Check hour (0-23)
+    if (parts[1] !== '*' && !parts[1].startsWith('*/')) {
+      const hour = parseInt(parts[1], 10);
+      if (isNaN(hour) || hour < 0 || hour > 23) {
+        console.error(`Invalid hour value in CRON: ${parts[1]}`);
+        throw new Error(`Invalid hour value: ${parts[1]}`);
+      }
+    }
+    
+    // Check day of month (1-31)
+    if (parts[2] !== '*' && !parts[2].startsWith('*/')) {
+      const day = parseInt(parts[2], 10);
+      if (isNaN(day) || day < 1 || day > 31) {
+        console.error(`Invalid day value in CRON: ${parts[2]}`);
+        throw new Error(`Invalid day value: ${parts[2]}`);
+      }
+    }
+    
+    // Default fallback - add one hour if we can't parse the expression
     console.log("Using fallback for CRON calculation");
     return new Date(fromTime.getTime() + 60 * 60 * 1000);
   } catch (error) {
@@ -179,10 +203,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const checkId = url.pathname.split('/').pop();
+    // Extract checkId from URL path or request body
+    let checkId;
     
-    console.log(`Processing HTTP request check ID: ${checkId}`);
+    try {
+      const url = new URL(req.url);
+      const pathCheckId = url.pathname.split('/').pop();
+      
+      if (pathCheckId && pathCheckId.length > 10) {
+        // If we have a valid-looking ID in the path, use it
+        checkId = pathCheckId;
+      } else {
+        // Otherwise try to get it from the request body
+        const body = await req.json();
+        checkId = body.checkId;
+      }
+    } catch (error) {
+      // If JSON parsing fails, try one more time with form data
+      try {
+        const formData = await req.formData();
+        checkId = formData.get('checkId');
+      } catch (formError) {
+        console.error('Failed to extract checkId:', formError);
+      }
+    }
     
     if (!checkId) {
       return new Response(
@@ -190,7 +234,9 @@ Deno.serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
-
+    
+    console.log(`Processing HTTP request check ID: ${checkId}`);
+    
     const now = new Date();
     
     // Get the check to determine next ping calculation and HTTP config

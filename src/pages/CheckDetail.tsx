@@ -37,6 +37,7 @@ const CheckDetail = () => {
     }
   }, [id, getCheck, loading]);
 
+  // This ensures we don't render anything with potentially invalid data
   if (loading) {
     return (
       <Layout>
@@ -123,15 +124,15 @@ const CheckDetail = () => {
   };
 
   const handlePing = async (status: CheckPing["status"]) => {
-    if (check.type === 'http_request') {
-      toast.info('Executing HTTP request check...', {
-        description: 'This will send an actual HTTP request to the configured endpoint.'
-      });
-    } else {
-      toast.info('Recording standard ping...');
-    }
-    
     try {
+      if (check.type === 'http_request') {
+        toast.info('Executing HTTP request check...', {
+          description: 'This will send an actual HTTP request to the configured endpoint.'
+        });
+      } else {
+        toast.info('Recording standard ping...');
+      }
+      
       await pingCheck(check.id, status);
       toast.success('Check pinged successfully');
     } catch (error) {
