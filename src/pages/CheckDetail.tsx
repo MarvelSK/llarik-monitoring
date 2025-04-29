@@ -1,4 +1,3 @@
-
 import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
