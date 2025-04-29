@@ -1,4 +1,3 @@
-
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,9 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import IPCheckComponent from "./components/IPCheckComponent";
 import Notes from "./pages/Notes";
 
+// Import CheckDetail normally instead of lazy loading to prevent dynamic import issues
+import CheckDetail from "./pages/CheckDetail";
+
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const CheckDetail = lazy(() => import("./pages/CheckDetail"));
 const CheckCreate = lazy(() => import("./pages/CheckCreate"));
 const CheckEdit = lazy(() => import("./pages/CheckEdit"));
 const Login = lazy(() => import("./pages/Login"));
@@ -33,6 +34,7 @@ const queryClient = new QueryClient({
   },
 });
 
+// Enhanced page loader with error handling
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
     <div className="space-y-4 w-full max-w-md">
@@ -42,6 +44,24 @@ const PageLoader = () => (
         <Skeleton className="h-8" />
         <Skeleton className="h-8" />
       </div>
+    </div>
+  </div>
+);
+
+// Error boundary for route loading failures
+const ErrorFallback = () => (
+  <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-lg shadow-md max-w-md w-full">
+      <h2 className="text-xl font-semibold mb-4">Something went wrong</h2>
+      <p className="text-gray-600 dark:text-gray-400 mb-4">
+        We encountered an error while loading this page. Please try refreshing the browser.
+      </p>
+      <button 
+        onClick={() => window.location.reload()} 
+        className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
+      >
+        Refresh Page
+      </button>
     </div>
   </div>
 );
@@ -107,6 +127,7 @@ function App() {
                   } />
                   <Route path="/checks/:id" element={
                     <RequireAuth>
+                      {/* Use the directly imported CheckDetail component */}
                       <CheckDetail />
                     </RequireAuth>
                   } />

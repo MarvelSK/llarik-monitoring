@@ -1,4 +1,10 @@
 
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { ArrowLeft, Pencil } from "lucide-react";
+
+// Components
 import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
@@ -6,12 +12,10 @@ import Layout from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Context and types
 import { useChecks } from "@/context/CheckContext";
 import { CheckPing } from "@/types/check";
-import { ArrowLeft, Pencil } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "sonner";
 
 const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,19 +27,26 @@ const CheckDetail = () => {
 
   // Added defensive coding to prevent runtime errors
   useEffect(() => {
+    console.log("CheckDetail: Initial loading");
+    
     // Safety wrapper to catch any errors during check retrieval
     const fetchCheckData = () => {
       try {
         if (!id) {
+          console.log("CheckDetail: Missing ID parameter");
           setError("Invalid check ID");
           setLocalLoading(false);
           return;
         }
         
+        console.log(`CheckDetail: Fetching check data for ID: ${id}`);
         const checkData = getCheck(id);
+        console.log("CheckDetail: Check data retrieved:", checkData);
+        
         setCheck(checkData);
         
         if (!checkData && !loading) {
+          console.log("CheckDetail: Check not found");
           setError("Check not found");
         } else {
           setError(null);
@@ -50,7 +61,7 @@ const CheckDetail = () => {
     };
     
     // Small delay to ensure CheckContext is ready
-    const timer = setTimeout(fetchCheckData, 100);
+    const timer = setTimeout(fetchCheckData, 500);
     
     return () => clearTimeout(timer);
   }, [id, getCheck, loading]);
