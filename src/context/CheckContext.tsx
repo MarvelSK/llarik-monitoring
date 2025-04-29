@@ -32,6 +32,20 @@ interface CheckProviderProps {
 }
 
 function convertDatesToObjects(check: any): Check {
+  let httpConfig = null;
+  
+  if (check.http_config) {
+    try {
+      if (typeof check.http_config === 'string') {
+        httpConfig = JSON.parse(check.http_config);
+      } else {
+        httpConfig = check.http_config;
+      }
+    } catch (error) {
+      console.error('Error parsing HTTP config:', error);
+    }
+  }
+  
   return {
     ...check,
     lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
@@ -41,13 +55,30 @@ function convertDatesToObjects(check: any): Check {
     cronExpression: check.cron_expression,
     pings: [], // We'll load pings separately as needed
     type: check.type || "standard", // Default to standard if not specified
-    httpConfig: check.http_config ? JSON.parse(check.http_config) : undefined, // Parse HTTP config
+    httpConfig, // Use the parsed HTTP config
   };
 }
 
 function prepareCheckForSupabase(check: Partial<Check>) {
   // Convert HttpRequestConfig to a JSON-serializable format
-  const httpConfigForDb = check.httpConfig ? JSON.stringify(check.httpConfig) : null;
+  let httpConfigForDb = null;
+  
+  if (check.httpConfig) {
+    try {
+      // Ensure params and headers are properly formatted
+      const config = {
+        ...check.httpConfig,
+        // Make sure we're properly handling params and headers
+        params: check.httpConfig.params || {},
+        headers: check.httpConfig.headers || {},
+      };
+      
+      httpConfigForDb = JSON.stringify(config);
+      console.log("HTTP config prepared for saving:", httpConfigForDb);
+    } catch (error) {
+      console.error('Error preparing HTTP config for storage:', error);
+    }
+  }
   
   return {
     name: check.name,

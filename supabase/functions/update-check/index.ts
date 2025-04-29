@@ -92,6 +92,8 @@ Deno.serve(async (req) => {
         method = httpConfig.method;
         requestUrl = httpConfig.url;
         responseCode = 200; // Default success code
+        
+        console.log("HTTP Config in edge function:", JSON.stringify(httpConfig));
       }
     }
     
@@ -102,6 +104,7 @@ Deno.serve(async (req) => {
         check_id: checkId,
         status: 'success',
         timestamp: now.toISOString(),
+        duration: 0,
         response_code: responseCode,
         method: method,
         request_url: requestUrl

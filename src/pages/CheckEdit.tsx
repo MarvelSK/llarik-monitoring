@@ -40,6 +40,12 @@ const CheckEdit = () => {
       data.cronExpression = "";
     }
     
+    // Ensure httpConfig is properly prepared for storage
+    if (data.type === 'http_request' && data.httpConfig) {
+      // Make sure params and headers are properly stored
+      console.log("HTTP Config before update:", data.httpConfig);
+    }
+    
     updateCheck(check.id, data);
     navigate(`/checks/${check.id}`);
   };
