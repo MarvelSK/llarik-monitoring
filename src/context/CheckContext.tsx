@@ -1,3 +1,4 @@
+
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -46,6 +47,9 @@ function convertDatesToObjects(check: any): Check {
 }
 
 function prepareCheckForSupabase(check: Partial<Check>) {
+  // Convert HttpRequestConfig to a JSON-serializable format
+  const httpConfigForDb = check.httpConfig ? JSON.stringify(check.httpConfig) : null;
+  
   return {
     name: check.name,
     description: check.description,
@@ -60,7 +64,7 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     next_ping_due: check.nextPingDue?.toISOString(),
     project_id: check.projectId,
     type: check.type || "standard",
-    http_config: check.httpConfig
+    http_config: httpConfigForDb
   };
 }
 
@@ -331,6 +335,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         }
       }
       
+      // Prepare the HTTP config for database storage
+      const httpConfigForDb = checkData.httpConfig ? JSON.stringify(checkData.httpConfig) : null;
+      
       const newCheckData = {
         name: checkData.name || "Untitled Check",
         description: checkData.description,
@@ -344,7 +351,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         next_ping_due: nextPingDue?.toISOString(),
         created_at: now.toISOString(),
         type: checkData.type || "standard",
-        http_config: checkData.httpConfig || null
+        http_config: httpConfigForDb
       };
 
       const { data, error } = await supabase

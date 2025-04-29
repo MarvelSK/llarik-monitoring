@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { HttpRequestConfig, Json } from "@/types/check";
 
 // Enhanced API detection to handle PowerShell, cURL, wget and other API clients
 const isApiRequest = () => {
@@ -116,12 +116,12 @@ if (isApiRequest()) {
           // Handle http_config as string or object
           if (typeof checkData.http_config === 'string') {
             const parsedConfig = JSON.parse(checkData.http_config);
-            if (parsedConfig.successCodes && Array.isArray(parsedConfig.successCodes)) {
+            if (parsedConfig && Array.isArray(parsedConfig.successCodes)) {
               successCodes = parsedConfig.successCodes;
             }
           } else if (checkData.http_config && typeof checkData.http_config === 'object') {
-            const httpConfig = checkData.http_config;
-            if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+            const httpConfig = checkData.http_config as any;
+            if (httpConfig && Array.isArray(httpConfig.successCodes)) {
               successCodes = httpConfig.successCodes;
             }
           }
@@ -288,12 +288,12 @@ const PingHandler = () => {
             // Handle http_config as string or object
             if (typeof checkData.http_config === 'string') {
               const parsedConfig = JSON.parse(checkData.http_config);
-              if (parsedConfig.successCodes && Array.isArray(parsedConfig.successCodes)) {
+              if (parsedConfig && Array.isArray(parsedConfig.successCodes)) {
                 successCodes = parsedConfig.successCodes;
               }
             } else if (checkData.http_config && typeof checkData.http_config === 'object') {
-              const httpConfig = checkData.http_config;
-              if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+              const httpConfig = checkData.http_config as any;
+              if (httpConfig && Array.isArray(httpConfig.successCodes)) {
                 successCodes = httpConfig.successCodes;
               }
             }
