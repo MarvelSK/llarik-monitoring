@@ -13,7 +13,7 @@ const CheckEdit = () => {
   const { getCheck, updateCheck } = useChecks();
   const navigate = useNavigate();
 
-  const check = getCheck(id!);
+  const check = id ? getCheck(id) : undefined;
 
   if (!check) {
     return (
@@ -31,37 +31,43 @@ const CheckEdit = () => {
   }
 
   const handleSubmit = (data: Partial<Check>) => {
-    // Make sure that if we're using CRON, we set period to 0
-    if (data.cronExpression && data.cronExpression.trim() !== "") {
-      data.period = 0;
-    }
-    
-    // If period is not 0, clear the CRON expression
-    if (data.period !== 0) {
-      data.cronExpression = "";
-    }
-    
-    // Ensure httpConfig is properly prepared for storage
-    if (data.type === 'http_request' && data.httpConfig) {
-      if (!data.httpConfig.url) {
-        toast.error("URL is required for HTTP Request checks");
-        return;
+    try {
+      // Make sure that if we're using CRON, we set period to 0
+      if (data.cronExpression && data.cronExpression.trim() !== "") {
+        data.period = 0;
       }
       
-      // Make sure we have the headers and params properly set
-      data.httpConfig.headers = data.httpConfig.headers || {};
-      data.httpConfig.params = data.httpConfig.params || {};
+      // If period is not 0, clear the CRON expression
+      if (data.period !== 0) {
+        data.cronExpression = "";
+      }
       
-      // Make sure successCodes is an array
-      data.httpConfig.successCodes = data.httpConfig.successCodes || [200, 201, 202, 204];
+      // Ensure httpConfig is properly prepared for storage
+      if (data.type === 'http_request' && data.httpConfig) {
+        if (!data.httpConfig.url) {
+          toast.error("URL is required for HTTP Request checks");
+          return;
+        }
+        
+        // Make sure we have the headers and params properly set
+        data.httpConfig.headers = data.httpConfig.headers || {};
+        data.httpConfig.params = data.httpConfig.params || {};
+        
+        // Make sure successCodes is an array
+        data.httpConfig.successCodes = Array.isArray(data.httpConfig.successCodes) && data.httpConfig.successCodes.length > 0
+          ? data.httpConfig.successCodes 
+          : [200, 201, 202, 204];
+        
+        console.log("HTTP Config before update:", data.httpConfig);
+      }
       
-      // Validate the HTTP configuration
-      console.log("HTTP Config before update:", data.httpConfig);
-      toast.info(`HTTP Request check will actively send requests to ${data.httpConfig.url}`);
+      updateCheck(check.id, data);
+      toast.success("Check updated successfully");
+      navigate(`/checks/${check.id}`);
+    } catch (error) {
+      console.error("Error updating check:", error);
+      toast.error("Failed to update check");
     }
-    
-    updateCheck(check.id, data);
-    navigate(`/checks/${check.id}`);
   };
 
   return (

@@ -112,11 +112,23 @@ const CheckDetail = () => {
     } else {
       toast.info('Recording standard ping...');
     }
-    pingCheck(check.id, status);
+    
+    try {
+      pingCheck(check.id, status);
+    } catch (error) {
+      console.error("Error sending ping:", error);
+      toast.error("Failed to process ping");
+    }
   };
 
   const handleDelete = async () => {
-    await deleteCheck(check.id);
+    try {
+      await deleteCheck(check.id);
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting check:", error);
+      toast.error("Failed to delete check");
+    }
   };
 
   return (
