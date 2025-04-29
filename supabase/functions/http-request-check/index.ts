@@ -1,14 +1,14 @@
 
 // HTTP request check edge function - executes HTTP requests and updates check status
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 // Set up CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-}
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Content-Type': 'application/json'
+};
 
 // Helper function to append query parameters to a URL
 function appendQueryParams(url: string, params: Record<string, string>): string {
@@ -40,7 +40,7 @@ function buildAuthHeader(auth: any): Record<string, string> {
   return {};
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -51,22 +51,37 @@ serve(async (req) => {
   
   try {
     // Parse request body
-    const { checkId } = await req.json();
+    let checkId;
+    
+    try {
+      const body = await req.json();
+      checkId = body.checkId;
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      // Fallback to URL path for backward compatibility
+      const url = new URL(req.url);
+      const pathParts = url.pathname.split('/');
+      checkId = pathParts[pathParts.length - 1];
+    }
     
     if (!checkId) {
       return new Response(
         JSON.stringify({ error: 'Check ID is required' }),
         { 
           status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: corsHeaders 
         }
       );
     }
     
     // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://uxrrxefdpjyzyepnrfme.supabase.co';
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: { 'X-Client-Info': 'http-request-check-function' },
+      },
+    });
     
     // Fetch the check details
     console.log(`Processing HTTP request check for check ID: ${checkId}`);
@@ -83,10 +98,7 @@ serve(async (req) => {
           success: false, 
           error: `Check not found: ${checkError?.message || 'Unknown error'}` 
         }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 404, headers: corsHeaders }
       );
     }
 
@@ -107,10 +119,7 @@ serve(async (req) => {
           success: false, 
           error: `Invalid HTTP configuration: ${error.message}` 
         }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: corsHeaders }
       );
     }
     
@@ -160,12 +169,25 @@ serve(async (req) => {
     // Execute the HTTP request
     const startTime = Date.now();
     try {
+      console.log(`Making ${httpConfig.method} request to: ${requestUrl}`);
+      if (requestOptions.body) {
+        console.log(`With body: ${typeof requestOptions.body === 'string' ? requestOptions.body : JSON.stringify(requestOptions.body)}`);
+      }
+      
       const response = await fetch(requestUrl, requestOptions);
       clearTimeout(timeout);
       
       const duration = Date.now() - startTime;
       const responseStatus = response.status;
-      const responseText = await response.text();
+      let responseText;
+      
+      try {
+        responseText = await response.text();
+        console.log(`Response status: ${responseStatus}, length: ${responseText.length} chars`);
+      } catch (error) {
+        console.error('Error reading response text:', error);
+        responseText = `Error reading response: ${error.message}`;
+      }
       
       // Determine if the response is successful based on configured success codes
       const successCodes = httpConfig.successCodes || [200, 201, 202, 204];
@@ -242,10 +264,7 @@ serve(async (req) => {
             lastDuration: duration / 1000 // Convert to seconds
           }
         }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 200, headers: corsHeaders }
       );
     } catch (error) {
       clearTimeout(timeout);
@@ -289,10 +308,7 @@ serve(async (req) => {
             nextPingDue: nextPingDue.toISOString()
           }
         }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 500, headers: corsHeaders }
       );
     }
   } catch (error) {
@@ -303,10 +319,7 @@ serve(async (req) => {
         success: false, 
         error: `Error processing HTTP request check: ${error.message}` 
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: corsHeaders }
     );
   }
 });

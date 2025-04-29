@@ -30,7 +30,18 @@ Deno.serve(async (req) => {
 
   try {
     // Get checkId from request body
-    const { checkId } = await req.json();
+    let checkId;
+    
+    try {
+      const body = await req.json();
+      checkId = body.checkId;
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request body' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
     
     console.log(`Processing check ID: ${checkId}`);
     
