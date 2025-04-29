@@ -86,6 +86,34 @@ async function executeHttpRequest(httpConfig: any) {
   }
 }
 
+/**
+ * Parse CRON expression to calculate next execution time
+ * Simple implementation for common patterns
+ */
+function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date = new Date()): Date {
+  console.log(`Calculating next execution time from CRON: ${cronExpression}`);
+  
+  try {
+    // Simple parsing for common minute-based CRON patterns
+    if (cronExpression.startsWith('*/')) {
+      const minuteParts = cronExpression.split(' ');
+      if (minuteParts.length > 0) {
+        const minutes = parseInt(minuteParts[0].substring(2), 10);
+        if (!isNaN(minutes) && minutes > 0) {
+          return new Date(fromTime.getTime() + minutes * 60 * 1000);
+        }
+      }
+    }
+    
+    // Default fallback for more complex CRON patterns
+    // In a production app, you would use a more robust CRON parser
+    return new Date(fromTime.getTime() + 60 * 60 * 1000); // Default to 1 hour
+  } catch (error) {
+    console.error("Error parsing CRON expression:", error);
+    return new Date(fromTime.getTime() + 60 * 60 * 1000); // Default to 1 hour
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -130,24 +158,20 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Calculate next ping due time
+    // Calculate next ping due time based on CRON or period
     let nextPingDue = new Date();
-    if (checkData.cron_expression) {
-      try {
-        // Simple parsing for common minute-based CRON patterns
-        if (checkData.cron_expression.startsWith('*/')) {
-          const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
-          nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
-        } else {
-          // Default to 60 minutes
-          nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
-        }
-      } catch (error) {
-        nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
-      }
-    } else {
-      // Period-based
+    if (checkData.cron_expression && checkData.cron_expression.trim() !== '') {
+      // Calculate next execution from CRON expression
+      nextPingDue = calculateNextExecutionFromCron(checkData.cron_expression, now);
+      console.log(`Next ping due (CRON): ${nextPingDue.toISOString()}`);
+    } else if (checkData.period > 0) {
+      // Use period-based scheduling
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
+      console.log(`Next ping due (period): ${nextPingDue.toISOString()}`);
+    } else {
+      // Default fallback
+      nextPingDue = new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+      console.log(`Next ping due (default): ${nextPingDue.toISOString()}`);
     }
     
     // Parse HTTP config
@@ -231,7 +255,8 @@ Deno.serve(async (req) => {
         check: updateData[0],
         pingStatus,
         responseCode,
-        duration
+        duration,
+        nextPingDue: nextPingDue.toISOString()
       }),
       { status: 200, headers: corsHeaders }
     );
