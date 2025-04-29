@@ -102,6 +102,7 @@ function prepareCheckForSupabase(check: Partial<Check>) {
 export const CheckProvider = ({ children }: CheckProviderProps) => {
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(true);
+  const [httpCheckExecutionInProgress, setHttpCheckExecutionInProgress] = useState<Record<string, boolean>>({});
 
   function dateReviver(_key: string, value: any) {
     if (typeof value === 'string') {
@@ -115,13 +116,40 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
   function getNextCronDate(cronExpression: string, fromDate = new Date()): Date {
     try {
-      const interval = parseExpression(cronExpression, {
+      if (!cronExpression || cronExpression.trim() === '') {
+        throw new Error('Empty CRON expression');
+      }
+      
+      // Validate CRON format before parsing
+      const cronParts = cronExpression.trim().split(' ');
+      if (cronParts.length < 5) {
+        throw new Error(`Invalid CRON format: ${cronExpression}`);
+      }
+      
+      // Special handling for "*/large-number" which causes errors
+      for (let i = 0; i < 5; i++) {
+        if (cronParts[i].startsWith('*/')) {
+          const num = parseInt(cronParts[i].substring(2), 10);
+          // Apply reasonable limits based on CRON field position
+          if (i === 0 && num > 59) cronParts[i] = '*/59'; // minute
+          if (i === 1 && num > 23) cronParts[i] = '*/23'; // hour
+          if (i === 2 && num > 31) cronParts[i] = '*/28'; // day of month
+          if (i === 3 && num > 12) cronParts[i] = '*/12'; // month
+          if (i === 4 && num > 7) cronParts[i] = '*/7';   // day of week
+        }
+      }
+      
+      const safeCronExpression = cronParts.join(' ');
+      
+      // Parse with the sanitized expression
+      const interval = parseExpression(safeCronExpression, {
         currentDate: fromDate
       });
       return interval.next().toDate();
     } catch (error) {
       console.error("Error parsing CRON expression:", error);
-      return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      // Return a default value - 1 hour from now
+      return new Date(Date.now() + 60 * 60 * 1000);
     }
   }
 
@@ -143,9 +171,14 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         
         const updatedChecks = checksWithDates.map(check => {
           if (check.cronExpression && (!check.nextPingDue || check.lastPing)) {
-            const baseDate = check.lastPing || new Date();
-            const nextDue = getNextCronDate(check.cronExpression, baseDate);
-            return { ...check, nextPingDue: nextDue };
+            try {
+              const baseDate = check.lastPing || new Date();
+              const nextDue = getNextCronDate(check.cronExpression, baseDate);
+              return { ...check, nextPingDue: nextDue };
+            } catch (error) {
+              console.error(`Error calculating next ping due for check ${check.id}:`, error);
+              return check;
+            }
           }
           return check;
         });
@@ -171,7 +204,11 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           const newCheck = convertDatesToObjects(payload.new);
           
           if (newCheck.cronExpression && !newCheck.nextPingDue) {
-            newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
+            try {
+              newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
+            } catch (error) {
+              console.error(`Error calculating next ping due for new check ${newCheck.id}:`, error);
+            }
           }
           
           setChecks(prev => [newCheck, ...prev]);
@@ -201,25 +238,28 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         check.type === 'http_request' && 
         check.nextPingDue && 
         isPast(check.nextPingDue) &&
-        check.status !== 'down' // We don't want to execute checks that are already down
+        !httpCheckExecutionInProgress[check.id] // Don't re-execute checks that are already in progress
       );
       
       if (dueChecks.length > 0) {
-        console.log(`Found ${dueChecks.length} HTTP request checks due for execution`);
+        console.log(`Found ${dueChecks.length} HTTP request checks due for execution at ${now.toISOString()}`);
         
         for (const check of dueChecks) {
           try {
-            console.log(`Executing HTTP request check: ${check.id} - ${check.name}`);
+            setHttpCheckExecutionInProgress(prev => ({ ...prev, [check.id]: true }));
+            console.log(`Executing HTTP request check: ${check.id} - ${check.name} due at ${check.nextPingDue?.toISOString()}`);
             await executeHttpRequestCheck(check.id);
           } catch (error) {
             console.error(`Failed to execute HTTP request check ${check.id}:`, error);
+          } finally {
+            setHttpCheckExecutionInProgress(prev => ({ ...prev, [check.id]: false }));
           }
         }
       }
-    }, 30 * 1000); // Check every 30 seconds
+    }, 15 * 1000); // Check every 15 seconds
     
     return () => clearInterval(intervalId);
-  }, [checks]);
+  }, [checks, httpCheckExecutionInProgress]);
 
   const executeHttpRequestCheck = async (checkId: string) => {
     try {
@@ -282,7 +322,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           };
         })
       );
-    }, 60 * 1000);
+    }, 60 * 1000); // Check status every minute
 
     return () => clearInterval(intervalId);
   }, []);

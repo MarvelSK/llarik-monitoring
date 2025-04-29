@@ -1,3 +1,4 @@
+
 // HTTP Request Check Edge Function
 // This function sends HTTP requests and updates check status based on response
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
@@ -112,11 +113,37 @@ function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date =
   console.log(`Calculating next execution time from CRON: ${cronExpression}`);
   
   try {
+    // Handle empty cron expressions
+    if (!cronExpression || cronExpression.trim() === '') {
+      throw new Error('Empty CRON expression');
+    }
+    
     // Validate CRON expression format
     const parts = cronExpression.trim().split(' ');
     if (parts.length < 5) {
       throw new Error(`Invalid CRON expression format: ${cronExpression}`);
     }
+    
+    // Sanitize cron parts to prevent parsing errors
+    for (let i = 0; i < parts.length; i++) {
+      // Check for */number format and ensure the number is reasonable
+      if (parts[i].startsWith('*/')) {
+        const value = parseInt(parts[i].substring(2), 10);
+        
+        // Apply reasonable limits based on field position
+        if (i === 0 && (isNaN(value) || value > 59)) parts[i] = '*/15'; // minute
+        if (i === 1 && (isNaN(value) || value > 23)) parts[i] = '*/1';  // hour
+        if (i === 2 && (isNaN(value) || value > 28)) parts[i] = '*/1';  // day of month
+        if (i === 3 && (isNaN(value) || value > 12)) parts[i] = '*/1';  // month
+        if (i === 4 && (isNaN(value) || value > 7))  parts[i] = '*/1';  // day of week
+      }
+      // Check for numeric values within range
+      else if (!/^\*$/.test(parts[i]) && !/^[0-9\-,\/]+$/.test(parts[i])) {
+        parts[i] = '*'; // Replace invalid entries with * (any)
+      }
+    }
+    
+    const sanitizedCron = parts.join(' ');
     
     // Handle common interval patterns like */15 * * * * (every 15 minutes)
     if (parts[0].startsWith('*/')) {
@@ -158,36 +185,8 @@ function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date =
       }
     }
     
-    // Check for invalid values that would cause parsing errors
-    // Check minute (0-59)
-    if (parts[0] !== '*' && !parts[0].startsWith('*/')) {
-      const minute = parseInt(parts[0], 10);
-      if (isNaN(minute) || minute < 0 || minute > 59) {
-        console.error(`Invalid minute value in CRON: ${parts[0]}`);
-        throw new Error(`Invalid minute value: ${parts[0]}`);
-      }
-    }
-    
-    // Check hour (0-23)
-    if (parts[1] !== '*' && !parts[1].startsWith('*/')) {
-      const hour = parseInt(parts[1], 10);
-      if (isNaN(hour) || hour < 0 || hour > 23) {
-        console.error(`Invalid hour value in CRON: ${parts[1]}`);
-        throw new Error(`Invalid hour value: ${parts[1]}`);
-      }
-    }
-    
-    // Check day of month (1-31)
-    if (parts[2] !== '*' && !parts[2].startsWith('*/')) {
-      const day = parseInt(parts[2], 10);
-      if (isNaN(day) || day < 1 || day > 31) {
-        console.error(`Invalid day value in CRON: ${parts[2]}`);
-        throw new Error(`Invalid day value: ${parts[2]}`);
-      }
-    }
-    
     // Default fallback - add one hour if we can't parse the expression
-    console.log("Using fallback for CRON calculation");
+    console.log("Using simple default for CRON calculation");
     return new Date(fromTime.getTime() + 60 * 60 * 1000);
   } catch (error) {
     console.error("Error parsing CRON expression:", error);
@@ -261,9 +260,10 @@ Deno.serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
-    
+
     // Calculate next ping due time based on CRON or period
     let nextPingDue = new Date();
+    
     if (checkData.cron_expression && checkData.cron_expression.trim() !== '') {
       try {
         // Calculate next execution from CRON expression
@@ -272,22 +272,33 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error("Error calculating from CRON, using period-based timing:", error);
         // Fallback to period-based if CRON parsing fails
-        nextPingDue = new Date(now.getTime() + (checkData.period > 0 ? checkData.period : 60) * 60 * 1000);
+        const periodMinutes = checkData.period > 0 ? checkData.period : 60;
+        nextPingDue = new Date(now.getTime() + periodMinutes * 60 * 1000);
+        console.log(`Fallback next ping due (period): ${nextPingDue.toISOString()}`);
       }
     } else if (checkData.period > 0) {
       // Use period-based scheduling
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
       console.log(`Next ping due (period): ${nextPingDue.toISOString()}`);
     } else {
-      // Default fallback
-      nextPingDue = new Date(now.getTime() + 60 * 60 * 1000); // Default to 1 hour
+      // Default fallback - 1 hour
+      nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
       console.log(`Next ping due (default): ${nextPingDue.toISOString()}`);
     }
     
     // Parse HTTP config
-    const httpConfig = typeof checkData.http_config === 'string' 
-      ? JSON.parse(checkData.http_config) 
-      : checkData.http_config;
+    let httpConfig;
+    try {
+      httpConfig = typeof checkData.http_config === 'string' 
+        ? JSON.parse(checkData.http_config) 
+        : checkData.http_config;
+    } catch (error) {
+      console.error('Error parsing HTTP config:', error);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid HTTP configuration format' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
     
     // Execute the HTTP request
     console.log("Processing HTTP request check with config:", JSON.stringify(httpConfig));
@@ -295,19 +306,19 @@ Deno.serve(async (req) => {
     
     // Set values based on results
     const responseCode = result.status;
-    const method = result.method || httpConfig.method;
+    const method = result.method || httpConfig.method || 'GET';
     const requestUrl = result.url || httpConfig.url;
     const duration = result.duration || 0;
     
     // Determine success based on the configured success codes
-    const successCodes = Array.isArray(httpConfig.successCodes) 
+    const successCodes = Array.isArray(httpConfig.successCodes) && httpConfig.successCodes.length > 0
       ? httpConfig.successCodes 
       : [200, 201, 202, 204]; // Default success codes
       
     console.log(`Response code: ${responseCode}, Success codes: ${successCodes}`);
     
-    let pingStatus = 'success';
-    let checkStatus = 'up';
+    let pingStatus: 'success' | 'failure' = 'success';
+    let checkStatus: 'up' | 'down' | 'grace' | 'new' = 'up';
     
     if (!result.success || !successCodes.includes(responseCode)) {
       pingStatus = 'failure';
@@ -373,7 +384,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
+      JSON.stringify({ success: false, error: 'Internal server error', message: error.message }),
       { status: 500, headers: corsHeaders }
     );
   }
