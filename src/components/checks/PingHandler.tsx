@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -107,7 +108,19 @@ if (isApiRequest()) {
         // We'll get the status from URL parameters for API requests
         const urlParams = new URLSearchParams(window.location.search);
         const statusCode = parseInt(urlParams.get('status') || '200', 10);
-        const successCodes = checkData.http_config.successCodes || [200, 201, 202, 204];
+        
+        // Parse success codes from the http_config
+        let successCodes: number[] = [200, 201, 202, 204]; // default success codes
+        if (checkData.http_config && typeof checkData.http_config === 'object') {
+          // Convert to proper object if stored as string (common Supabase issue)
+          const httpConfig = typeof checkData.http_config === 'string' 
+            ? JSON.parse(checkData.http_config) 
+            : checkData.http_config;
+            
+          if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+            successCodes = httpConfig.successCodes;
+          }
+        }
         
         if (!successCodes.includes(statusCode)) {
           pingStatus = 'failure';
@@ -219,7 +232,7 @@ const PingHandler = () => {
         // Get the check from database to determine next ping calculation
         const { data: checkData, error: checkError } = await supabase
           .from('checks')
-          .select('*')
+          .select('*, http_config, type')
           .eq('id', checkId)
           .single();
           
@@ -260,7 +273,19 @@ const PingHandler = () => {
         if (checkData.type === 'http_request' && checkData.http_config) {
           const urlParams = new URLSearchParams(window.location.search);
           const statusCode = parseInt(urlParams.get('status') || '200', 10);
-          const successCodes = checkData.http_config.successCodes || [200, 201, 202, 204];
+          
+          // Parse success codes from the http_config
+          let successCodes: number[] = [200, 201, 202, 204]; // default success codes
+          if (checkData.http_config && typeof checkData.http_config === 'object') {
+            // Convert to proper object if stored as string (common Supabase issue)
+            const httpConfig = typeof checkData.http_config === 'string' 
+              ? JSON.parse(checkData.http_config) 
+              : checkData.http_config;
+              
+            if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+              successCodes = httpConfig.successCodes;
+            }
+          }
           
           if (!successCodes.includes(statusCode)) {
             pingStatus = 'failure';
