@@ -1,10 +1,10 @@
-
 import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
 import { parseExpression } from 'cron-parser';
+import { toast } from 'sonner';
 
 interface CheckContextType {
   checks: Check[];
@@ -103,6 +103,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(true);
   const [httpCheckExecutionInProgress, setHttpCheckExecutionInProgress] = useState<Record<string, boolean>>({});
+  const [lastExecutionAttempt, setLastExecutionAttempt] = useState<Record<string, number>>({});
 
   function dateReviver(_key: string, value: any) {
     if (typeof value === 'string') {
@@ -136,6 +137,16 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           if (i === 2 && num > 31) cronParts[i] = '*/28'; // day of month
           if (i === 3 && num > 12) cronParts[i] = '*/12'; // month
           if (i === 4 && num > 7) cronParts[i] = '*/7';   // day of week
+        }
+        
+        // Detect values out of range and apply limits
+        if (/^\d+$/.test(cronParts[i])) {
+          const num = parseInt(cronParts[i], 10);
+          if (i === 0 && num > 59) cronParts[i] = '59'; // minute
+          if (i === 1 && num > 23) cronParts[i] = '23'; // hour
+          if (i === 2 && num > 31) cronParts[i] = '28'; // day of month
+          if (i === 3 && num > 12) cronParts[i] = '12'; // month
+          if (i === 4 && num > 7) cronParts[i] = '7';   // day of week
         }
       }
       
@@ -232,14 +243,29 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     // Check for HTTP request checks that need to be executed
     const intervalId = setInterval(async () => {
       const now = new Date();
+      const currentTime = now.getTime();
       
       // Get checks that are due for execution
-      const dueChecks = checks.filter(check => 
-        check.type === 'http_request' && 
-        check.nextPingDue && 
-        isPast(check.nextPingDue) &&
-        !httpCheckExecutionInProgress[check.id] // Don't re-execute checks that are already in progress
-      );
+      const dueChecks = checks.filter(check => { 
+        if (check.type !== 'http_request' || !check.nextPingDue || !isPast(check.nextPingDue)) {
+          return false;
+        }
+
+        // Don't re-execute checks that are already in progress
+        if (httpCheckExecutionInProgress[check.id]) {
+          return false;
+        }
+        
+        // Throttle execution attempts - don't retry failed checks too frequently
+        // Only retry after at least 30 seconds
+        const lastAttempt = lastExecutionAttempt[check.id] || 0;
+        const timeSinceLastAttempt = currentTime - lastAttempt;
+        if (lastAttempt > 0 && timeSinceLastAttempt < 30000) {
+          return false;
+        }
+        
+        return true;
+      });
       
       if (dueChecks.length > 0) {
         console.log(`Found ${dueChecks.length} HTTP request checks due for execution at ${now.toISOString()}`);
@@ -247,6 +273,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         for (const check of dueChecks) {
           try {
             setHttpCheckExecutionInProgress(prev => ({ ...prev, [check.id]: true }));
+            setLastExecutionAttempt(prev => ({ ...prev, [check.id]: currentTime }));
+            
             console.log(`Executing HTTP request check: ${check.id} - ${check.name} due at ${check.nextPingDue?.toISOString()}`);
             await executeHttpRequestCheck(check.id);
           } catch (error) {
@@ -256,10 +284,10 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           }
         }
       }
-    }, 15 * 1000); // Check every 15 seconds
+    }, 10 * 1000); // Check every 10 seconds instead of 15
     
     return () => clearInterval(intervalId);
-  }, [checks, httpCheckExecutionInProgress]);
+  }, [checks, httpCheckExecutionInProgress, lastExecutionAttempt]);
 
   const executeHttpRequestCheck = async (checkId: string) => {
     try {
@@ -271,6 +299,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       
       if (error) {
         console.error(`Error executing HTTP request check for ${checkId}:`, error);
+        toast.error(`Failed to execute HTTP check: ${error.message || 'Network error'}`);
         return false;
       }
       
@@ -278,6 +307,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       return true;
     } catch (error) {
       console.error(`Error executing HTTP request check for ${checkId}:`, error);
+      toast.error(`Failed to execute HTTP check: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return false;
     }
   };

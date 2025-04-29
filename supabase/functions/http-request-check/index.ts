@@ -1,4 +1,3 @@
-
 // HTTP Request Check Edge Function
 // This function sends HTTP requests and updates check status based on response
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
@@ -198,7 +197,10 @@ function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date =
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {

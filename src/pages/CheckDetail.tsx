@@ -114,7 +114,7 @@ const CheckDetail = () => {
   }
 
   const getEnvironmentColor = (env: string) => {
-    switch(env) {
+    switch(env?.toLowerCase()) {
       case 'prod': return 'bg-amber-500 text-white';
       case 'produkcia': return 'bg-amber-500 text-white';
       case 'sandbox': return 'bg-rose-500 text-white';
@@ -127,6 +127,8 @@ const CheckDetail = () => {
   };
 
   const handlePing = async (status: CheckPing["status"]) => {
+    if (!check) return;
+    
     try {
       if (check.type === 'http_request') {
         toast.info('Executing HTTP request check...', {
@@ -145,6 +147,8 @@ const CheckDetail = () => {
   };
 
   const handleDelete = async () => {
+    if (!check) return;
+    
     try {
       await deleteCheck(check.id);
       toast.success('Check deleted successfully');
@@ -154,6 +158,21 @@ const CheckDetail = () => {
       toast.error("Failed to delete check");
     }
   };
+
+  if (!check && !loading && error) {
+    return (
+      <Layout>
+        <div className="text-center py-10">
+          <h2 className="text-2xl font-bold mb-2">Check not found</h2>
+          <p className="text-gray-500 mb-6">The check you're looking for doesn't exist or has been removed.</p>
+          <Button onClick={() => navigate("/")} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -169,21 +188,23 @@ const CheckDetail = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
-                {check.name}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => navigate(`/checks/${check.id}/edit`)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {check?.name || 'Loading...'}
+                {check && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => navigate(`/checks/${check.id}/edit`)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
               </h1>
               <div className="flex flex-wrap gap-1 mt-1">
-                {check.type === 'http_request' && (
+                {check?.type === 'http_request' && (
                   <Badge className="bg-blue-500 text-white">HTTP Request</Badge>
                 )}
-                {check.environments?.map((env) => (
+                {check?.environments?.map((env) => (
                   <Badge key={env} className={`${getEnvironmentColor(env)}`}>
                     {env}
                   </Badge>
@@ -192,20 +213,22 @@ const CheckDetail = () => {
             </div>
           </div>
           
-          <CheckActions 
-            check={check} 
-            onPing={handlePing} 
-            onDelete={handleDelete} 
-          />
+          {check && (
+            <CheckActions 
+              check={check} 
+              onPing={handlePing} 
+              onDelete={handleDelete} 
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
-            <CheckSummary check={check} />
+            {check ? <CheckSummary check={check} /> : <Skeleton className="h-64 w-full" />}
           </div>
           
           <div className="md:col-span-2">
-            <PingsList checkId={check.id} />
+            {check ? <PingsList checkId={check.id} /> : <Skeleton className="h-64 w-full" />}
           </div>
         </div>
       </div>
