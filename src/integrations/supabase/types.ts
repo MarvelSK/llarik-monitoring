@@ -38,6 +38,9 @@ export type Database = {
           check_id: string | null
           duration: number | null
           id: string
+          method: string | null
+          request_url: string | null
+          response_code: number | null
           status: string
           timestamp: string
         }
@@ -45,6 +48,9 @@ export type Database = {
           check_id?: string | null
           duration?: number | null
           id?: string
+          method?: string | null
+          request_url?: string | null
+          response_code?: number | null
           status: string
           timestamp?: string
         }
@@ -52,6 +58,9 @@ export type Database = {
           check_id?: string | null
           duration?: number | null
           id?: string
+          method?: string | null
+          request_url?: string | null
+          response_code?: number | null
           status?: string
           timestamp?: string
         }

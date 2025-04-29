@@ -6,6 +6,7 @@ import { useChecks } from "@/context/CheckContext";
 import { Check } from "@/types/check";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 
 const CheckEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,8 +43,14 @@ const CheckEdit = () => {
     
     // Ensure httpConfig is properly prepared for storage
     if (data.type === 'http_request' && data.httpConfig) {
-      // Make sure params and headers are properly stored
+      if (!data.httpConfig.url) {
+        toast.error("URL is required for HTTP Request checks");
+        return;
+      }
+      
+      // Validate the HTTP configuration
       console.log("HTTP Config before update:", data.httpConfig);
+      toast.info(`HTTP Request check will actively send requests to ${data.httpConfig.url}`);
     }
     
     updateCheck(check.id, data);

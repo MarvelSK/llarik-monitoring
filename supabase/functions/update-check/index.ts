@@ -21,6 +21,70 @@ const supabaseAdmin = createClient(
   }
 );
 
+/**
+ * Executes an HTTP request based on provided configuration
+ */
+async function executeHttpRequest(httpConfig: any) {
+  console.log("Executing HTTP request with config:", JSON.stringify(httpConfig));
+  
+  try {
+    const { url, method, params, headers } = httpConfig;
+    
+    if (!url) {
+      return { 
+        success: false, 
+        status: 0,
+        error: 'Missing URL in HTTP configuration' 
+      };
+    }
+    
+    // Prepare request options
+    const options: RequestInit = {
+      method: method || 'GET',
+      headers: headers || {},
+    };
+    
+    // Add request body for POST/PUT/PATCH requests
+    if (params && ['POST', 'PUT', 'PATCH'].includes(method?.toUpperCase() || '')) {
+      options.body = JSON.stringify(params);
+      if (!options.headers['Content-Type']) {
+        options.headers['Content-Type'] = 'application/json';
+      }
+    }
+    
+    // Add parameters to URL for GET requests
+    let targetUrl = url;
+    if (params && (method?.toUpperCase() === 'GET' || !method)) {
+      const urlObj = new URL(url);
+      Object.entries(params).forEach(([key, value]) => {
+        urlObj.searchParams.append(key, value.toString());
+      });
+      targetUrl = urlObj.toString();
+    }
+    
+    console.log(`Making ${options.method} request to ${targetUrl}`);
+    const startTime = Date.now();
+    
+    const response = await fetch(targetUrl, options);
+    const duration = Date.now() - startTime;
+    
+    return {
+      success: true,
+      status: response.status,
+      duration: duration / 1000, // Convert to seconds
+      url: targetUrl,
+      method: options.method
+    };
+  } catch (error) {
+    console.error("HTTP request execution failed:", error);
+    return {
+      success: false,
+      status: 0,
+      error: error.message
+    };
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -31,7 +95,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const checkId = url.pathname.split('/').pop();
     
-    console.log(`Processing ping for check ID: ${checkId}`);
+    console.log(`Processing check ID: ${checkId}`);
     
     if (!checkId) {
       return new Response(
@@ -77,24 +141,49 @@ Deno.serve(async (req) => {
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
     }
     
-    // Prepare HTTP-related data if needed
+    // Different handling based on check type
+    let pingStatus = 'success';
     let responseCode = null;
     let method = null;
     let requestUrl = null;
+    let duration = 0;
+    let checkStatus = 'up';
     
+    // If this is an HTTP request check, actively send the HTTP request
     if (checkData.type === 'http_request' && checkData.http_config) {
       // Parse HTTP config
       const httpConfig = typeof checkData.http_config === 'string' 
         ? JSON.parse(checkData.http_config) 
         : checkData.http_config;
       
+      console.log("Processing HTTP request check with config:", JSON.stringify(httpConfig));
+      
       if (httpConfig) {
-        method = httpConfig.method;
-        requestUrl = httpConfig.url;
-        responseCode = 200; // Default success code
+        // Execute the HTTP request
+        const result = await executeHttpRequest(httpConfig);
         
-        console.log("HTTP Config in edge function:", JSON.stringify(httpConfig));
+        // Set values based on results
+        responseCode = result.status;
+        method = result.method || httpConfig.method;
+        requestUrl = result.url || httpConfig.url;
+        duration = result.duration || 0;
+        
+        // Determine success based on the configured success codes
+        const successCodes = Array.isArray(httpConfig.successCodes) 
+          ? httpConfig.successCodes 
+          : [200, 201, 202, 204]; // Default success codes
+          
+        console.log(`Response code: ${responseCode}, Success codes: ${successCodes}`);
+        
+        if (!result.success || !successCodes.includes(responseCode)) {
+          pingStatus = 'failure';
+          checkStatus = 'down';
+          console.log(`HTTP request failed or returned non-success code: ${responseCode}`);
+        }
       }
+    } else {
+      // Standard ping check - status will be set to "up"
+      checkStatus = "up";
     }
     
     // Add ping record with HTTP details
@@ -102,9 +191,9 @@ Deno.serve(async (req) => {
       .from('check_pings')
       .insert({
         check_id: checkId,
-        status: 'success',
+        status: pingStatus,
         timestamp: now.toISOString(),
-        duration: 0,
+        duration: duration,
         response_code: responseCode,
         method: method,
         request_url: requestUrl
@@ -118,16 +207,17 @@ Deno.serve(async (req) => {
       );
     }
     
-    // CRITICAL: ALWAYS Force update check status to "up"
+    // Update the check with latest ping info and status
     const { error: updateError, data: updateData } = await supabaseAdmin
       .from('checks')
       .update({
         last_ping: now.toISOString(),
         next_ping_due: nextPingDue.toISOString(),
-        status: "up" // Always force status to "up"
+        status: checkStatus,
+        last_duration: duration
       })
       .eq('id', checkId)
-      .select('status, last_ping');
+      .select('status, last_ping, last_duration');
       
     if (updateError) {
       console.error('Error updating check:', updateError);
@@ -140,10 +230,15 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Ping successfully received and processed, status set to UP",
+        message: checkData.type === 'http_request' 
+          ? `HTTP request executed and status set to ${checkStatus.toUpperCase()}`
+          : "Ping successfully received and processed, status set to UP",
         id: checkId,
         timestamp: now.toISOString(),
-        check: updateData[0]
+        check: updateData[0],
+        pingStatus,
+        responseCode,
+        duration
       }),
       { status: 200, headers: corsHeaders }
     );

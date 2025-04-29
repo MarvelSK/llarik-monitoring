@@ -1,4 +1,3 @@
-
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
 export type CheckEnvironment = 'produkcia' | 'test' | 'manuál' | 'prod' | 'sandbox' | 'worker';
 export type CheckType = 'standard' | 'http_request';
@@ -19,6 +18,7 @@ export interface CheckPing {
   responseCode?: number;
   method?: HttpMethod;
   requestUrl?: string;
+  duration?: number;
 }
 
 export interface Check {
