@@ -1,6 +1,14 @@
 
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
 export type CheckEnvironment = 'produkcia' | 'test' | 'manuál' | 'prod' | 'sandbox' | 'worker';
+export type CheckType = 'standard' | 'http_request';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
+export interface HttpRequestConfig {
+  url: string;
+  method: HttpMethod;
+  successCodes: number[];
+}
 
 export interface CheckPing {
   id: string;
@@ -24,4 +32,6 @@ export interface Check {
   createdAt: Date;
   lastDuration?: number; // in seconds, for showing execution time
   projectId?: string;
+  type: CheckType;
+  httpConfig?: HttpRequestConfig;
 }

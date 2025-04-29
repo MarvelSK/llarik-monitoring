@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -100,22 +99,39 @@ if (isApiRequest()) {
         nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
       }
       
+      // For HTTP request checks, we need to get the response status
+      let pingStatus = 'success';
+
+      // If this is an HTTP request check, validate response status codes
+      if (checkData.type === 'http_request' && checkData.http_config) {
+        // We'll get the status from URL parameters for API requests
+        const urlParams = new URLSearchParams(window.location.search);
+        const statusCode = parseInt(urlParams.get('status') || '200', 10);
+        const successCodes = checkData.http_config.successCodes || [200, 201, 202, 204];
+        
+        if (!successCodes.includes(statusCode)) {
+          pingStatus = 'failure';
+        }
+      }
+      
       // Add ping record
       await supabase
         .from('check_pings')
         .insert({
           check_id: id,
-          status: 'success',
+          status: pingStatus,
           timestamp: now.toISOString()
         });
       
-      // CRITICAL: ALWAYS Force update check status to "up" regardless of previous status
+      // Update check status based on ping result
+      const newStatus = pingStatus === 'success' ? 'up' : 'down';
+      
       const { error: updateError, data: updateData } = await supabase
         .from('checks')
         .update({
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"  // Always force to "up"
+          status: newStatus
         })
         .eq('id', id)
         .select('status, last_ping');
@@ -132,14 +148,14 @@ if (isApiRequest()) {
       // Overwrite the entire page content with JSON response
       document.body.innerHTML = JSON.stringify({
         success: true,
-        message: "Ping successfully received and processed, status set to UP",
+        message: `Ping successfully received and processed, status set to ${newStatus.toUpperCase()}`,
         id,
         timestamp: now.toISOString(),
-        check: updateData[0]
+        check: updateData[0],
+        pingStatus
       }, null, 2);
       
       // Set content type for PowerShell and other clients that look at content type
-      // FIX: use meta tag instead of trying to set document.contentType
       const meta = document.createElement('meta');
       meta.httpEquiv = 'Content-Type';
       meta.content = 'application/json';
@@ -236,12 +252,28 @@ const PingHandler = () => {
           nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
         }
         
+        // For HTTP request checks, we need to get the response status
+        let pingStatus = 'success';
+        let checkStatus = 'up';
+
+        // If this is an HTTP request check, get status from URL parameters
+        if (checkData.type === 'http_request' && checkData.http_config) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const statusCode = parseInt(urlParams.get('status') || '200', 10);
+          const successCodes = checkData.http_config.successCodes || [200, 201, 202, 204];
+          
+          if (!successCodes.includes(statusCode)) {
+            pingStatus = 'failure';
+            checkStatus = 'down';
+          }
+        }
+        
         // Record the ping
         const { error: pingError } = await supabase
           .from('check_pings')
           .insert({
             check_id: checkId,
-            status: 'success',
+            status: pingStatus,
             timestamp: now.toISOString()
           });
           
@@ -252,17 +284,17 @@ const PingHandler = () => {
           return;
         }
         
-        // CRITICAL: ALWAYS update check status to "up" regardless of previous status
+        // Update check status based on ping status
         const updateData = {
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up"  // Force status to "up" always
+          status: checkStatus
         };
         
         console.log('Updating check with data:', updateData);
         console.log('Current check status before update:', checkData.status);
         
-        // Make direct update to ensure status is changed to "up"
+        // Make direct update to ensure status is set correctly
         const { error: updateError } = await supabase
           .from('checks')
           .update(updateData)

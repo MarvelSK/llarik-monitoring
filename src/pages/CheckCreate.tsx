@@ -20,6 +20,9 @@ const CheckCreate = () => {
       data.period = 5; // Set a default period
     }
     
+    // Set the check type - either standard or http_request
+    data.type = data.type || "standard";
+    
     // Use the projectId from the form data directly
     await createCheck(data);
     navigate("/");

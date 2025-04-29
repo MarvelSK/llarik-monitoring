@@ -40,6 +40,8 @@ function convertDatesToObjects(check: any): Check {
     projectId: check.project_id,
     cronExpression: check.cron_expression,
     pings: [], // We'll load pings separately as needed
+    type: check.type || "standard", // Default to standard if not specified
+    httpConfig: check.http_config, // Add HTTP config
   };
 }
 
@@ -56,7 +58,9 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     last_duration: check.lastDuration,
     last_ping: check.lastPing?.toISOString(),
     next_ping_due: check.nextPingDue?.toISOString(),
-    project_id: check.projectId
+    project_id: check.projectId,
+    type: check.type || "standard",
+    http_config: check.httpConfig
   };
 }
 
@@ -338,7 +342,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         cron_expression: checkData.cronExpression || null,
         project_id: checkData.projectId,
         next_ping_due: nextPingDue?.toISOString(),
-        created_at: now.toISOString()
+        created_at: now.toISOString(),
+        type: checkData.type || "standard",
+        http_config: checkData.httpConfig || null
       };
 
       const { data, error } = await supabase
