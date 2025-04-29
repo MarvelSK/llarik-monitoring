@@ -19,9 +19,9 @@ export interface Database {
           status: string
           timestamp: string
           duration: number | null
-          response_code?: number | null
-          method?: string | null
-          request_url?: string | null
+          response_code: number | null
+          method: string | null
+          request_url: string | null
         }
       }
       checks: {
