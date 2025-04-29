@@ -1,4 +1,4 @@
-import { Check, CheckPing, CheckStatus } from "@/types/check";
+import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { Integration } from "@/types/integration";
