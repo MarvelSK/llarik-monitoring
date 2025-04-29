@@ -68,7 +68,7 @@ if (isApiRequest()) {
       // Get the check
       const { data: checkData, error: checkError } = await supabase
         .from('checks')
-        .select('*')
+        .select('*, type, http_config')
         .eq('id', id)
         .single();
         
@@ -111,15 +111,22 @@ if (isApiRequest()) {
         
         // Parse success codes from the http_config
         let successCodes: number[] = [200, 201, 202, 204]; // default success codes
-        if (checkData.http_config && typeof checkData.http_config === 'object') {
-          // Convert to proper object if stored as string (common Supabase issue)
-          const httpConfig = typeof checkData.http_config === 'string' 
-            ? JSON.parse(checkData.http_config) 
-            : checkData.http_config;
-            
-          if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
-            successCodes = httpConfig.successCodes;
+        
+        try {
+          // Handle http_config as string or object
+          if (typeof checkData.http_config === 'string') {
+            const parsedConfig = JSON.parse(checkData.http_config);
+            if (parsedConfig.successCodes && Array.isArray(parsedConfig.successCodes)) {
+              successCodes = parsedConfig.successCodes;
+            }
+          } else if (checkData.http_config && typeof checkData.http_config === 'object') {
+            const httpConfig = checkData.http_config;
+            if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+              successCodes = httpConfig.successCodes;
+            }
           }
+        } catch (error) {
+          console.error("Error parsing HTTP config:", error);
         }
         
         if (!successCodes.includes(statusCode)) {
@@ -232,7 +239,7 @@ const PingHandler = () => {
         // Get the check from database to determine next ping calculation
         const { data: checkData, error: checkError } = await supabase
           .from('checks')
-          .select('*, http_config, type')
+          .select('*, type, http_config')
           .eq('id', checkId)
           .single();
           
@@ -276,15 +283,22 @@ const PingHandler = () => {
           
           // Parse success codes from the http_config
           let successCodes: number[] = [200, 201, 202, 204]; // default success codes
-          if (checkData.http_config && typeof checkData.http_config === 'object') {
-            // Convert to proper object if stored as string (common Supabase issue)
-            const httpConfig = typeof checkData.http_config === 'string' 
-              ? JSON.parse(checkData.http_config) 
-              : checkData.http_config;
-              
-            if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
-              successCodes = httpConfig.successCodes;
+          
+          try {
+            // Handle http_config as string or object
+            if (typeof checkData.http_config === 'string') {
+              const parsedConfig = JSON.parse(checkData.http_config);
+              if (parsedConfig.successCodes && Array.isArray(parsedConfig.successCodes)) {
+                successCodes = parsedConfig.successCodes;
+              }
+            } else if (checkData.http_config && typeof checkData.http_config === 'object') {
+              const httpConfig = checkData.http_config;
+              if (httpConfig.successCodes && Array.isArray(httpConfig.successCodes)) {
+                successCodes = httpConfig.successCodes;
+              }
             }
+          } catch (error) {
+            console.error("Error parsing HTTP config:", error);
           }
           
           if (!successCodes.includes(statusCode)) {

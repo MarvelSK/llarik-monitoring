@@ -72,6 +72,7 @@ export type Database = {
           description: string | null
           environments: string[] | null
           grace: number
+          http_config: Json | null
           id: string
           last_duration: number | null
           last_ping: string | null
@@ -81,6 +82,7 @@ export type Database = {
           project_id: string | null
           status: string
           tags: string[] | null
+          type: string | null
         }
         Insert: {
           created_at?: string
@@ -88,6 +90,7 @@ export type Database = {
           description?: string | null
           environments?: string[] | null
           grace: number
+          http_config?: Json | null
           id?: string
           last_duration?: number | null
           last_ping?: string | null
@@ -97,6 +100,7 @@ export type Database = {
           project_id?: string | null
           status: string
           tags?: string[] | null
+          type?: string | null
         }
         Update: {
           created_at?: string
@@ -104,6 +108,7 @@ export type Database = {
           description?: string | null
           environments?: string[] | null
           grace?: number
+          http_config?: Json | null
           id?: string
           last_duration?: number | null
           last_ping?: string | null
@@ -113,6 +118,7 @@ export type Database = {
           project_id?: string | null
           status?: string
           tags?: string[] | null
+          type?: string | null
         }
         Relationships: [
           {
