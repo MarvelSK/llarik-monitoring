@@ -8,12 +8,17 @@ export interface HttpRequestConfig {
   url: string;
   method: HttpMethod;
   successCodes: number[];
+  params?: Record<string, string>; // Added parameters for POST/PUT requests
+  headers?: Record<string, string>; // Added headers option
 }
 
 export interface CheckPing {
   id: string;
   timestamp: Date;
   status: 'success' | 'failure' | 'start' | 'timeout';
+  responseCode?: number; // Added response code
+  method?: HttpMethod; // Added HTTP method used
+  requestUrl?: string; // Added request URL
 }
 
 export interface Check {

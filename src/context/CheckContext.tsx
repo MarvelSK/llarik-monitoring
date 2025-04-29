@@ -1,4 +1,3 @@
-
 import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -42,7 +41,7 @@ function convertDatesToObjects(check: any): Check {
     cronExpression: check.cron_expression,
     pings: [], // We'll load pings separately as needed
     type: check.type || "standard", // Default to standard if not specified
-    httpConfig: check.http_config, // Add HTTP config
+    httpConfig: check.http_config ? JSON.parse(check.http_config) : undefined, // Parse HTTP config
   };
 }
 
@@ -379,13 +378,29 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       
       const nextPingDue = await calculateNextPingDue(id, now);
 
+      // First, get the check to extract HTTP config information if needed
+      const check = getCheck(id);
+      let responseCode: number | undefined = undefined;
+      let method: HttpMethod | undefined = undefined;
+      let requestUrl: string | undefined = undefined;
+      
+      // If this is an HTTP check, record the HTTP details
+      if (check && check.type === 'http_request' && check.httpConfig) {
+        responseCode = status === 'success' ? 200 : 500; // Default values
+        method = check.httpConfig.method;
+        requestUrl = check.httpConfig.url;
+      }
+
       const { error: pingError } = await supabase
         .from('check_pings')
         .insert({
           check_id: id,
           status,
           timestamp: now.toISOString(),
-          duration: 0
+          duration: 0,
+          response_code: responseCode,
+          method,
+          request_url: requestUrl
         });
 
       if (pingError) {

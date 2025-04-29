@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "@/types/check";
 import StatusBadge from "../status/StatusBadge";
@@ -67,6 +66,16 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
                 Čas odkladu: <span className="font-medium">{check.grace} minút</span>
               </span>
             </div>
+            
+            {/* Display HTTP method if it's an HTTP request check */}
+            {check.type === 'http_request' && check.httpConfig && (
+              <div className="flex items-center text-sm">
+                <LinkIcon className="w-4 h-4 mr-2 text-gray-500" />
+                <span className="text-gray-700 dark:text-gray-300">
+                  HTTP Metóda: <span className="font-medium">{check.httpConfig.method}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -108,7 +117,11 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <LinkIcon className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">URL pingu</span>
+                {check.type === 'http_request' && check.httpConfig ? (
+                  <span className="font-medium">Cieľová URL</span>
+                ) : (
+                  <span className="font-medium">URL pingu</span>
+                )}
               </div>
               <Button
                 variant="ghost"
@@ -120,8 +133,46 @@ const CheckSummary = ({ check }: CheckSummaryProps) => {
               </Button>
             </div>
             <code className="text-xs bg-background p-2 rounded break-all">
-              {getPingUrl(check.id)}
+              {check.type === 'http_request' && check.httpConfig ? (
+                check.httpConfig.url
+              ) : (
+                getPingUrl(check.id)
+              )}
             </code>
+            
+            {/* Display HTTP params if present */}
+            {check.type === 'http_request' && check.httpConfig?.params && Object.keys(check.httpConfig.params).length > 0 && (
+              <>
+                <div className="mt-2 text-sm font-medium">Parametre:</div>
+                <code className="text-xs bg-background p-2 rounded break-all">
+                  {Object.entries(check.httpConfig.params).map(([key, value], i) => (
+                    <div key={key}>{key}: {value}</div>
+                  ))}
+                </code>
+              </>
+            )}
+            
+            {/* Display HTTP headers if present */}
+            {check.type === 'http_request' && check.httpConfig?.headers && Object.keys(check.httpConfig.headers).length > 0 && (
+              <>
+                <div className="mt-2 text-sm font-medium">Hlavičky:</div>
+                <code className="text-xs bg-background p-2 rounded break-all">
+                  {Object.entries(check.httpConfig.headers).map(([key, value], i) => (
+                    <div key={key}>{key}: {value}</div>
+                  ))}
+                </code>
+              </>
+            )}
+            
+            {/* Display success codes */}
+            {check.type === 'http_request' && check.httpConfig?.successCodes && (
+              <>
+                <div className="mt-2 text-sm font-medium">Úspešné kódy:</div>
+                <code className="text-xs bg-background p-2 rounded break-all">
+                  {check.httpConfig.successCodes.join(', ')}
+                </code>
+              </>
+            )}
           </div>
 
           <Button 

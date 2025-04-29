@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -40,6 +39,8 @@ const formSchema = z.object({
   httpUrl: z.string().url("Zadajte platnú URL vrátane http:// alebo https://").optional(),
   httpMethod: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]).default("GET").optional(),
   successCodes: z.string().optional(),
+  httpParams: z.string().optional(), // Added for request parameters
+  httpHeaders: z.string().optional(), // Added for request headers
 });
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
@@ -65,6 +66,14 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       httpUrl: defaultValues?.httpConfig?.url || "",
       httpMethod: defaultValues?.httpConfig?.method || "GET",
       successCodes: defaultValues?.httpConfig?.successCodes?.join(", ") || defaultSuccessCodes.join(", "),
+      httpParams: defaultValues?.httpConfig?.params ? 
+        Object.entries(defaultValues.httpConfig.params)
+          .map(([key, value]) => `${key}=${value}`)
+          .join("\n") : "",
+      httpHeaders: defaultValues?.httpConfig?.headers ? 
+        Object.entries(defaultValues.httpConfig.headers)
+          .map(([key, value]) => `${key}:${value}`)
+          .join("\n") : "",
     },
   });
   
@@ -133,10 +142,34 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
         ? values.successCodes.split(",").map(code => parseInt(code.trim())).filter(code => !isNaN(code))
         : defaultSuccessCodes;
 
+      // Parse parameters from text input
+      const params: Record<string, string> = {};
+      if (values.httpParams) {
+        values.httpParams.split("\n").forEach(line => {
+          const [key, value] = line.split("=").map(part => part.trim());
+          if (key && value) {
+            params[key] = value;
+          }
+        });
+      }
+
+      // Parse headers from text input
+      const headers: Record<string, string> = {};
+      if (values.httpHeaders) {
+        values.httpHeaders.split("\n").forEach(line => {
+          const [key, value] = line.split(":").map(part => part.trim());
+          if (key && value) {
+            headers[key] = value;
+          }
+        });
+      }
+
       formData.httpConfig = {
         url: values.httpUrl,
         method: values.httpMethod as HttpMethod,
-        successCodes
+        successCodes,
+        params: Object.keys(params).length ? params : undefined,
+        headers: Object.keys(headers).length ? headers : undefined
       };
     }
     
@@ -232,7 +265,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   name="httpUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL</FormLabel>
+                      <FormLabel>Cieľová URL</FormLabel>
                       <FormControl>
                         <Input placeholder="https://example.com/api/endpoint" {...field} />
                       </FormControl>
@@ -267,6 +300,54 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                       </Select>
                       <FormDescription>
                         HTTP metóda na použitie
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* New field - HTTP parameters */}
+                {(form.watch("httpMethod") === "POST" || 
+                  form.watch("httpMethod") === "PUT" || 
+                  form.watch("httpMethod") === "PATCH") && (
+                  <FormField
+                    control={form.control}
+                    name="httpParams"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Parametre</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="key1=value1&#10;key2=value2" 
+                            className="font-mono text-sm"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Parametre pre request (jeden parameter na riadok vo formáte kľúč=hodnota)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* New field - HTTP headers */}
+                <FormField
+                  control={form.control}
+                  name="httpHeaders"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hlavičky (Headers)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Content-Type:application/json&#10;Authorization:Bearer token" 
+                          className="font-mono text-sm"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        HTTP hlavičky (jeden header na riadok vo formáte kľúč:hodnota)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

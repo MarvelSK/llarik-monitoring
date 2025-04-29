@@ -1,10 +1,11 @@
 
 import { CheckPing } from "@/types/check";
 import { formatDistanceToNow } from "date-fns";
-import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { CheckCircle, Clock, Code, Database, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {sk} from "date-fns/locale";
+import { Badge } from "../ui/badge";
 
 interface PingsListProps {
   checkId: string;
@@ -34,6 +35,9 @@ const PingsList = ({ checkId }: PingsListProps) => {
           id: ping.id,
           timestamp: new Date(ping.timestamp),
           status: ping.status as CheckPing['status'],
+          responseCode: ping.response_code,
+          method: ping.method,
+          requestUrl: ping.request_url
         }));
 
         setPings(formattedPings);
@@ -61,6 +65,9 @@ const PingsList = ({ checkId }: PingsListProps) => {
           id: payload.new.id,
           timestamp: new Date(payload.new.timestamp),
           status: payload.new.status as CheckPing['status'],
+          responseCode: payload.new.response_code,
+          method: payload.new.method,
+          requestUrl: payload.new.request_url
         };
         setPings(prev => [newPing, ...prev].slice(0, 50));
       })
@@ -84,6 +91,28 @@ const PingsList = ({ checkId }: PingsListProps) => {
       default:
         return <Clock className="w-5 h-5 text-muted-foreground" />;
     }
+  };
+
+  const getMethodBadge = (method?: string) => {
+    if (!method) return null;
+    
+    const colorMap: Record<string, string> = {
+      'GET': 'bg-blue-500',
+      'POST': 'bg-green-500',
+      'PUT': 'bg-orange-500',
+      'DELETE': 'bg-red-500',
+      'PATCH': 'bg-yellow-500',
+      'HEAD': 'bg-purple-500',
+      'OPTIONS': 'bg-gray-500'
+    };
+    
+    const color = colorMap[method] || 'bg-gray-500';
+    
+    return (
+      <Badge className={`${color} text-white text-xs px-2 py-0.5`}>
+        {method}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -124,10 +153,27 @@ const PingsList = ({ checkId }: PingsListProps) => {
               className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded"
             >
               <div className="mr-3">{getPingIcon(ping.status)}</div>
-              <div>
-                <div className="font-medium">{ping.status}</div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{ping.status}</span>
+                  
+                  {ping.responseCode && (
+                    <Badge className="bg-gray-200 text-gray-800 text-xs px-2 py-0.5">
+                      <Code className="h-3 w-3 mr-1" /> {ping.responseCode}
+                    </Badge>
+                  )}
+                  
+                  {getMethodBadge(ping.method)}
+                </div>
+                
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   {formatDistanceToNow(ping.timestamp, { addSuffix: true, locale: sk })}
+                  
+                  {ping.requestUrl && (
+                    <div className="mt-1 truncate max-w-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-xs opacity-70">{ping.requestUrl}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

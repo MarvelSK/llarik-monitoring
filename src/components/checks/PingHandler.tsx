@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -103,35 +104,40 @@ if (isApiRequest()) {
       
       // For HTTP request checks, we need to get the response status
       let pingStatus = 'success';
+      let responseCode = 200;
+      let requestUrl = undefined;
+      let method = undefined;
 
       // If this is an HTTP request check, validate response status codes
       if (checkData.type === 'http_request' && checkData.http_config) {
         // We'll get the status from URL parameters for API requests
         const urlParams = new URLSearchParams(window.location.search);
-        const statusCode = parseInt(urlParams.get('status') || '200', 10);
+        responseCode = parseInt(urlParams.get('status') || '200', 10);
         
-        // Parse success codes from the http_config
-        let successCodes: number[] = [200, 201, 202, 204]; // default success codes
+        // Parse HTTP config info
+        let httpConfig: HttpRequestConfig | null = null;
         
         try {
-          // Handle http_config as string or object
-          if (typeof checkData.http_config === 'string') {
-            const parsedConfig = JSON.parse(checkData.http_config);
-            if (parsedConfig && Array.isArray(parsedConfig.successCodes)) {
-              successCodes = parsedConfig.successCodes;
-            }
-          } else if (checkData.http_config && typeof checkData.http_config === 'object') {
-            const httpConfig = checkData.http_config as any;
+          httpConfig = typeof checkData.http_config === 'string' 
+            ? JSON.parse(checkData.http_config) 
+            : checkData.http_config;
+            
+          if (httpConfig) {
+            requestUrl = httpConfig.url;
+            method = httpConfig.method;
+            
+            // Parse success codes list
+            let successCodes: number[] = [200, 201, 202, 204]; // Default
             if (httpConfig && Array.isArray(httpConfig.successCodes)) {
               successCodes = httpConfig.successCodes;
+            }
+            
+            if (!successCodes.includes(responseCode)) {
+              pingStatus = 'failure';
             }
           }
         } catch (error) {
           console.error("Error parsing HTTP config:", error);
-        }
-        
-        if (!successCodes.includes(statusCode)) {
-          pingStatus = 'failure';
         }
       }
       
@@ -141,7 +147,10 @@ if (isApiRequest()) {
         .insert({
           check_id: id,
           status: pingStatus,
-          timestamp: now.toISOString()
+          timestamp: now.toISOString(),
+          response_code: responseCode,
+          method: method,
+          request_url: requestUrl
         });
       
       // Update check status based on ping result
@@ -173,7 +182,8 @@ if (isApiRequest()) {
         id,
         timestamp: now.toISOString(),
         check: updateData[0],
-        pingStatus
+        pingStatus,
+        responseCode
       }, null, 2);
       
       // Set content type for PowerShell and other clients that look at content type
@@ -276,35 +286,43 @@ const PingHandler = () => {
         // For HTTP request checks, we need to get the response status
         let pingStatus = 'success';
         let checkStatus = 'up';
+        let responseCode = 200;
+        let requestUrl = undefined;
+        let method = undefined;
 
         // If this is an HTTP request check, get status from URL parameters
         if (checkData.type === 'http_request' && checkData.http_config) {
           const urlParams = new URLSearchParams(window.location.search);
-          const statusCode = parseInt(urlParams.get('status') || '200', 10);
+          responseCode = parseInt(urlParams.get('status') || '200', 10);
           
-          // Parse success codes from the http_config
-          let successCodes: number[] = [200, 201, 202, 204]; // default success codes
-          
+          // Parse HTTP config
           try {
             // Handle http_config as string or object
+            let httpConfig: HttpRequestConfig | null = null;
+            
             if (typeof checkData.http_config === 'string') {
-              const parsedConfig = JSON.parse(checkData.http_config);
-              if (parsedConfig && Array.isArray(parsedConfig.successCodes)) {
-                successCodes = parsedConfig.successCodes;
-              }
+              httpConfig = JSON.parse(checkData.http_config);
             } else if (checkData.http_config && typeof checkData.http_config === 'object') {
-              const httpConfig = checkData.http_config as any;
+              httpConfig = checkData.http_config as any;
+            }
+            
+            if (httpConfig) {
+              requestUrl = httpConfig.url;
+              method = httpConfig.method;
+              
+              // Get success codes
+              let successCodes: number[] = [200, 201, 202, 204]; // default
               if (httpConfig && Array.isArray(httpConfig.successCodes)) {
                 successCodes = httpConfig.successCodes;
+              }
+              
+              if (!successCodes.includes(responseCode)) {
+                pingStatus = 'failure';
+                checkStatus = 'down';
               }
             }
           } catch (error) {
             console.error("Error parsing HTTP config:", error);
-          }
-          
-          if (!successCodes.includes(statusCode)) {
-            pingStatus = 'failure';
-            checkStatus = 'down';
           }
         }
         
@@ -314,7 +332,10 @@ const PingHandler = () => {
           .insert({
             check_id: checkId,
             status: pingStatus,
-            timestamp: now.toISOString()
+            timestamp: now.toISOString(),
+            response_code: responseCode,
+            method: method,
+            request_url: requestUrl
           });
           
         if (pingError) {
