@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useChecks } from "@/context/CheckContext";
 import { CheckPing } from "@/types/check";
 import { ArrowLeft, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -16,8 +17,25 @@ const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getCheck, pingCheck, deleteCheck, loading } = useChecks();
+  const [check, setCheck] = useState<ReturnType<typeof getCheck>>(undefined);
+  const [error, setError] = useState<string | null>(null);
 
-  const check = id ? getCheck(id) : undefined;
+  useEffect(() => {
+    try {
+      if (id) {
+        const checkData = getCheck(id);
+        setCheck(checkData);
+        if (!checkData && !loading) {
+          setError("Check not found");
+        } else {
+          setError(null);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching check:", e);
+      setError("Failed to load check details");
+    }
+  }, [id, getCheck, loading]);
 
   if (loading) {
     return (
@@ -79,7 +97,7 @@ const CheckDetail = () => {
     );
   }
 
-  if (!check) {
+  if (error || !check) {
     return (
       <Layout>
         <div className="text-center py-10">
@@ -104,7 +122,7 @@ const CheckDetail = () => {
     }
   };
 
-  const handlePing = (status: CheckPing["status"]) => {
+  const handlePing = async (status: CheckPing["status"]) => {
     if (check.type === 'http_request') {
       toast.info('Executing HTTP request check...', {
         description: 'This will send an actual HTTP request to the configured endpoint.'
@@ -114,7 +132,8 @@ const CheckDetail = () => {
     }
     
     try {
-      pingCheck(check.id, status);
+      await pingCheck(check.id, status);
+      toast.success('Check pinged successfully');
     } catch (error) {
       console.error("Error sending ping:", error);
       toast.error("Failed to process ping");
@@ -124,6 +143,7 @@ const CheckDetail = () => {
   const handleDelete = async () => {
     try {
       await deleteCheck(check.id);
+      toast.success('Check deleted successfully');
       navigate("/");
     } catch (error) {
       console.error("Error deleting check:", error);

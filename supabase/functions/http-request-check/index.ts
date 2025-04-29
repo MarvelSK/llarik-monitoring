@@ -1,3 +1,4 @@
+
 // HTTP Request Check Edge Function
 // This function sends HTTP requests and updates check status based on response
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
@@ -112,23 +113,62 @@ function calculateNextExecutionFromCron(cronExpression: string, fromTime: Date =
   console.log(`Calculating next execution time from CRON: ${cronExpression}`);
   
   try {
-    // Simple parsing for common minute-based CRON patterns
+    // Handle common interval patterns like */15 * * * * (every 15 minutes)
     if (cronExpression.startsWith('*/')) {
-      const minuteParts = cronExpression.split(' ');
-      if (minuteParts.length > 0) {
-        const minutes = parseInt(minuteParts[0].substring(2), 10);
-        if (!isNaN(minutes) && minutes > 0) {
-          return new Date(fromTime.getTime() + minutes * 60 * 1000);
+      const parts = cronExpression.split(' ');
+      const firstPart = parts[0];
+      
+      if (firstPart.startsWith('*/')) {
+        const minutes = parseInt(firstPart.substring(2), 10);
+        
+        if (!isNaN(minutes) && minutes > 0 && minutes <= 59) {
+          // For minute-based intervals
+          const nextTime = new Date(fromTime);
+          nextTime.setSeconds(0);
+          nextTime.setMilliseconds(0);
+          
+          const currentMinute = nextTime.getMinutes();
+          const remainder = currentMinute % minutes;
+          
+          // Set to next interval
+          nextTime.setMinutes(currentMinute + (minutes - remainder));
+          
+          return nextTime;
         }
       }
     }
     
-    // Default fallback for more complex CRON patterns
-    // In a production app, you would use a more robust CRON parser
-    return new Date(fromTime.getTime() + 60 * 60 * 1000); // Default to 1 hour
+    // For numeric patterns (e.g., "15 * * * *" - at minute 15 of every hour)
+    const parts = cronExpression.trim().split(' ');
+    if (parts.length >= 5) {
+      // Simple implementation for hourly patterns
+      if (parts[0] !== '*' && parts[1] === '*') {
+        const minute = parseInt(parts[0], 10);
+        if (!isNaN(minute) && minute >= 0 && minute <= 59) {
+          const nextTime = new Date(fromTime);
+          const currentMinute = nextTime.getMinutes();
+          
+          nextTime.setSeconds(0);
+          nextTime.setMilliseconds(0);
+          
+          if (currentMinute >= minute) {
+            // If we've already passed this minute in the current hour, go to next hour
+            nextTime.setHours(nextTime.getHours() + 1);
+          }
+          
+          nextTime.setMinutes(minute);
+          return nextTime;
+        }
+      }
+    }
+    
+    // Default fallback - add one hour
+    console.log("Using fallback for CRON calculation");
+    return new Date(fromTime.getTime() + 60 * 60 * 1000);
   } catch (error) {
     console.error("Error parsing CRON expression:", error);
-    return new Date(fromTime.getTime() + 60 * 60 * 1000); // Default to 1 hour
+    // Default fallback - add one hour
+    return new Date(fromTime.getTime() + 60 * 60 * 1000);
   }
 }
 
@@ -179,9 +219,15 @@ Deno.serve(async (req) => {
     // Calculate next ping due time based on CRON or period
     let nextPingDue = new Date();
     if (checkData.cron_expression && checkData.cron_expression.trim() !== '') {
-      // Calculate next execution from CRON expression
-      nextPingDue = calculateNextExecutionFromCron(checkData.cron_expression, now);
-      console.log(`Next ping due (CRON): ${nextPingDue.toISOString()}`);
+      try {
+        // Calculate next execution from CRON expression
+        nextPingDue = calculateNextExecutionFromCron(checkData.cron_expression, now);
+        console.log(`Next ping due (CRON): ${nextPingDue.toISOString()}`);
+      } catch (error) {
+        console.error("Error calculating from CRON, using period-based timing:", error);
+        // Fallback to period-based if CRON parsing fails
+        nextPingDue = new Date(now.getTime() + (checkData.period > 0 ? checkData.period : 60) * 60 * 1000);
+      }
     } else if (checkData.period > 0) {
       // Use period-based scheduling
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
