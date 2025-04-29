@@ -1,3 +1,4 @@
+
 import { CheckPing } from "@/types/check";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle, Clock, Code, Database, XCircle } from "lucide-react";
@@ -34,9 +35,9 @@ const PingsList = ({ checkId }: PingsListProps) => {
           id: ping.id,
           timestamp: new Date(ping.timestamp),
           status: ping.status as CheckPing['status'],
-          responseCode: ping.response_code || undefined,
-          method: ping.method as CheckPing['method'],
-          requestUrl: ping.request_url || undefined
+          responseCode: ping.response_code ?? undefined,
+          method: ping.method ? (ping.method as CheckPing['method']) : undefined,
+          requestUrl: ping.request_url ?? undefined
         }));
 
         setPings(formattedPings);
@@ -64,9 +65,9 @@ const PingsList = ({ checkId }: PingsListProps) => {
           id: payload.new.id,
           timestamp: new Date(payload.new.timestamp),
           status: payload.new.status as CheckPing['status'],
-          responseCode: payload.new.response_code || undefined,
-          method: payload.new.method as CheckPing['method'] || undefined,
-          requestUrl: payload.new.request_url || undefined
+          responseCode: payload.new.response_code ?? undefined,
+          method: payload.new.method ? (payload.new.method as CheckPing['method']) : undefined,
+          requestUrl: payload.new.request_url ?? undefined
         };
         setPings(prev => [newPing, ...prev].slice(0, 50));
       })
