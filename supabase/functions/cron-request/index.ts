@@ -1,14 +1,25 @@
 
-// HTTP request check edge function - executes HTTP requests and updates check status
+// cron-request edge function - executes HTTP requests and updates check status
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-// Set up CORS headers
+// Define CORS headers for all responses
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json'
 };
+
+// Create a Supabase client with the Admin key
+const supabaseAdmin = createClient(
+  'https://uxrrxefdpjyzyepnrfme.supabase.co',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+  {
+    global: {
+      headers: { 'X-Client-Info': 'cron-request-edge-function' },
+    },
+  }
+);
 
 // Helper function to append query parameters to a URL
 function appendQueryParams(url: string, params: Record<string, string>): string {
@@ -43,10 +54,7 @@ function buildAuthHeader(auth: any): Record<string, string> {
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
   
   try {
@@ -58,34 +66,25 @@ Deno.serve(async (req) => {
       checkId = body.checkId;
     } catch (error) {
       console.error('Error parsing request body:', error);
-      // Fallback to URL path for backward compatibility
-      const url = new URL(req.url);
-      const pathParts = url.pathname.split('/');
-      checkId = pathParts[pathParts.length - 1];
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid request body - expected JSON with checkId' 
+        }),
+        { status: 400, headers: corsHeaders }
+      );
     }
     
     if (!checkId) {
       return new Response(
         JSON.stringify({ error: 'Check ID is required' }),
-        { 
-          status: 400, 
-          headers: corsHeaders 
-        }
+        { status: 400, headers: corsHeaders }
       );
     }
     
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://uxrrxefdpjyzyepnrfme.supabase.co';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { 'X-Client-Info': 'http-request-check-function' },
-      },
-    });
-    
     // Fetch the check details
     console.log(`Processing HTTP request check for check ID: ${checkId}`);
-    const { data: check, error: checkError } = await supabase
+    const { data: check, error: checkError } = await supabaseAdmin
       .from('checks')
       .select('*')
       .eq('id', checkId)
@@ -99,6 +98,17 @@ Deno.serve(async (req) => {
           error: `Check not found: ${checkError?.message || 'Unknown error'}` 
         }),
         { status: 404, headers: corsHeaders }
+      );
+    }
+    
+    // Verify this is an HTTP request check
+    if (check.type !== 'http_request') {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'This is not an HTTP request check'
+        }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -137,7 +147,7 @@ Deno.serve(async (req) => {
     // Prepare request body for methods that support it
     const bodyMethods = ['POST', 'PUT', 'PATCH'];
     const requestOptions: RequestInit = {
-      method: httpConfig.method,
+      method: httpConfig.method || 'GET',
       headers,
       redirect: 'follow',
     };
@@ -194,7 +204,7 @@ Deno.serve(async (req) => {
       const isSuccess = successCodes.includes(responseStatus);
       
       // Add ping record
-      const { error: pingError } = await supabase
+      const { error: pingError } = await supabaseAdmin
         .from('check_pings')
         .insert({
           check_id: checkId,
@@ -233,7 +243,7 @@ Deno.serve(async (req) => {
       }
       
       // Update the check with latest ping info and status
-      const { error: updateError, data: updateData } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('checks')
         .update({
           last_ping: now.toISOString(),
@@ -241,8 +251,7 @@ Deno.serve(async (req) => {
           status: isSuccess ? 'up' : 'down',
           last_duration: duration / 1000 // Convert to seconds
         })
-        .eq('id', checkId)
-        .select('status, last_ping, last_duration');
+        .eq('id', checkId);
         
       if (updateError) {
         console.error('Error updating check:', updateError);
@@ -256,6 +265,7 @@ Deno.serve(async (req) => {
           status: isSuccess ? 'success' : 'failure',
           responseCode: responseStatus,
           responseTime: duration,
+          responseBody: responseText.substring(0, 1000), // Include a snippet of the response
           check: {
             id: checkId,
             status: isSuccess ? 'up' : 'down',
@@ -272,7 +282,7 @@ Deno.serve(async (req) => {
       
       // Record failed ping
       const duration = Date.now() - startTime;
-      const { error: pingError } = await supabase
+      const { error: pingError } = await supabaseAdmin
         .from('check_pings')
         .insert({
           check_id: checkId,
@@ -287,7 +297,7 @@ Deno.serve(async (req) => {
       const now = new Date();
       const nextPingDue = new Date(now.getTime() + check.period * 60 * 1000);
       
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseAdmin
         .from('checks')
         .update({
           last_ping: now.toISOString(),

@@ -80,10 +80,10 @@ if (isApiRequest()) {
         return;
       }
       
-      // For HTTP request checks, we need to call the HTTP request edge function
+      // For HTTP request checks, we need to call the cron-request edge function
       if (checkData.type === 'http_request') {
         try {
-          const { data, error } = await supabase.functions.invoke('http-request-check', {
+          const { data, error } = await supabase.functions.invoke('cron-request', {
             body: { checkId: id }
           });
           
@@ -241,7 +241,7 @@ const PingHandler = () => {
         setLoading(true);
         console.log('Processing browser ping for HTTP request check:', checkId);
         
-        const { data, error } = await supabase.functions.invoke('http-request-check', {
+        const { data, error } = await supabase.functions.invoke('cron-request', {
           body: { checkId }
         });
         

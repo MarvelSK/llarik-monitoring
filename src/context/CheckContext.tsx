@@ -1,3 +1,4 @@
+
 import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -293,8 +294,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       console.log(`Executing HTTP request check for ${checkId}`);
       
-      // Remove problematic headers that might be causing CORS issues
-      const { data, error } = await supabase.functions.invoke('http-request-check', {
+      // Call our new cron-request edge function
+      const { data, error } = await supabase.functions.invoke('cron-request', {
         body: { checkId },
         headers: {
           'Content-Type': 'application/json'
@@ -483,7 +484,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       
       // Choose the appropriate endpoint based on check type
       if (check.type === 'http_request') {
-        endpoint = 'http-request-check';
+        endpoint = 'cron-request'; 
       } else {
         endpoint = 'update-check'; 
       }

@@ -4,5 +4,5 @@ project_id = "uxrrxefdpjyzyepnrfme"
 [functions.update-check]
 verify_jwt = false
 
-[functions.http-request-check]
+[functions.cron-request]
 verify_jwt = false
