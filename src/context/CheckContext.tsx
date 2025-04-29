@@ -293,8 +293,12 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     try {
       console.log(`Executing HTTP request check for ${checkId}`);
       
+      // Remove problematic headers that might be causing CORS issues
       const { data, error } = await supabase.functions.invoke('http-request-check', {
-        body: { checkId }
+        body: { checkId },
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       if (error) {
