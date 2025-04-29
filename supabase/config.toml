@@ -6,3 +6,4 @@ verify_jwt = false
 
 [functions.http-request-check]
 verify_jwt = false
+

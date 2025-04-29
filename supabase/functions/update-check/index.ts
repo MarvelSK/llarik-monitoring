@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const checkId = url.pathname.split('/').pop();
+    // Get checkId from request body
+    const { checkId } = await req.json();
     
     console.log(`Processing check ID: ${checkId}`);
     
@@ -60,15 +60,10 @@ Deno.serve(async (req) => {
     
     // Verify this is a standard check (not HTTP request check)
     if (checkData.type === 'http_request') {
-      // Redirect to the HTTP request check function
-      const httpRequestCheckUrl = new URL(req.url);
-      httpRequestCheckUrl.pathname = `/functions/v1/http-request-check/${checkId}`;
-      
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'This is an HTTP request check. Use the http-request-check function instead.',
-          redirect: httpRequestCheckUrl.toString()
+          error: 'This is an HTTP request check. Use the http-request-check function instead.'
         }),
         { status: 400, headers: corsHeaders }
       );
