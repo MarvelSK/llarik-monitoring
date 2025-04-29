@@ -4,7 +4,8 @@ import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { HttpRequestConfig, Json } from "@/types/check";
+import { HttpRequestConfig } from "@/types/check";
+import { Json } from "@/integrations/supabase/types";
 
 // Enhanced API detection to handle PowerShell, cURL, wget and other API clients
 const isApiRequest = () => {
