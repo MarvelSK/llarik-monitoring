@@ -1,3 +1,4 @@
+
 import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
@@ -189,6 +190,57 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    // Check for HTTP request checks that need to be executed
+    const intervalId = setInterval(async () => {
+      const now = new Date();
+      
+      // Get checks that are due for execution
+      const dueChecks = checks.filter(check => 
+        check.type === 'http_request' && 
+        check.nextPingDue && 
+        isPast(check.nextPingDue) &&
+        check.status !== 'down' // We don't want to execute checks that are already down
+      );
+      
+      if (dueChecks.length > 0) {
+        console.log(`Found ${dueChecks.length} HTTP request checks due for execution`);
+        
+        for (const check of dueChecks) {
+          try {
+            console.log(`Executing HTTP request check: ${check.id} - ${check.name}`);
+            await executeHttpRequestCheck(check.id);
+          } catch (error) {
+            console.error(`Failed to execute HTTP request check ${check.id}:`, error);
+          }
+        }
+      }
+    }, 30 * 1000); // Check every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [checks]);
+
+  const executeHttpRequestCheck = async (checkId: string) => {
+    try {
+      console.log(`Executing HTTP request check for ${checkId}`);
+      
+      const { data, error } = await supabase.functions.invoke('http-request-check', {
+        body: { checkId }
+      });
+      
+      if (error) {
+        console.error(`Error executing HTTP request check for ${checkId}:`, error);
+        return false;
+      }
+      
+      console.log(`Successfully executed HTTP request check for ${checkId}:`, data);
+      return true;
+    } catch (error) {
+      console.error(`Error executing HTTP request check for ${checkId}:`, error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -402,6 +454,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           console.error("Invalid CRON expression:", error);
           throw new Error("Invalid CRON expression");
         }
+      } else if (checkData.period && checkData.period > 0) {
+        // Calculate next ping due based on period
+        nextPingDue = addMinutes(now, checkData.period);
       }
       
       // Prepare the HTTP config for database storage
@@ -464,8 +519,11 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       if (checkData.period !== 0) {
         checkData.cronExpression = "";
         
+        const now = new Date();
         if (checks[checkIndex].lastPing) {
           checkData.nextPingDue = addMinutes(checks[checkIndex].lastPing!, checkData.period);
+        } else {
+          checkData.nextPingDue = addMinutes(now, checkData.period);
         }
       }
       

@@ -1,7 +1,16 @@
+
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
 export type CheckEnvironment = 'produkcia' | 'test' | 'manuál' | 'prod' | 'sandbox' | 'worker';
 export type CheckType = 'standard' | 'http_request';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+export type AuthType = 'none' | 'basic' | 'bearer';
+
+export interface HttpAuthConfig {
+  type: AuthType;
+  username?: string;
+  password?: string;
+  token?: string;
+}
 
 export interface HttpRequestConfig {
   url: string;
@@ -9,6 +18,8 @@ export interface HttpRequestConfig {
   successCodes: number[];
   params?: Record<string, string>;
   headers?: Record<string, string>;
+  body?: string;
+  auth?: HttpAuthConfig;
 }
 
 export interface CheckPing {

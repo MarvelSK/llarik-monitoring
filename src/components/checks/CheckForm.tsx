@@ -1,9 +1,10 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, CheckEnvironment, CheckType, HttpMethod } from "@/types/check";
+import { AuthType, Check, CheckEnvironment, CheckType, HttpMethod } from "@/types/check";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import ProjectSelector from "@/components/projects/ProjectSelector";
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -24,6 +26,7 @@ interface CheckFormProps {
 
 const environmentOptions: CheckEnvironment[] = ["produkcia", "test", "manuál"];
 const httpMethodOptions: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+const authTypeOptions: AuthType[] = ["none", "basic", "bearer"];
 const defaultSuccessCodes = [200, 201, 202, 204];
 
 const formSchema = z.object({
@@ -41,6 +44,11 @@ const formSchema = z.object({
   successCodes: z.string().optional(),
   httpParams: z.string().optional(), // Added for request parameters
   httpHeaders: z.string().optional(), // Added for request headers
+  httpBody: z.string().optional(), // Added for request body
+  authType: z.enum(["none", "basic", "bearer"]).default("none").optional(),
+  authUsername: z.string().optional(), // For basic auth
+  authPassword: z.string().optional(), // For basic auth
+  authToken: z.string().optional() // For bearer token
 });
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
@@ -50,6 +58,7 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   const initialTab = defaultValues?.cronExpression && defaultValues.cronExpression.trim() !== "" ? "cron" : "simple";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [checkType, setCheckType] = useState<CheckType>(defaultValues?.type || "standard");
+  const [authType, setAuthType] = useState<AuthType>(defaultValues?.httpConfig?.auth?.type || "none");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -74,12 +83,19 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
         Object.entries(defaultValues.httpConfig.headers)
           .map(([key, value]) => `${key}:${value}`)
           .join("\n") : "",
+      httpBody: defaultValues?.httpConfig?.body || "",
+      authType: defaultValues?.httpConfig?.auth?.type || "none",
+      authUsername: defaultValues?.httpConfig?.auth?.username || "",
+      authPassword: defaultValues?.httpConfig?.auth?.password || "",
+      authToken: defaultValues?.httpConfig?.auth?.token || ""
     },
   });
   
   const periodValue = form.watch("period");
   const cronExpression = form.watch("cronExpression");
   const typeValue = form.watch("type");
+  const watchAuthType = form.watch("authType");
+  const httpMethodValue = form.watch("httpMethod");
   
   useEffect(() => {
     // When cron expression is set and period is not 0, set period to 0
@@ -91,6 +107,10 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
   useEffect(() => {
     setCheckType(typeValue);
   }, [typeValue]);
+
+  useEffect(() => {
+    setAuthType(watchAuthType as AuthType);
+  }, [watchAuthType]);
 
   const toggleEnvironment = (env: CheckEnvironment) => {
     const currentEnvs = form.getValues().environments || [];
@@ -164,17 +184,30 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
         });
       }
 
+      // Build authentication config
+      const auth = values.authType !== "none" ? {
+        type: values.authType,
+        ...(values.authType === "basic" ? {
+          username: values.authUsername,
+          password: values.authPassword
+        } : {}),
+        ...(values.authType === "bearer" ? {
+          token: values.authToken
+        } : {})
+      } : undefined;
+
       formData.httpConfig = {
         url: values.httpUrl,
         method: values.httpMethod as HttpMethod,
         successCodes,
         params: Object.keys(params).length ? params : undefined,
-        headers: Object.keys(headers).length ? headers : undefined
+        headers: Object.keys(headers).length ? headers : undefined,
+        body: values.httpBody || undefined,
+        auth
       };
     }
     
     onSubmit(formData);
-
     toast.success(isEdit ? "Kontrola úspešne aktualizovaná" : "Kontrola úspešne vytvorená");
     
     if (!isEdit) {
@@ -306,53 +339,173 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                   )}
                 />
 
-                {/* New field - HTTP parameters */}
-                {(form.watch("httpMethod") === "POST" || 
-                  form.watch("httpMethod") === "PUT" || 
-                  form.watch("httpMethod") === "PATCH") && (
-                  <FormField
-                    control={form.control}
-                    name="httpParams"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Parametre</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="key1=value1&#10;key2=value2" 
-                            className="font-mono text-sm"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Parametre pre request (jeden parameter na riadok vo formáte kľúč=hodnota)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                <Accordion type="single" collapsible className="w-full">
+                  {/* Parameters Section */}
+                  <AccordionItem value="parameters">
+                    <AccordionTrigger>Parameters</AccordionTrigger>
+                    <AccordionContent>
+                      <FormField
+                        control={form.control}
+                        name="httpParams"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Parametre</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="key1=value1&#10;key2=value2" 
+                                className="font-mono text-sm"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Parametre pre request (jeden parameter na riadok vo formáte kľúč=hodnota)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
 
-                {/* New field - HTTP headers */}
-                <FormField
-                  control={form.control}
-                  name="httpHeaders"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hlavičky (Headers)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Content-Type:application/json&#10;Authorization:Bearer token" 
-                          className="font-mono text-sm"
-                          {...field} 
+                  {/* Body Section - For POST, PUT, PATCH */}
+                  {(httpMethodValue === "POST" || httpMethodValue === "PUT" || httpMethodValue === "PATCH") && (
+                    <AccordionItem value="body">
+                      <AccordionTrigger>Body</AccordionTrigger>
+                      <AccordionContent>
+                        <FormField
+                          control={form.control}
+                          name="httpBody"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Body obsah</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder='{"key": "value"}' 
+                                  className="font-mono text-sm min-h-32"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Obsah tela požiadavky (väčšinou JSON)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
-                      </FormControl>
-                      <FormDescription>
-                        HTTP hlavičky (jeden header na riadok vo formáte kľúč:hodnota)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
-                />
+
+                  {/* Headers Section */}
+                  <AccordionItem value="headers">
+                    <AccordionTrigger>Headers</AccordionTrigger>
+                    <AccordionContent>
+                      <FormField
+                        control={form.control}
+                        name="httpHeaders"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Hlavičky (Headers)</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Content-Type:application/json&#10;Accept:application/json" 
+                                className="font-mono text-sm"
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              HTTP hlavičky (jeden header na riadok vo formáte kľúč:hodnota)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Authentication Section */}
+                  <AccordionItem value="auth">
+                    <AccordionTrigger>Authentication</AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="authType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Typ autentifikácie</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Vyberte typ autentifikácie" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  <SelectItem value="basic">Basic Auth</SelectItem>
+                                  <SelectItem value="bearer">Bearer Token</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Basic Auth Fields */}
+                        {authType === "basic" && (
+                          <>
+                            <FormField
+                              control={form.control}
+                              name="authUsername"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Username</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="authPassword"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Password</FormLabel>
+                                  <FormControl>
+                                    <Input type="password" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}
+
+                        {/* Bearer Token Fields */}
+                        {authType === "bearer" && (
+                          <FormField
+                            control={form.control}
+                            name="authToken"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Token</FormLabel>
+                                <FormControl>
+                                  <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
 
                 <FormField
                   control={form.control}

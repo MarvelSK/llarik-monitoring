@@ -1,4 +1,3 @@
-
 // HTTP Request Check Edge Function
 // This function sends HTTP requests and updates check status based on response
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
@@ -29,7 +28,7 @@ async function executeHttpRequest(httpConfig: any) {
   console.log("Executing HTTP request with config:", JSON.stringify(httpConfig));
   
   try {
-    const { url, method, params, headers } = httpConfig;
+    const { url, method, params, headers, body, auth } = httpConfig;
     
     if (!url) {
       return { 
@@ -42,14 +41,33 @@ async function executeHttpRequest(httpConfig: any) {
     // Prepare request options
     const options: RequestInit = {
       method: method || 'GET',
-      headers: headers || {},
+      headers: { ...(headers || {}) },
     };
     
+    // Handle authentication
+    if (auth) {
+      if (auth.type === 'basic' && auth.username && auth.password) {
+        const credentials = btoa(`${auth.username}:${auth.password}`);
+        options.headers['Authorization'] = `Basic ${credentials}`;
+      } else if (auth.type === 'bearer' && auth.token) {
+        options.headers['Authorization'] = `Bearer ${auth.token}`;
+      }
+    }
+    
     // Add request body for POST/PUT/PATCH requests
-    if (params && ['POST', 'PUT', 'PATCH'].includes(method?.toUpperCase() || '')) {
-      options.body = JSON.stringify(params);
-      if (!options.headers['Content-Type']) {
-        options.headers['Content-Type'] = 'application/json';
+    if ((body || params) && ['POST', 'PUT', 'PATCH'].includes(method?.toUpperCase() || '')) {
+      if (body) {
+        // Use the raw body if provided
+        options.body = body;
+        if (!options.headers['Content-Type']) {
+          options.headers['Content-Type'] = 'application/json';
+        }
+      } else if (params) {
+        // Otherwise use params as JSON body
+        options.body = JSON.stringify(params);
+        if (!options.headers['Content-Type']) {
+          options.headers['Content-Type'] = 'application/json';
+        }
       }
     }
     
