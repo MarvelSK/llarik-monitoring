@@ -1,6 +1,4 @@
 
-// Type definitions for Supabase database tables
-
 export type Json =
   | string
   | number
@@ -9,7 +7,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       check_pings: {

@@ -77,13 +77,34 @@ Deno.serve(async (req) => {
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
     }
     
-    // Add ping record
+    // Prepare HTTP-related data if needed
+    let responseCode = null;
+    let method = null;
+    let requestUrl = null;
+    
+    if (checkData.type === 'http_request' && checkData.http_config) {
+      // Parse HTTP config
+      const httpConfig = typeof checkData.http_config === 'string' 
+        ? JSON.parse(checkData.http_config) 
+        : checkData.http_config;
+      
+      if (httpConfig) {
+        method = httpConfig.method;
+        requestUrl = httpConfig.url;
+        responseCode = 200; // Default success code
+      }
+    }
+    
+    // Add ping record with HTTP details
     const { error: pingError } = await supabaseAdmin
       .from('check_pings')
       .insert({
         check_id: checkId,
         status: 'success',
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
+        response_code: responseCode,
+        method: method,
+        request_url: requestUrl
       });
       
     if (pingError) {

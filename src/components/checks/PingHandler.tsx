@@ -115,7 +115,7 @@ if (isApiRequest()) {
         responseCode = parseInt(urlParams.get('status') || '200', 10);
         
         // Parse HTTP config info
-        let httpConfig: HttpRequestConfig | null = null;
+        let httpConfig = null;
         
         try {
           httpConfig = typeof checkData.http_config === 'string' 
@@ -127,7 +127,7 @@ if (isApiRequest()) {
             method = httpConfig.method;
             
             // Parse success codes list
-            let successCodes: number[] = [200, 201, 202, 204]; // Default
+            let successCodes = [200, 201, 202, 204]; // Default
             if (httpConfig && Array.isArray(httpConfig.successCodes)) {
               successCodes = httpConfig.successCodes;
             }
@@ -298,7 +298,7 @@ const PingHandler = () => {
           // Parse HTTP config
           try {
             // Handle http_config as string or object
-            let httpConfig: HttpRequestConfig | null = null;
+            let httpConfig = null;
             
             if (typeof checkData.http_config === 'string') {
               httpConfig = JSON.parse(checkData.http_config);
@@ -311,7 +311,7 @@ const PingHandler = () => {
               method = httpConfig.method;
               
               // Get success codes
-              let successCodes: number[] = [200, 201, 202, 204]; // default
+              let successCodes = [200, 201, 202, 204]; // default
               if (httpConfig && Array.isArray(httpConfig.successCodes)) {
                 successCodes = httpConfig.successCodes;
               }
