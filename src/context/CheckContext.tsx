@@ -343,6 +343,45 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return checks.find((check) => check.id === id);
   };
 
+  // This function will choose the right function to ping based on check type
+  const pingCheck = async (id: string, status: CheckPing["status"]) => {
+    try {
+      const check = getCheck(id);
+      
+      if (!check) {
+        console.error('Check not found with ID:', id);
+        return;
+      }
+      
+      let endpoint;
+      
+      // Choose the appropriate endpoint based on check type
+      if (check.type === 'http_request') {
+        endpoint = 'http-request-check';
+      } else {
+        endpoint = 'update-check'; 
+      }
+      
+      // Call the appropriate edge function
+      const { data, error } = await supabase.functions.invoke(endpoint, {
+        body: { checkId: id }
+      });
+      
+      if (error) {
+        console.error(`Error calling ${endpoint}:`, error);
+        return;
+      }
+      
+      console.log(`Successfully called ${endpoint} for check ${id}`, data);
+      
+      // No need to update the check status here as the edge function will do it
+      // and our Supabase listener will receive the changes
+      
+    } catch (error) {
+      console.error('Error processing ping:', error);
+    }
+  };
+
   const createCheck = async (checkData: Partial<Check>) => {
     try {
       const now = new Date();
@@ -403,91 +442,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
-  const pingCheck = async (id: string, status: CheckPing["status"]) => {
-    try {
-      const now = new Date();
-      
-      const nextPingDue = await calculateNextPingDue(id, now);
-
-      // First, get the check to extract HTTP config information if needed
-      const check = getCheck(id);
-      let responseCode: number | undefined = undefined;
-      let method: HttpMethod | undefined = undefined;
-      let requestUrl: string | undefined = undefined;
-      
-      // If this is an HTTP check, record the HTTP details
-      if (check && check.type === 'http_request' && check.httpConfig) {
-        responseCode = status === 'success' ? 200 : 500; // Default values
-        method = check.httpConfig.method;
-        requestUrl = check.httpConfig.url;
-      }
-
-      const { error: pingError } = await supabase
-        .from('check_pings')
-        .insert({
-          check_id: id,
-          status,
-          timestamp: now.toISOString(),
-          duration: 0,
-          response_code: responseCode,
-          method,
-          request_url: requestUrl
-        });
-
-      if (pingError) {
-        console.error('Error adding ping:', pingError);
-        return;
-      }
-
-      const { error: checkError } = await supabase
-        .from('checks')
-        .update({
-          last_ping: now.toISOString(),
-          next_ping_due: nextPingDue.toISOString(),
-          status: "up"
-        })
-        .eq('id', id);
-
-      if (checkError) {
-        console.error('Error updating check status:', checkError);
-        return;
-      }
-    } catch (error) {
-      console.error('Error processing ping:', error);
-    }
-  };
-
-  const calculateNextPingDue = async (id: string, now: Date): Promise<Date> => {
-    try {
-      const { data: check, error } = await supabase
-        .from('checks')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error || !check) {
-        console.error('Check not found', error);
-        return new Date(now.getTime() + 60 * 60 * 1000);
-      }
-
-      if (check.cron_expression) {
-        try {
-          const interval = parseExpression(check.cron_expression, {
-            currentDate: now
-          });
-          return interval.next().toDate();
-        } catch (error) {
-          console.error('Error parsing CRON expression:', error);
-          return new Date(now.getTime() + 60 * 60 * 1000);
-        }
-      } else {
-        return new Date(now.getTime() + check.period * 60 * 1000);
-      }
-    } catch (error) {
-      console.error('Error calculating next ping due:', error);
-      return new Date(now.getTime() + 60 * 60 * 1000);
-    }
-  };
+  
 
   const updateCheck = async (id: string, checkData: Partial<Check>) => {
     try {

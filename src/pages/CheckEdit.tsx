@@ -48,6 +48,13 @@ const CheckEdit = () => {
         return;
       }
       
+      // Make sure we have the headers and params properly set
+      data.httpConfig.headers = data.httpConfig.headers || {};
+      data.httpConfig.params = data.httpConfig.params || {};
+      
+      // Make sure successCodes is an array
+      data.httpConfig.successCodes = data.httpConfig.successCodes || [200, 201, 202, 204];
+      
       // Validate the HTTP configuration
       console.log("HTTP Config before update:", data.httpConfig);
       toast.info(`HTTP Request check will actively send requests to ${data.httpConfig.url}`);

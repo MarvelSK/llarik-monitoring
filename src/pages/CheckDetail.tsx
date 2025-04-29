@@ -1,3 +1,4 @@
+
 import CheckActions from "@/components/checks/CheckActions";
 import CheckSummary from "@/components/checks/CheckSummary";
 import PingsList from "@/components/checks/PingsList";
@@ -9,6 +10,7 @@ import { useChecks } from "@/context/CheckContext";
 import { CheckPing } from "@/types/check";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 
 const CheckDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -103,6 +105,13 @@ const CheckDetail = () => {
   };
 
   const handlePing = (status: CheckPing["status"]) => {
+    if (check.type === 'http_request') {
+      toast.info('Executing HTTP request check...', {
+        description: 'This will send an actual HTTP request to the configured endpoint.'
+      });
+    } else {
+      toast.info('Recording standard ping...');
+    }
     pingCheck(check.id, status);
   };
 
@@ -135,6 +144,9 @@ const CheckDetail = () => {
                 </Button>
               </h1>
               <div className="flex flex-wrap gap-1 mt-1">
+                {check.type === 'http_request' && (
+                  <Badge className="bg-blue-500 text-white">HTTP Request</Badge>
+                )}
                 {check.environments?.map((env) => (
                   <Badge key={env} className={`${getEnvironmentColor(env)}`}>
                     {env}
