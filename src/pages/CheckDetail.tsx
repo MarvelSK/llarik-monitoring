@@ -19,26 +19,44 @@ const CheckDetail = () => {
   const { getCheck, pingCheck, deleteCheck, loading } = useChecks();
   const [check, setCheck] = useState<ReturnType<typeof getCheck>>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(true);
 
+  // Added defensive coding to prevent runtime errors
   useEffect(() => {
-    try {
-      if (id) {
+    // Safety wrapper to catch any errors during check retrieval
+    const fetchCheckData = () => {
+      try {
+        if (!id) {
+          setError("Invalid check ID");
+          setLocalLoading(false);
+          return;
+        }
+        
         const checkData = getCheck(id);
         setCheck(checkData);
+        
         if (!checkData && !loading) {
           setError("Check not found");
         } else {
           setError(null);
         }
+        
+        setLocalLoading(false);
+      } catch (e) {
+        console.error("Error fetching check:", e);
+        setError("Failed to load check details");
+        setLocalLoading(false);
       }
-    } catch (e) {
-      console.error("Error fetching check:", e);
-      setError("Failed to load check details");
-    }
+    };
+    
+    // Small delay to ensure CheckContext is ready
+    const timer = setTimeout(fetchCheckData, 100);
+    
+    return () => clearTimeout(timer);
   }, [id, getCheck, loading]);
 
-  // This ensures we don't render anything with potentially invalid data
-  if (loading) {
+  // Improved loading state that combines global and local loading
+  if (loading || localLoading) {
     return (
       <Layout>
         <div className="space-y-6">
@@ -98,12 +116,15 @@ const CheckDetail = () => {
     );
   }
 
+  // Unified error handler component
   if (error || !check) {
     return (
       <Layout>
         <div className="text-center py-10">
           <h2 className="text-2xl font-bold mb-2">Check not found</h2>
-          <p className="text-gray-500 mb-6">The check you're looking for doesn't exist or has been removed.</p>
+          <p className="text-gray-500 mb-6">
+            {error || "The check you're looking for doesn't exist or has been removed."}
+          </p>
           <Button onClick={() => navigate("/")} variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
@@ -158,21 +179,6 @@ const CheckDetail = () => {
       toast.error("Failed to delete check");
     }
   };
-
-  if (!check && !loading && error) {
-    return (
-      <Layout>
-        <div className="text-center py-10">
-          <h2 className="text-2xl font-bold mb-2">Check not found</h2>
-          <p className="text-gray-500 mb-6">The check you're looking for doesn't exist or has been removed.</p>
-          <Button onClick={() => navigate("/")} variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
