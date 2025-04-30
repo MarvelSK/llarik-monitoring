@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { CronJob, CronJobExecution, EdgeFunctionLog } from "@/types/cron";
+import { executeHttpRequest } from "@/utils/httpRequestUtils";
 
 export async function fetchCronJobs(): Promise<CronJob[]> {
   const { data, error } = await supabase
@@ -50,12 +50,19 @@ export async function createCronJob(job: Omit<CronJob, 'id' | 'created_at' | 'up
     }
   }
   
+  // Make sure required fields are present
+  const submissionData = {
+    ...processedJob,
+    endpoint: processedJob.endpoint || '',
+    method: processedJob.method || 'GET',
+    name: processedJob.name || 'New CRON Job',
+    schedule: processedJob.schedule || '* * * * *',
+    created_by: (await supabase.auth.getSession()).data.session?.user.id
+  };
+  
   const { data, error } = await supabase
     .from('cron_jobs')
-    .insert({
-      ...processedJob,
-      created_by: (await supabase.auth.getSession()).data.session?.user.id
-    })
+    .insert(submissionData)
     .select()
     .single();
 
@@ -124,62 +131,42 @@ export async function triggerCronJob(id: string): Promise<void> {
   const executionId = executionData.id;
   
   try {
-    // Execute the HTTP request directly
+    // Execute the HTTP request using our httpRequestUtils helper
+    // This will handle CORS issues by using a standardized approach
     const startTime = performance.now();
     
-    // Prepare the request
-    const url = new URL(job.endpoint);
-    
-    // Add query parameters if any
-    if (job.parameters && Object.keys(job.parameters).length > 0) {
-      Object.entries(job.parameters).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value));
-      });
-    }
-    
-    // Prepare headers
-    const headers: HeadersInit = new Headers();
-    if (job.headers) {
-      Object.entries(job.headers).forEach(([key, value]) => {
-        headers.append(key, value);
-      });
-    }
+    // Prepare the request config
+    const config = {
+      url: job.endpoint,
+      method: job.method,
+      headers: job.headers || {},
+      params: job.parameters || {},
+      body: job.body,
+      successCodes: job.success_codes
+    };
     
     // Add JWT token if provided
     if (job.jwt_token) {
-      headers.append('Authorization', `Bearer ${job.jwt_token}`);
+      config.headers['Authorization'] = `Bearer ${job.jwt_token}`;
     }
     
-    // Create request options
-    const requestOptions: RequestInit = {
-      method: job.method,
-      headers,
-      credentials: 'omit', // Don't send cookies
-    };
-    
-    // Add body for non-GET requests
-    if (job.body && job.method !== 'GET' && job.method !== 'HEAD') {
-      requestOptions.body = job.body;
-    }
-    
-    // Execute request
-    const response = await fetch(url.toString(), requestOptions);
-    const responseText = await response.text();
+    // Execute request using our utility function
+    const response = await executeHttpRequest(config);
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
     
     // Determine if the request was successful
-    const isSuccess = job.success_codes.includes(response.status);
+    const isSuccess = response.status === 'success';
     
     // Update the execution record
     await supabase
       .from('cron_job_executions')
       .update({
         status: isSuccess ? 'success' : 'failed',
-        status_code: response.status,
+        status_code: response.statusCode,
         completed_at: new Date().toISOString(),
         duration,
-        response: responseText
+        response: response.responseBody
       })
       .eq('id', executionId);
     
@@ -189,7 +176,7 @@ export async function triggerCronJob(id: string): Promise<void> {
       .update({
         last_run: new Date().toISOString(),
         last_status: isSuccess ? 'success' : 'failed',
-        last_response: responseText,
+        last_response: response.responseBody,
         last_duration: duration
       })
       .eq('id', id);
