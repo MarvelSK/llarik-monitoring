@@ -1,7 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Json } from "@/integrations/supabase/types";
 
 // Types for settings
 export interface EmailSettings {
@@ -68,7 +67,7 @@ export const getEmailSettings = async (): Promise<EmailSettings> => {
       return defaultEmailSettings;
     }
 
-    return data?.value as unknown as EmailSettings || defaultEmailSettings;
+    return data?.value as EmailSettings || defaultEmailSettings;
   } catch (error) {
     console.error("Error in getEmailSettings:", error);
     return defaultEmailSettings;
@@ -86,7 +85,7 @@ export const saveEmailSettings = async (settings: EmailSettings): Promise<boolea
       .upsert(
         {
           key: "email_settings",
-          value: settings as unknown as Json,
+          value: settings,
           updated_at: new Date().toISOString(),
           updated_by: userId
         },
@@ -122,7 +121,7 @@ export const getBrandingSettings = async (): Promise<BrandingSettings> => {
       return defaultBrandingSettings;
     }
 
-    return data?.value as unknown as BrandingSettings || defaultBrandingSettings;
+    return data?.value as BrandingSettings || defaultBrandingSettings;
   } catch (error) {
     console.error("Error in getBrandingSettings:", error);
     return defaultBrandingSettings;
@@ -140,7 +139,7 @@ export const saveBrandingSettings = async (settings: BrandingSettings): Promise<
       .upsert(
         {
           key: "branding_settings",
-          value: settings as unknown as Json,
+          value: settings,
           updated_at: new Date().toISOString(),
           updated_by: userId
         },

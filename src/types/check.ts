@@ -1,35 +1,11 @@
 
 export type CheckStatus = 'up' | 'down' | 'grace' | 'new';
 export type CheckEnvironment = 'produkcia' | 'test' | 'manuál' | 'prod' | 'sandbox' | 'worker';
-export type CheckType = 'standard' | 'http_request';
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
-export type AuthType = 'none' | 'basic' | 'bearer';
-
-export interface HttpAuthConfig {
-  type: AuthType;
-  username?: string;
-  password?: string;
-  token?: string;
-}
-
-export interface HttpRequestConfig {
-  url: string;
-  method: HttpMethod;
-  successCodes: number[];
-  params?: Record<string, string>;
-  headers?: Record<string, string>;
-  body?: string;
-  auth?: HttpAuthConfig;
-}
 
 export interface CheckPing {
   id: string;
   timestamp: Date;
   status: 'success' | 'failure' | 'start' | 'timeout';
-  responseCode?: number;
-  method?: HttpMethod;
-  requestUrl?: string;
-  duration?: number;
 }
 
 export interface Check {
@@ -48,6 +24,4 @@ export interface Check {
   createdAt: Date;
   lastDuration?: number; // in seconds, for showing execution time
   projectId?: string;
-  type: CheckType;
-  httpConfig?: HttpRequestConfig;
 }

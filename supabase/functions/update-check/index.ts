@@ -1,6 +1,5 @@
 
 // update-check edge function - directly updates check status in database
-// This function handles ONLY standard checks (non-HTTP checks)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 // Define CORS headers for all responses
@@ -29,21 +28,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get checkId from request body
-    let checkId;
+    const url = new URL(req.url);
+    const checkId = url.pathname.split('/').pop();
     
-    try {
-      const body = await req.json();
-      checkId = body.checkId;
-    } catch (error) {
-      console.error('Error parsing request body:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid request body' }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
-    console.log(`Processing check ID: ${checkId}`);
+    console.log(`Processing ping for check ID: ${checkId}`);
     
     if (!checkId) {
       return new Response(
@@ -69,17 +57,6 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Verify this is a standard check (not HTTP request check)
-    if (checkData.type === 'http_request') {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'This is an HTTP request check. Use the http-request-check function instead.'
-        }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
     // Calculate next ping due time
     let nextPingDue = new Date();
     if (checkData.cron_expression) {
@@ -100,13 +77,13 @@ Deno.serve(async (req) => {
       nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
     }
     
-    // Add ping record for standard check
+    // Add ping record
     const { error: pingError } = await supabaseAdmin
       .from('check_pings')
       .insert({
         check_id: checkId,
         status: 'success',
-        timestamp: now.toISOString(),
+        timestamp: now.toISOString()
       });
       
     if (pingError) {
@@ -117,16 +94,16 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Update the check with latest ping info and status
+    // CRITICAL: ALWAYS Force update check status to "up"
     const { error: updateError, data: updateData } = await supabaseAdmin
       .from('checks')
       .update({
         last_ping: now.toISOString(),
         next_ping_due: nextPingDue.toISOString(),
-        status: 'up' 
+        status: "up" // Always force status to "up"
       })
       .eq('id', checkId)
-      .select('status, last_ping, last_duration');
+      .select('status, last_ping');
       
     if (updateError) {
       console.error('Error updating check:', updateError);
@@ -142,7 +119,7 @@ Deno.serve(async (req) => {
         message: "Ping successfully received and processed, status set to UP",
         id: checkId,
         timestamp: now.toISOString(),
-        check: updateData[0],
+        check: updateData[0]
       }),
       { status: 200, headers: corsHeaders }
     );

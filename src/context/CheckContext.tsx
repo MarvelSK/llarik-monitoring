@@ -1,11 +1,9 @@
-import { Check, CheckPing, CheckStatus, HttpMethod } from "@/types/check";
+import { Check, CheckPing, CheckStatus } from "@/types/check";
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { addMinutes, isBefore, isPast } from "date-fns";
 import { Integration } from "@/types/integration";
 import { supabase } from "@/integrations/supabase/client";
 import { parseExpression } from 'cron-parser';
-import { toast } from 'sonner';
-import { executeCheckHttpRequest } from "@/utils/httpRequestUtils";
 
 interface CheckContextType {
   checks: Check[];
@@ -34,20 +32,6 @@ interface CheckProviderProps {
 }
 
 function convertDatesToObjects(check: any): Check {
-  let httpConfig = null;
-  
-  if (check.http_config) {
-    try {
-      if (typeof check.http_config === 'string') {
-        httpConfig = JSON.parse(check.http_config);
-      } else {
-        httpConfig = check.http_config;
-      }
-    } catch (error) {
-      console.error('Error parsing HTTP config:', error);
-    }
-  }
-  
   return {
     ...check,
     lastPing: check.last_ping ? new Date(check.last_ping) : undefined,
@@ -56,32 +40,10 @@ function convertDatesToObjects(check: any): Check {
     projectId: check.project_id,
     cronExpression: check.cron_expression,
     pings: [], // We'll load pings separately as needed
-    type: check.type || "standard", // Default to standard if not specified
-    httpConfig, // Use the parsed HTTP config
   };
 }
 
 function prepareCheckForSupabase(check: Partial<Check>) {
-  // Convert HttpRequestConfig to a JSON-serializable format
-  let httpConfigForDb = null;
-  
-  if (check.httpConfig) {
-    try {
-      // Ensure params and headers are properly formatted
-      const config = {
-        ...check.httpConfig,
-        // Make sure we're properly handling params and headers
-        params: check.httpConfig.params || {},
-        headers: check.httpConfig.headers || {},
-      };
-      
-      httpConfigForDb = JSON.stringify(config);
-      console.log("HTTP config prepared for saving:", httpConfigForDb);
-    } catch (error) {
-      console.error('Error preparing HTTP config for storage:', error);
-    }
-  }
-  
   return {
     name: check.name,
     description: check.description,
@@ -94,17 +56,13 @@ function prepareCheckForSupabase(check: Partial<Check>) {
     last_duration: check.lastDuration,
     last_ping: check.lastPing?.toISOString(),
     next_ping_due: check.nextPingDue?.toISOString(),
-    project_id: check.projectId,
-    type: check.type || "standard",
-    http_config: httpConfigForDb
+    project_id: check.projectId
   };
 }
 
 export const CheckProvider = ({ children }: CheckProviderProps) => {
   const [checks, setChecks] = useState<Check[]>([]);
   const [loading, setLoading] = useState(true);
-  const [httpCheckExecutionInProgress, setHttpCheckExecutionInProgress] = useState<Record<string, boolean>>({});
-  const [lastExecutionAttempt, setLastExecutionAttempt] = useState<Record<string, number>>({});
 
   function dateReviver(_key: string, value: any) {
     if (typeof value === 'string') {
@@ -118,50 +76,13 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
   function getNextCronDate(cronExpression: string, fromDate = new Date()): Date {
     try {
-      if (!cronExpression || cronExpression.trim() === '') {
-        throw new Error('Empty CRON expression');
-      }
-      
-      // Validate CRON format before parsing
-      const cronParts = cronExpression.trim().split(' ');
-      if (cronParts.length < 5) {
-        throw new Error(`Invalid CRON format: ${cronExpression}`);
-      }
-      
-      // Special handling for "*/large-number" which causes errors
-      for (let i = 0; i < 5; i++) {
-        if (cronParts[i].startsWith('*/')) {
-          const num = parseInt(cronParts[i].substring(2), 10);
-          // Apply reasonable limits based on CRON field position
-          if (i === 0 && num > 59) cronParts[i] = '*/59'; // minute
-          if (i === 1 && num > 23) cronParts[i] = '*/23'; // hour
-          if (i === 2 && num > 31) cronParts[i] = '*/28'; // day of month
-          if (i === 3 && num > 12) cronParts[i] = '*/12'; // month
-          if (i === 4 && num > 7) cronParts[i] = '*/7';   // day of week
-        }
-        
-        // Detect values out of range and apply limits
-        if (/^\d+$/.test(cronParts[i])) {
-          const num = parseInt(cronParts[i], 10);
-          if (i === 0 && num > 59) cronParts[i] = '59'; // minute
-          if (i === 1 && num > 23) cronParts[i] = '23'; // hour
-          if (i === 2 && num > 31) cronParts[i] = '28'; // day of month
-          if (i === 3 && num > 12) cronParts[i] = '12'; // month
-          if (i === 4 && num > 7) cronParts[i] = '7';   // day of week
-        }
-      }
-      
-      const safeCronExpression = cronParts.join(' ');
-      
-      // Parse with the sanitized expression
-      const interval = parseExpression(safeCronExpression, {
+      const interval = parseExpression(cronExpression, {
         currentDate: fromDate
       });
       return interval.next().toDate();
     } catch (error) {
       console.error("Error parsing CRON expression:", error);
-      // Return a default value - 1 hour from now
-      return new Date(Date.now() + 60 * 60 * 1000);
+      return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     }
   }
 
@@ -183,14 +104,9 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         
         const updatedChecks = checksWithDates.map(check => {
           if (check.cronExpression && (!check.nextPingDue || check.lastPing)) {
-            try {
-              const baseDate = check.lastPing || new Date();
-              const nextDue = getNextCronDate(check.cronExpression, baseDate);
-              return { ...check, nextPingDue: nextDue };
-            } catch (error) {
-              console.error(`Error calculating next ping due for check ${check.id}:`, error);
-              return check;
-            }
+            const baseDate = check.lastPing || new Date();
+            const nextDue = getNextCronDate(check.cronExpression, baseDate);
+            return { ...check, nextPingDue: nextDue };
           }
           return check;
         });
@@ -216,11 +132,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           const newCheck = convertDatesToObjects(payload.new);
           
           if (newCheck.cronExpression && !newCheck.nextPingDue) {
-            try {
-              newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
-            } catch (error) {
-              console.error(`Error calculating next ping due for new check ${newCheck.id}:`, error);
-            }
+            newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
           }
           
           setChecks(prev => [newCheck, ...prev]);
@@ -239,131 +151,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  useEffect(() => {
-    // Check for HTTP request checks that need to be executed
-    const intervalId = setInterval(async () => {
-      const now = new Date();
-      const currentTime = now.getTime();
-      
-      // Get checks that are due for execution
-      const dueChecks = checks.filter(check => { 
-        if (check.type !== 'http_request' || !check.nextPingDue || !isPast(check.nextPingDue)) {
-          return false;
-        }
-
-        // Don't re-execute checks that are already in progress
-        if (httpCheckExecutionInProgress[check.id]) {
-          return false;
-        }
-        
-        // Throttle execution attempts - don't retry failed checks too frequently
-        // Only retry after at least 30 seconds
-        const lastAttempt = lastExecutionAttempt[check.id] || 0;
-        const timeSinceLastAttempt = currentTime - lastAttempt;
-        if (lastAttempt > 0 && timeSinceLastAttempt < 30000) {
-          return false;
-        }
-        
-        return true;
-      });
-      
-      if (dueChecks.length > 0) {
-        console.log(`Found ${dueChecks.length} HTTP request checks due for execution at ${now.toISOString()}`);
-        
-        for (const check of dueChecks) {
-          try {
-            setHttpCheckExecutionInProgress(prev => ({ ...prev, [check.id]: true }));
-            setLastExecutionAttempt(prev => ({ ...prev, [check.id]: currentTime }));
-            
-            console.log(`Executing HTTP request check: ${check.id} - ${check.name} due at ${check.nextPingDue?.toISOString()}`);
-            await executeHttpRequestCheck(check.id);
-          } catch (error) {
-            console.error(`Failed to execute HTTP request check ${check.id}:`, error);
-          } finally {
-            setHttpCheckExecutionInProgress(prev => ({ ...prev, [check.id]: false }));
-          }
-        }
-      }
-    }, 10 * 1000); // Check every 10 seconds instead of 15
-    
-    return () => clearInterval(intervalId);
-  }, [checks, httpCheckExecutionInProgress, lastExecutionAttempt]);
-
-  const executeHttpRequestCheck = async (checkId: string) => {
-    try {
-      console.log(`Executing HTTP request check for ${checkId}`);
-      
-      // Get the check data and configuration
-      const check = getCheck(checkId);
-      if (!check || !check.httpConfig) {
-        console.error(`Check not found or has no HTTP configuration: ${checkId}`);
-        return false;
-      }
-      
-      // Execute the HTTP request directly
-      const result = await executeCheckHttpRequest(checkId, check.httpConfig);
-      
-      if (!result.success) {
-        console.error(`HTTP request failed for check ${checkId}:`, result.error || `Status code ${result.responseCode}`);
-        toast.error(`Failed to execute HTTP check: ${result.error || 'Invalid response status'}`);
-        return false;
-      }
-      
-      // Record the ping
-      const now = new Date();
-      try {
-        await supabase
-          .from('check_pings')
-          .insert({
-            check_id: checkId,
-            status: result.success ? 'success' : 'failure',
-            timestamp: now.toISOString(),
-            response_code: result.responseCode,
-            method: result.method,
-            request_url: result.requestUrl,
-            duration: result.duration,
-          });
-      } catch (pingError) {
-        console.error(`Error recording ping for check ${checkId}:`, pingError);
-      }
-      
-      // Calculate next ping due time
-      let nextPingDue: Date | undefined;
-      if (check.cronExpression) {
-        try {
-          nextPingDue = getNextCronDate(check.cronExpression, now);
-        } catch (error) {
-          console.error(`Error calculating next ping due for check ${checkId}:`, error);
-        }
-      } else if (check.period > 0) {
-        nextPingDue = addMinutes(now, check.period);
-      }
-      
-      // Update the check status
-      try {
-        await supabase
-          .from('checks')
-          .update({
-            last_ping: now.toISOString(),
-            next_ping_due: nextPingDue?.toISOString(),
-            status: 'up',
-            last_duration: result.duration
-          })
-          .eq('id', checkId);
-      } catch (updateError) {
-        console.error(`Error updating check status for ${checkId}:`, updateError);
-        return false;
-      }
-      
-      console.log(`Successfully executed HTTP request check for ${checkId}:`, result);
-      return true;
-    } catch (error) {
-      console.error(`Error executing HTTP request check for ${checkId}:`, error);
-      toast.error(`Failed to execute HTTP check: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return false;
-    }
-  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -405,7 +192,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           };
         })
       );
-    }, 60 * 1000); // Check status every minute
+    }, 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -518,42 +305,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     return checks.find((check) => check.id === id);
   };
 
-  // This function will choose the right approach to ping based on check type
-  const pingCheck = async (id: string, status: CheckPing["status"]) => {
-    try {
-      const check = getCheck(id);
-      
-      if (!check) {
-        console.error('Check not found with ID:', id);
-        return;
-      }
-      
-      // Choose the appropriate approach based on check type
-      if (check.type === 'http_request' && check.httpConfig) {
-        // Execute HTTP request directly
-        const result = await executeCheckHttpRequest(id, check.httpConfig);
-        console.log(`HTTP request execution result for check ${id}:`, result);
-        
-        // The success or failure will be handled by executeCheckHttpRequest already
-      } else {
-        // For standard checks, use the edge function
-        const { data, error } = await supabase.functions.invoke('update-check', {
-          body: { checkId: id }
-        });
-        
-        if (error) {
-          console.error(`Error calling update-check:`, error);
-          return;
-        }
-        
-        console.log(`Successfully called update-check for check ${id}`, data);
-      }
-      
-    } catch (error) {
-      console.error('Error processing ping:', error);
-    }
-  };
-
   const createCheck = async (checkData: Partial<Check>) => {
     try {
       const now = new Date();
@@ -574,13 +325,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
           console.error("Invalid CRON expression:", error);
           throw new Error("Invalid CRON expression");
         }
-      } else if (checkData.period && checkData.period > 0) {
-        // Calculate next ping due based on period
-        nextPingDue = addMinutes(now, checkData.period);
       }
-      
-      // Prepare the HTTP config for database storage
-      const httpConfigForDb = checkData.httpConfig ? JSON.stringify(checkData.httpConfig) : null;
       
       const newCheckData = {
         name: checkData.name || "Untitled Check",
@@ -593,9 +338,7 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         cron_expression: checkData.cronExpression || null,
         project_id: checkData.projectId,
         next_ping_due: nextPingDue?.toISOString(),
-        created_at: now.toISOString(),
-        type: checkData.type || "standard",
-        http_config: httpConfigForDb
+        created_at: now.toISOString()
       };
 
       const { data, error } = await supabase
@@ -617,7 +360,75 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
     }
   };
 
-  
+  const pingCheck = async (id: string, status: CheckPing["status"]) => {
+    try {
+      const now = new Date();
+      
+      const nextPingDue = await calculateNextPingDue(id, now);
+
+      const { error: pingError } = await supabase
+        .from('check_pings')
+        .insert({
+          check_id: id,
+          status,
+          timestamp: now.toISOString(),
+          duration: 0
+        });
+
+      if (pingError) {
+        console.error('Error adding ping:', pingError);
+        return;
+      }
+
+      const { error: checkError } = await supabase
+        .from('checks')
+        .update({
+          last_ping: now.toISOString(),
+          next_ping_due: nextPingDue.toISOString(),
+          status: "up"
+        })
+        .eq('id', id);
+
+      if (checkError) {
+        console.error('Error updating check status:', checkError);
+        return;
+      }
+    } catch (error) {
+      console.error('Error processing ping:', error);
+    }
+  };
+
+  const calculateNextPingDue = async (id: string, now: Date): Promise<Date> => {
+    try {
+      const { data: check, error } = await supabase
+        .from('checks')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !check) {
+        console.error('Check not found', error);
+        return new Date(now.getTime() + 60 * 60 * 1000);
+      }
+
+      if (check.cron_expression) {
+        try {
+          const interval = parseExpression(check.cron_expression, {
+            currentDate: now
+          });
+          return interval.next().toDate();
+        } catch (error) {
+          console.error('Error parsing CRON expression:', error);
+          return new Date(now.getTime() + 60 * 60 * 1000);
+        }
+      } else {
+        return new Date(now.getTime() + check.period * 60 * 1000);
+      }
+    } catch (error) {
+      console.error('Error calculating next ping due:', error);
+      return new Date(now.getTime() + 60 * 60 * 1000);
+    }
+  };
 
   const updateCheck = async (id: string, checkData: Partial<Check>) => {
     try {
@@ -639,11 +450,8 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
       if (checkData.period !== 0) {
         checkData.cronExpression = "";
         
-        const now = new Date();
         if (checks[checkIndex].lastPing) {
           checkData.nextPingDue = addMinutes(checks[checkIndex].lastPing!, checkData.period);
-        } else {
-          checkData.nextPingDue = addMinutes(now, checkData.period);
         }
       }
       

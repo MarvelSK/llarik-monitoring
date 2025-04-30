@@ -1,12 +1,10 @@
 
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, Navigate } from "react-router-dom";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { executeCheckHttpRequest } from "@/utils/httpRequestUtils";
-import { toast } from "sonner";
 
 // Enhanced API detection to handle PowerShell, cURL, wget and other API clients
 const isApiRequest = () => {
@@ -16,6 +14,7 @@ const isApiRequest = () => {
   
   // 2. User-Agent detection for non-browser clients
   const userAgent = navigator.userAgent.toLowerCase();
+  // Console.log to help with debugging
   console.log('User agent detected:', userAgent);
   
   // 3. Enhanced detection for PowerShell and other clients
@@ -35,6 +34,7 @@ const isApiRequest = () => {
   // 4. Check Accept header via cookies (workaround since we can't access headers directly)
   const acceptHeader = /json/.test(document.cookie);
   
+  // Log all detection factors for debugging
   console.log('API detection:', { 
     userAgent, 
     isApiParam, 
@@ -46,7 +46,9 @@ const isApiRequest = () => {
 };
 
 // Direct API response function - process and respond with JSON for API requests
+// This executes before React even starts rendering for API requests
 if (isApiRequest()) {
+  // Stop React rendering for API requests and return JSON directly
   document.addEventListener('DOMContentLoaded', async () => {
     const pathParts = window.location.pathname.split('/');
     const id = pathParts[pathParts.length - 1];
@@ -61,11 +63,12 @@ if (isApiRequest()) {
     
     try {
       console.log('Processing API ping for check ID:', id);
+      const now = new Date();
       
       // Get the check
       const { data: checkData, error: checkError } = await supabase
         .from('checks')
-        .select('*, type, http_config')
+        .select('*')
         .eq('id', id)
         .single();
         
@@ -78,79 +81,70 @@ if (isApiRequest()) {
         return;
       }
       
-      // For HTTP request checks, execute the request directly
-      if (checkData.type === 'http_request' && checkData.http_config) {
+      // Calculate next ping due
+      let nextPingDue = new Date();
+      if (checkData.cron_expression) {
         try {
-          const httpConfig = typeof checkData.http_config === 'string' 
-            ? JSON.parse(checkData.http_config) 
-            : checkData.http_config;
-            
-          console.log("Executing HTTP request with config:", httpConfig);
-          
-          const result = await executeCheckHttpRequest(id, httpConfig);
-          
-          // Update the check status in the database
-          const now = new Date();
-          const nextPingDue = checkData.period > 0 
-            ? new Date(now.getTime() + checkData.period * 60 * 1000) 
-            : undefined;
-          
-          // Add ping record
-          await supabase
-            .from('check_pings')
-            .insert({
-              check_id: id,
-              status: result.success ? 'success' : 'failure',
-              timestamp: now.toISOString(),
-              response_code: result.responseCode,
-              method: result.method,
-              request_url: result.requestUrl,
-              duration: result.duration,
-            });
-            
-          // Update check status
-          await supabase
-            .from('checks')
-            .update({
-              last_ping: now.toISOString(),
-              next_ping_due: nextPingDue?.toISOString(),
-              status: 'up',
-              last_duration: result.duration
-            })
-            .eq('id', id);
-            
-          document.body.innerHTML = JSON.stringify({
-            success: result.success,
-            message: "HTTP request executed and check updated",
-            id,
-            result,
-            timestamp: now.toISOString(),
-          });
-          
+          if (checkData.cron_expression.startsWith('*/')) {
+            const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
+            nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
+          } else {
+            // Default to 60 minutes
+            nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+          }
         } catch (error) {
-          document.body.innerHTML = JSON.stringify({
-            success: false,
-            error: `Failed to execute HTTP request: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            id
-          });
+          nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
         }
       } else {
-        // For standard checks, use the update-check edge function
-        const { data, error } = await supabase.functions.invoke('update-check', {
-          body: { checkId: id }
-        });
-        
-        if (error) {
-          document.body.innerHTML = JSON.stringify({
-            success: false,
-            error: `Failed to process standard check: ${error.message}`,
-            id
-          });
-          return;
-        }
-        
-        document.body.innerHTML = JSON.stringify(data);
+        // Period-based
+        nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
       }
+      
+      // Add ping record
+      await supabase
+        .from('check_pings')
+        .insert({
+          check_id: id,
+          status: 'success',
+          timestamp: now.toISOString()
+        });
+      
+      // CRITICAL: ALWAYS Force update check status to "up" regardless of previous status
+      const { error: updateError, data: updateData } = await supabase
+        .from('checks')
+        .update({
+          last_ping: now.toISOString(),
+          next_ping_due: nextPingDue.toISOString(),
+          status: "up"  // Always force to "up"
+        })
+        .eq('id', id)
+        .select('status, last_ping');
+      
+      if (updateError) {
+        document.body.innerHTML = JSON.stringify({
+          success: false,
+          error: "Failed to update check",
+          id
+        });
+        return;
+      }
+      
+      // Overwrite the entire page content with JSON response
+      document.body.innerHTML = JSON.stringify({
+        success: true,
+        message: "Ping successfully received and processed, status set to UP",
+        id,
+        timestamp: now.toISOString(),
+        check: updateData[0]
+      }, null, 2);
+      
+      // Set content type for PowerShell and other clients that look at content type
+      // FIX: use meta tag instead of trying to set document.contentType
+      const meta = document.createElement('meta');
+      meta.httpEquiv = 'Content-Type';
+      meta.content = 'application/json';
+      document.head.appendChild(meta);
+      
     } catch (error) {
       document.body.innerHTML = JSON.stringify({
         success: false,
@@ -167,7 +161,6 @@ const PingHandler = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isApiRequest, setIsApiRequest] = useState(false);
-  const [isHttpRequestCheck, setIsHttpRequestCheck] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -176,6 +169,7 @@ const PingHandler = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const isApiParam = urlParams.get('api') === 'true';
       
+      // Enhanced User-Agent detection
       const userAgent = navigator.userAgent.toLowerCase();
       console.log('User agent detected in React component:', userAgent);
       
@@ -195,138 +189,83 @@ const PingHandler = () => {
       
       // Only process if not an API request (API requests handled above)
       if (!isApi) {
-        try {
-          const { data: check, error } = await supabase
-            .from('checks')
-            .select('type, http_config')
-            .eq('id', id)
-            .single();
-            
-          if (error || !check) {
-            setError(true);
-            setLoading(false);
-            return;
-          }
-          
-          const isHttpCheck = check.type === 'http_request';
-          setIsHttpRequestCheck(isHttpCheck);
-          
-          // Process the ping based on check type
-          if (isHttpCheck && check.http_config) {
-            await processHttpRequestCheck(id, check.http_config);
-          } else {
-            await processStandardCheck(id);
-          }
-        } catch (error) {
-          console.error("Error determining check type:", error);
-          setError(true);
-          setLoading(false);
-        }
+        await processPingInSupabase(id);
       }
     };
 
-    const processStandardCheck = async (checkId: string) => {
+    const processPingInSupabase = async (checkId: string) => {
       try {
         setLoading(true);
-        console.log('Processing browser ping for standard check:', checkId);
+        console.log('Processing browser ping for check:', checkId);
         
-        const { data, error } = await supabase.functions.invoke('update-check', {
-          body: { checkId }
-        });
+        const now = new Date();
         
-        if (error) {
-          console.error('Error processing standard check:', error);
+        // Get the check from database to determine next ping calculation
+        const { data: checkData, error: checkError } = await supabase
+          .from('checks')
+          .select('*')
+          .eq('id', checkId)
+          .single();
+          
+        if (checkError || !checkData) {
+          console.error("Check not found:", checkError);
           setError(true);
           setLoading(false);
           return;
         }
         
-        console.log('Standard ping successfully processed');
-        setProcessed(true);
-        setError(false);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error processing standard ping:", error);
-        setError(true);
-        setLoading(false);
-      }
-    };
-    
-    const processHttpRequestCheck = async (checkId: string, httpConfig: any) => {
-      try {
-        setLoading(true);
-        console.log('Processing browser ping for HTTP request check:', checkId);
+        console.log("Found check in database:", checkData);
         
-        // Parse HTTP config if needed
-        const config = typeof httpConfig === 'string' 
-          ? JSON.parse(httpConfig) 
-          : httpConfig;
-          
-        // Execute the HTTP request directly
-        const result = await executeCheckHttpRequest(checkId, config);
+        // Calculate next ping due time
+        let nextPingDue: Date;
+        if (checkData.cron_expression) {
+          try {
+            if (checkData.cron_expression.startsWith('*/')) {
+              const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
+              nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
+            } else {
+              // Default fallback - add 60 minutes
+              nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+            }
+          } catch (error) {
+            console.error("Error parsing CRON expression:", error);
+            nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
+          }
+        } else {
+          // For period-based checks
+          nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
+        }
         
-        // Record the ping and update the check status
-        const now = new Date();
-        
-        // Add ping record
+        // Record the ping
         const { error: pingError } = await supabase
           .from('check_pings')
           .insert({
             check_id: checkId,
-            status: result.success ? 'success' : 'failure',
-            timestamp: now.toISOString(),
-            response_code: result.responseCode,
-            method: result.method,
-            request_url: result.requestUrl,
-            duration: result.duration,
+            status: 'success',
+            timestamp: now.toISOString()
           });
           
         if (pingError) {
-          console.error('Error recording ping:', pingError);
+          console.error('Error adding ping:', pingError);
           setError(true);
           setLoading(false);
           return;
         }
         
-        // Get the check to determine next ping calculation
-        const { data: checkData, error: checkError } = await supabase
-          .from('checks')
-          .select('period, cron_expression')
-          .eq('id', checkId)
-          .single();
-          
-        if (checkError) {
-          console.error('Error getting check data:', checkError);
-          setError(true);
-          setLoading(false);
-          return;
-        }
+        // CRITICAL: ALWAYS update check status to "up" regardless of previous status
+        const updateData = {
+          last_ping: now.toISOString(),
+          next_ping_due: nextPingDue.toISOString(),
+          status: "up"  // Force status to "up" always
+        };
         
-        // Calculate next ping due
-        let nextPingDue;
-        if (checkData.cron_expression) {
-          // Simple parsing for common minute-based CRON patterns
-          if (checkData.cron_expression.startsWith('*/')) {
-            const minutes = parseInt(checkData.cron_expression.split(' ')[0].substring(2), 10);
-            nextPingDue = new Date(now.getTime() + minutes * 60 * 1000);
-          } else {
-            // Default to 60 minutes
-            nextPingDue = new Date(now.getTime() + 60 * 60 * 1000);
-          }
-        } else if (checkData.period > 0) {
-          // Period-based
-          nextPingDue = new Date(now.getTime() + checkData.period * 60 * 1000);
-        }
+        console.log('Updating check with data:', updateData);
+        console.log('Current check status before update:', checkData.status);
         
-        // Update the check status
+        // Make direct update to ensure status is changed to "up"
         const { error: updateError } = await supabase
           .from('checks')
-          .update({
-            last_ping: now.toISOString(),
-            next_ping_due: nextPingDue?.toISOString(),
-            status: result.success ? 'up' : 'down',
-            last_duration: result.duration
-          })
+          .update(updateData)
           .eq('id', checkId);
           
         if (updateError) {
@@ -336,21 +275,24 @@ const PingHandler = () => {
           return;
         }
         
-        if (result.success) {
-          toast.success(`HTTP request succeeded with status code ${result.responseCode}`);
-        } else {
-          toast.error(`HTTP request failed: ${result.error || `Status code ${result.responseCode} not in success codes`}`);
-        }
+        // Verify update worked by fetching check again
+        const { data: updatedCheck } = await supabase
+          .from('checks')
+          .select('status, last_ping')
+          .eq('id', checkId)
+          .single();
+          
+        console.log('Check after update:', updatedCheck);
         
-        console.log('HTTP request check successfully processed');
+        console.log('Ping successfully processed');
         setProcessed(true);
         setError(false);
         setLoading(false);
+        
       } catch (error) {
-        console.error("Error processing HTTP request ping:", error);
+        console.error("Error processing ping:", error);
         setError(true);
         setLoading(false);
-        toast.error(`Failed to execute HTTP request: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     };
 
@@ -401,10 +343,7 @@ const PingHandler = () => {
         </div>
         <h1 className="text-2xl font-bold mb-2">Ping successfully received</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          {isHttpRequestCheck 
-            ? 'HTTP request has been executed and your check status has been updated.'
-            : 'Your check has been updated and the status is now ACTIVE.'
-          }
+          Your check has been updated and the status is now ACTIVE.
         </p>
         <Button asChild>
           <Link to="/">Back to dashboard</Link>
