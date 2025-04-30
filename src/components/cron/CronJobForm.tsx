@@ -81,7 +81,7 @@ export const CronJobForm = ({ initialData }: CronJobFormProps) => {
         toast.success("CRON úloha bola úspešne aktualizovaná");
       } else {
         // Create new job
-        await createCronJob(values);
+        await createCronJob(values as Omit<CronJob, 'id' | 'created_at' | 'updated_at'>);
         toast.success("CRON úloha bola úspešne vytvorená");
       }
       

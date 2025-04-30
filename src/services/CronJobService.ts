@@ -80,9 +80,121 @@ export async function deleteCronJob(id: string): Promise<void> {
 }
 
 export async function triggerCronJob(id: string): Promise<void> {
-  await supabase.functions.invoke('cron-request', {
-    body: { jobId: id }
-  });
+  // Execute the CRON job directly from client-side
+  const job = await fetchCronJob(id);
+  
+  // Create an execution record
+  const { data: executionData } = await supabase
+    .from('cron_job_executions')
+    .insert({
+      job_id: id,
+      status: 'running',
+      started_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  if (!executionData) {
+    throw new Error("Failed to create execution record");
+  }
+  
+  const executionId = executionData.id;
+  
+  try {
+    // Execute the HTTP request directly
+    const startTime = performance.now();
+    
+    // Prepare the request
+    const url = new URL(job.endpoint);
+    
+    // Add query parameters if any
+    if (job.parameters && Object.keys(job.parameters).length > 0) {
+      Object.entries(job.parameters).forEach(([key, value]) => {
+        url.searchParams.append(key, String(value));
+      });
+    }
+    
+    // Prepare headers
+    const headers: HeadersInit = new Headers();
+    if (job.headers) {
+      Object.entries(job.headers).forEach(([key, value]) => {
+        headers.append(key, value);
+      });
+    }
+    
+    // Add JWT token if provided
+    if (job.jwt_token) {
+      headers.append('Authorization', `Bearer ${job.jwt_token}`);
+    }
+    
+    // Create request options
+    const requestOptions: RequestInit = {
+      method: job.method,
+      headers,
+      credentials: 'omit', // Don't send cookies
+    };
+    
+    // Add body for non-GET requests
+    if (job.body && job.method !== 'GET' && job.method !== 'HEAD') {
+      requestOptions.body = job.body;
+    }
+    
+    // Execute request
+    const response = await fetch(url.toString(), requestOptions);
+    const responseText = await response.text();
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+    
+    // Determine if the request was successful
+    const isSuccess = job.success_codes.includes(response.status);
+    
+    // Update the execution record
+    await supabase
+      .from('cron_job_executions')
+      .update({
+        status: isSuccess ? 'success' : 'failed',
+        status_code: response.status,
+        completed_at: new Date().toISOString(),
+        duration,
+        response: responseText
+      })
+      .eq('id', executionId);
+    
+    // Update the job with the last run info
+    await supabase
+      .from('cron_jobs')
+      .update({
+        last_run: new Date().toISOString(),
+        last_status: isSuccess ? 'success' : 'failed',
+        last_response: responseText,
+        last_duration: duration
+      })
+      .eq('id', id);
+      
+  } catch (error) {
+    console.error('Error executing CRON job:', error);
+    
+    // Update execution record with error
+    await supabase
+      .from('cron_job_executions')
+      .update({
+        status: 'error',
+        completed_at: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error)
+      })
+      .eq('id', executionId);
+      
+    // Update job with error status
+    await supabase
+      .from('cron_jobs')
+      .update({
+        last_run: new Date().toISOString(),
+        last_status: 'error'
+      })
+      .eq('id', id);
+      
+    throw error;
+  }
 }
 
 export async function toggleCronJobStatus(id: string, enabled: boolean): Promise<void> {
