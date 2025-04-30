@@ -110,7 +110,7 @@ export async function executeCheckHttpRequest(checkId: string, httpConfig: HttpR
       responseCode: result.status,
       method: httpConfig.method,
       requestUrl: httpConfig.url,
-      error: result.error,
+      error: 'error' in result ? result.error : undefined,
     };
   } catch (error) {
     console.error("Error executing HTTP request for check:", checkId, error);
