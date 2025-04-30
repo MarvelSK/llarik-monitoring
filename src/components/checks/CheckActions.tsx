@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Check, CheckPing } from "@/types/check";
-import { Edit, MoreVertical, Trash, Play, AlertCircle, Copy, Globe } from "lucide-react";
+import { Edit, MoreVertical, Trash, Play, AlertCircle, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
@@ -21,8 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
-import { executeHttpRequest } from "@/utils/httpRequestUtils";
-import { toast } from "sonner";
 
 interface CheckActionsProps {
   check: Check;
@@ -34,7 +32,6 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isExecutingRequest, setIsExecutingRequest] = useState(false);
 
   const handleEdit = () => {
     navigate(`/checks/${check.id}/edit`);
@@ -63,39 +60,6 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
 
   const copyCheckUrl = () => {
     navigator.clipboard.writeText(`${window.location.origin}/ping/${check.id}`);
-    toast.success("URL skopírované do schránky");
-  };
-
-  const executeHttpCheck = async () => {
-    if (!check.httpConfig) {
-      toast.error("Táto kontrola nemá nakonfigurovaný HTTP request");
-      return;
-    }
-
-    setIsExecutingRequest(true);
-    try {
-      const result = await executeHttpRequest(check.httpConfig);
-      
-      // Display toast with result
-      if (result.status === 'success') {
-        toast.success(`HTTP request úspešný (${result.statusCode})`, {
-          description: `Doba trvania: ${result.responseTime}ms`
-        });
-        // Pass the success status to the ping handler
-        onPing('success');
-      } else {
-        toast.error(`HTTP request zlyhal (${result.statusCode || 'No status code'})`, {
-          description: result.error || `Doba trvania: ${result.responseTime}ms`
-        });
-        // Pass the failure status to the ping handler
-        onPing('failure');
-      }
-    } catch (error) {
-      toast.error(`HTTP request zlyhal: ${error instanceof Error ? error.message : String(error)}`);
-      onPing('failure');
-    } finally {
-      setIsExecutingRequest(false);
-    }
   };
 
   return (
@@ -105,17 +69,6 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
           <Play className="w-4 h-4 mr-2" />
           Pingnúť manuálne
         </Button>
-        
-        {check.httpConfig && (
-          <Button 
-            onClick={executeHttpCheck} 
-            className="bg-blue-600 text-white hover:bg-blue-700"
-            disabled={isExecutingRequest}
-          >
-            <Globe className="w-4 h-4 mr-2" />
-            {isExecutingRequest ? "Vykonávam..." : "Test HTTP"}
-          </Button>
-        )}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

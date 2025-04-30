@@ -2,10 +2,10 @@
 // update-check edge function - directly updates check status in database
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-// Enhanced CORS headers to allow more request sources
+// Define CORS headers for all responses
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, user-agent',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json'
 };
@@ -22,7 +22,7 @@ const supabaseAdmin = createClient(
 );
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests with expanded allowed headers
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -94,9 +94,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log(`Current check status before update: ${checkData.status}`);
-    
-    // Force update check status to "up"
+    // CRITICAL: ALWAYS Force update check status to "up"
     const { error: updateError, data: updateData } = await supabaseAdmin
       .from('checks')
       .update({
@@ -114,8 +112,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: corsHeaders }
       );
     }
-    
-    console.log(`Check updated successfully. New status: ${updateData[0].status}`);
     
     return new Response(
       JSON.stringify({

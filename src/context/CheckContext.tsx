@@ -121,7 +121,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
 
     fetchChecks();
 
-    // Enhanced realtime subscription with better error handling
     const channel = supabase
       .channel('public:checks')
       .on('postgres_changes', {
@@ -129,46 +128,30 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         schema: 'public',
         table: 'checks'
       }, (payload) => {
-        console.log('Realtime update received:', payload);
-        
-        try {
-          if (payload.eventType === 'INSERT') {
-            const newCheck = convertDatesToObjects(payload.new);
-            
-            if (newCheck.cronExpression && !newCheck.nextPingDue) {
-              newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
-            }
-            
-            setChecks(prev => [newCheck, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            console.log('UPDATE event received, old status:', payload.old.status, 'new status:', payload.new.status);
-            
-            const updatedCheck = convertDatesToObjects(payload.new);
-            
-            setChecks(prev => prev.map(check => {
-              if (check.id === updatedCheck.id) {
-                console.log(`Updating check ${check.id} from ${check.status} to ${updatedCheck.status}`);
-                return updatedCheck;
-              }
-              return check;
-            }));
-          } else if (payload.eventType === 'DELETE') {
-            setChecks(prev => prev.filter(check => check.id !== payload.old.id));
+        if (payload.eventType === 'INSERT') {
+          const newCheck = convertDatesToObjects(payload.new);
+          
+          if (newCheck.cronExpression && !newCheck.nextPingDue) {
+            newCheck.nextPingDue = getNextCronDate(newCheck.cronExpression);
           }
-        } catch (error) {
-          console.error('Error processing realtime update:', error);
+          
+          setChecks(prev => [newCheck, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedCheck = convertDatesToObjects(payload.new);
+          setChecks(prev => prev.map(check => 
+            check.id === updatedCheck.id ? updatedCheck : check
+          ));
+        } else if (payload.eventType === 'DELETE') {
+          setChecks(prev => prev.filter(check => check.id !== payload.old.id));
         }
       })
-      .subscribe(status => {
-        console.log('Realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // Keep the status calculation logic for local updates
   useEffect(() => {
     const intervalId = setInterval(() => {
       setChecks((currentChecks) =>
@@ -192,7 +175,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
               triggerIntegrations(check.id, 'up');
             }
 
-            // Update status in Supabase
             supabase
               .from('checks')
               .update({ status: newStatus })
@@ -398,13 +380,12 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         return;
       }
 
-      // Update check status to "up" regardless of previous status
       const { error: checkError } = await supabase
         .from('checks')
         .update({
           last_ping: now.toISOString(),
           next_ping_due: nextPingDue.toISOString(),
-          status: "up" // Force status to "up"
+          status: "up"
         })
         .eq('id', id);
 
@@ -412,20 +393,6 @@ export const CheckProvider = ({ children }: CheckProviderProps) => {
         console.error('Error updating check status:', checkError);
         return;
       }
-      
-      // Also update the local state immediately to avoid waiting for realtime update
-      setChecks(prevChecks => 
-        prevChecks.map(check => 
-          check.id === id 
-            ? {
-                ...check, 
-                status: "up", 
-                lastPing: now,
-                nextPingDue: nextPingDue
-              }
-            : check
-        )
-      );
     } catch (error) {
       console.error('Error processing ping:', error);
     }
