@@ -38,10 +38,22 @@ export async function fetchCronJob(id: string): Promise<CronJob> {
 }
 
 export async function createCronJob(job: Omit<CronJob, 'id' | 'created_at' | 'updated_at'>): Promise<CronJob> {
+  // Process the job object to convert any Date objects to ISO strings
+  const processedJob: Record<string, any> = {};
+  
+  // Copy all properties from job object but convert Date objects to ISO strings
+  for (const [key, value] of Object.entries(job)) {
+    if (value instanceof Date) {
+      processedJob[key] = value.toISOString();
+    } else {
+      processedJob[key] = value;
+    }
+  }
+  
   const { data, error } = await supabase
     .from('cron_jobs')
     .insert({
-      ...job,
+      ...processedJob,
       created_by: (await supabase.auth.getSession()).data.session?.user.id
     })
     .select()
