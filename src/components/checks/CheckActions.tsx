@@ -65,8 +65,8 @@ const CheckActions = ({ check, onPing, onDelete }: CheckActionsProps) => {
         toast.info('Executing HTTP request...');
         const result = await executeCheckHttpRequest(check.id, check.httpConfig);
         
-        // Update the check with the result - ensuring we use the correct status type
-        onPing(result.success ? "success" : "failure");
+        // Update the check with the result
+        onPing(result.status); // This now correctly passes 'success' or 'failure'
         
         if (result.success) {
           toast.success(`HTTP request executed successfully with status code ${result.responseCode}`);

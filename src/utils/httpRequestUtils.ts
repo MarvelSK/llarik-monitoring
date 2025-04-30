@@ -77,11 +77,14 @@ export async function executeHttpRequest(config: HttpRequestConfig) {
     // Calculate duration
     const duration = (Date.now() - startTime) / 1000; // in seconds
 
+    // Determine if success based on configured success codes
+    const success = config.successCodes.includes(response.status);
+    
     // Process response
     const result = {
       status: response.status,
       duration,
-      success: config.successCodes.includes(response.status),
+      success,
     };
 
     console.log("HTTP request completed:", result);
@@ -103,9 +106,18 @@ export async function executeHttpRequest(config: HttpRequestConfig) {
 export async function executeCheckHttpRequest(checkId: string, httpConfig: HttpRequestConfig) {
   try {
     const result = await executeHttpRequest(httpConfig);
+    
+    // Log the detailed result for debugging
+    console.log(`HTTP request result for check ${checkId}:`, {
+      success: result.success, 
+      status: result.status,
+      successCodes: httpConfig.successCodes,
+      isSuccess: httpConfig.successCodes.includes(result.status)
+    });
+    
     return {
       success: result.success,
-      status: result.status === 0 ? 'failure' : (result.success ? 'success' : 'failure'),
+      status: result.success ? 'success' as const : 'failure' as const,
       duration: result.duration,
       responseCode: result.status,
       method: httpConfig.method,
