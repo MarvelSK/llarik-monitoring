@@ -94,6 +94,8 @@ Deno.serve(async (req) => {
       );
     }
     
+    console.log(`Current check status before update: ${checkData.status}`);
+    
     // Force update check status to "up"
     const { error: updateError, data: updateData } = await supabaseAdmin
       .from('checks')
@@ -112,6 +114,8 @@ Deno.serve(async (req) => {
         { status: 500, headers: corsHeaders }
       );
     }
+    
+    console.log(`Check updated successfully. New status: ${updateData[0].status}`);
     
     return new Response(
       JSON.stringify({

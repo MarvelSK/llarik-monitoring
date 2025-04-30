@@ -48,7 +48,7 @@ export async function executeHttpRequest(config: HttpConfig): Promise<{
     if (isCrossOrigin) {
       // For cross-origin requests to our own 'update-check' edge function, 
       // use a direct edge function call instead of fetch where possible
-      if (url.includes('update-check') && url.includes('supabase.co/functions')) {
+      if ((url.includes('update-check') && url.includes('supabase.co/functions')) || url.includes('ping')) {
         console.log('Using direct edge function call for update-check ping');
         // Make a special request to our update-check edge function
         return await makePingRequest(url, config);
@@ -122,6 +122,7 @@ async function makePingRequest(url: string, config: HttpConfig): Promise<{
     const response = await fetch(supabaseUrl, {
       method: 'GET',
       credentials: 'include',
+      cache: 'no-cache' // Add cache control to prevent caching
     });
     
     const endTime = performance.now();
@@ -129,8 +130,16 @@ async function makePingRequest(url: string, config: HttpConfig): Promise<{
     
     // Try to get the response body
     let responseBody = '';
+    let jsonResponse;
+    
     try {
       responseBody = await response.text();
+      try {
+        jsonResponse = JSON.parse(responseBody);
+        console.log('Ping response:', jsonResponse);
+      } catch (e) {
+        console.log('Raw ping response:', responseBody);
+      }
     } catch (e) {
       console.error('Error reading response:', e);
     }
