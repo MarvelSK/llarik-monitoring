@@ -22,6 +22,10 @@ const Projects = lazy(() => import("./pages/Projects"));
 const Import = lazy(() => import("./pages/Import"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 const CronJobs = lazy(() => import("./pages/CronJobs"));
+const CronJobCreate = lazy(() => import("./pages/CronJobCreate"));
+const CronJobEdit = lazy(() => import("./pages/CronJobEdit"));
+const CronJobDetail = lazy(() => import("./pages/CronJobDetail"));
+const CronJobHistory = lazy(() => import("./pages/CronJobHistory"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -119,6 +123,26 @@ function App() {
                   <Route path="/cron-jobs" element={
                     <RequireAuth>
                       <CronJobs />
+                    </RequireAuth>
+                  } />
+                  <Route path="/cron-jobs/new" element={
+                    <RequireAuth>
+                      <CronJobCreate />
+                    </RequireAuth>
+                  } />
+                  <Route path="/cron-jobs/:id" element={
+                    <RequireAuth>
+                      <CronJobDetail />
+                    </RequireAuth>
+                  } />
+                  <Route path="/cron-jobs/:id/edit" element={
+                    <RequireAuth>
+                      <CronJobEdit />
+                    </RequireAuth>
+                  } />
+                  <Route path="/cron-jobs/:id/history" element={
+                    <RequireAuth>
+                      <CronJobHistory />
                     </RequireAuth>
                   } />
                   <Route path="/ping/:id" element={<PingHandler />} />

@@ -3,7 +3,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { Clock, Settings } from "lucide-react";
+import { Clock, Settings, Globe } from "lucide-react";
 
 export function MainNav({
   className,
@@ -68,7 +68,7 @@ export function MainNav({
         </Link>
         <Link to="/cron-jobs" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary flex items-center">
           <Clock className="h-4 w-4 mr-1" />
-          <span>CRON Kontroly</span>
+          <span>CRON Úlohy</span>
         </Link>
         <Link to="/projects" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
           Projekty

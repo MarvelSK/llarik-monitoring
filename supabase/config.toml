@@ -6,4 +6,3 @@ verify_jwt = false
 
 [functions.cron-request]
 verify_jwt = false
-

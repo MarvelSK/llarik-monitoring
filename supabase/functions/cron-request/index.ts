@@ -1,238 +1,264 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.40.0'
+import { Database } from '../_shared/database.types.ts'
+import { cron } from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts'
 
-// Define CORS headers for all responses
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Content-Type': 'application/json'
-};
-
-// Create a Supabase client with the Admin key
-const supabaseAdmin = createClient(
-  'https://uxrrxefdpjyzyepnrfme.supabase.co',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-  {
-    global: {
-      headers: { 'X-Client-Info': 'cron-request-edge-function' },
-    },
-  }
-);
-
-interface HttpConfig {
-  url: string;
-  method: string;
-  successCodes: number[];
-  params?: Record<string, string>;
-  headers?: Record<string, string>;
-  body?: string;
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+// Create Supabase client
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || 'https://uxrrxefdpjyzyepnrfme.supabase.co'
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4cnJ4ZWZkcGp5enllcG5yZm1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE2MzA2OTMsImV4cCI6MjA1NzIwNjY5M30.FjUzbKTRfBByila6emaaCRB5zN5S6hkT0KzQSCSGLAU'
+const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+async function logToDatabase(functionName: string, level: string, message: string) {
   try {
-    console.log("Starting cron-request execution");
-    
-    // Get all checks with HTTP configuration
-    const { data: checks, error: checksError } = await supabaseAdmin
-      .from('checks')
-      .select('*')
-      .not('http_config', 'is', null)
-      .order('created_at', { ascending: false });
-      
-    if (checksError) {
-      console.error('Error fetching checks:', checksError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch checks' }),
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    console.log(`Found ${checks.length} checks with HTTP configuration`);
-    
-    const now = new Date();
-    const results = [];
-
-    for (const check of checks) {
-      try {
-        console.log(`Processing check: ${check.name} (${check.id})`);
-        
-        // Parse HTTP configuration
-        const httpConfig: HttpConfig = JSON.parse(check.http_config);
-        
-        if (!httpConfig || !httpConfig.url) {
-          console.warn(`Skip check ${check.id}: Missing or invalid HTTP configuration`);
-          continue;
-        }
-        
-        console.log(`Executing HTTP request to ${httpConfig.url}`);
-        
-        // Execute the HTTP request
-        const startTime = Date.now();
-        const response = await executeHttpRequest(httpConfig);
-        const endTime = Date.now();
-        const duration = (endTime - startTime) / 1000; // Convert to seconds
-        
-        console.log(`Request completed with status: ${response.status}, HTTP code: ${response.statusCode}`);
-        
-        // Add ping record
-        const { error: pingError } = await supabaseAdmin
-          .from('check_pings')
-          .insert({
-            check_id: check.id,
-            status: response.success ? 'success' : 'failure',
-            timestamp: now.toISOString(),
-            duration: duration,
-            payload: JSON.stringify({
-              statusCode: response.statusCode,
-              responseTime: response.responseTime,
-              responseBody: response.responseBody?.substring(0, 1000) // Limit response size
-            })
-          });
-          
-        if (pingError) {
-          console.error(`Error adding ping for check ${check.id}:`, pingError);
-        }
-        
-        // Calculate next ping due time
-        let nextPingDue = new Date();
-        
-        if (check.cron_expression) {
-          try {
-            // Simple cron parsing logic - this is a placeholder
-            // In production, you would use a proper cron parser
-            nextPingDue = new Date(now.getTime() + 120 * 1000); // Default to 2 minutes for now
-          } catch (error) {
-            console.error(`Error parsing CRON for check ${check.id}:`, error);
-            nextPingDue = new Date(now.getTime() + 120 * 1000); // Default to 2 minutes
-          }
-        } else {
-          // Use period from the check (in minutes)
-          nextPingDue = new Date(now.getTime() + (check.period || 2) * 60 * 1000);
-        }
-        
-        // Update check status based on the response
-        const status = response.success ? "up" : "down";
-        
-        // Update the check record
-        const { error: updateError } = await supabaseAdmin
-          .from('checks')
-          .update({
-            status: status,
-            last_ping: now.toISOString(),
-            next_ping_due: nextPingDue.toISOString(),
-            last_duration: duration
-          })
-          .eq('id', check.id);
-          
-        if (updateError) {
-          console.error(`Error updating check ${check.id}:`, updateError);
-        }
-        
-        results.push({
-          check_id: check.id,
-          name: check.name,
-          url: httpConfig.url,
-          success: response.success,
-          status_code: response.statusCode,
-          duration: duration
-        });
-      } catch (error) {
-        console.error(`Error processing check ${check.id}:`, error);
-        results.push({
-          check_id: check.id,
-          name: check.name,
-          error: String(error)
-        });
-      }
-    }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        timestamp: now.toISOString(),
-        results: results
-      }),
-      { status: 200, headers: corsHeaders }
-    );
+    await supabase.from('edge_function_logs').insert({
+      function_name: functionName,
+      log_level: level,
+      message: message
+    })
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
-      { status: 500, headers: corsHeaders }
-    );
+    console.error('Error logging to database:', error)
   }
-});
+}
 
-async function executeHttpRequest(config: HttpConfig): Promise<{
-  success: boolean;
-  statusCode?: number;
-  responseTime: number;
-  responseBody?: string;
-}> {
+async function executeJob(jobId: string) {
+  const startTime = Date.now()
+  let executionId = crypto.randomUUID()
+  
   try {
-    const startTime = performance.now();
+    // Log job execution start
+    await logToDatabase('cron-request', 'info', `Starting execution of job: ${jobId}`)
     
-    // Prepare URL with params if needed
-    let url = config.url;
-    if (config.params && Object.keys(config.params).length > 0) {
-      const urlObj = new URL(url);
-      Object.entries(config.params).forEach(([key, value]) => {
-        urlObj.searchParams.append(key, value);
-      });
-      url = urlObj.toString();
+    // Get job details
+    const { data: job, error: jobError } = await supabase
+      .from('cron_jobs')
+      .select('*')
+      .eq('id', jobId)
+      .single()
+      
+    if (jobError || !job) {
+      await logToDatabase('cron-request', 'error', `Job not found: ${jobId} - ${jobError?.message}`)
+      return
+    }
+
+    // Create execution record
+    const { data: execution, error: executionError } = await supabase
+      .from('cron_job_executions')
+      .insert({
+        id: executionId,
+        job_id: jobId,
+        status: 'running',
+        started_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (executionError) {
+      await logToDatabase('cron-request', 'error', `Failed to create execution record: ${executionError.message}`)
     }
     
     // Prepare request options
-    const requestInit: RequestInit = {
-      method: config.method,
-      headers: config.headers ? config.headers : {},
-    };
+    const options: RequestInit = {
+      method: job.method,
+      headers: job.headers || {},
+    }
     
-    // Add body for non-GET/HEAD requests
-    if (config.body && config.method !== 'GET' && config.method !== 'HEAD') {
-      requestInit.body = config.body;
+    // Add body for non-GET requests
+    if (job.body && job.method !== 'GET' && job.method !== 'HEAD') {
+      options.body = job.body
+    }
+    
+    // Add JWT if specified
+    if (job.jwt_token) {
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${job.jwt_token}`
+      }
+    }
+    
+    // Build URL with parameters
+    let url = job.endpoint
+    if (job.parameters && Object.keys(job.parameters).length > 0) {
+      const urlObj = new URL(url)
+      Object.entries(job.parameters).forEach(([key, value]) => {
+        urlObj.searchParams.append(key, String(value))
+      })
+      url = urlObj.toString()
     }
     
     // Execute the request with timeout
-    const timeoutPromise = new Promise<Response>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 seconds timeout
-    });
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000) // 30 second timeout
     
-    const fetchPromise = fetch(url, requestInit);
-    const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
-    
-    const endTime = performance.now();
-    const responseTime = Math.round(endTime - startTime);
-    
-    // Get response body
-    let responseBody: string | undefined;
     try {
-      responseBody = await response.text();
-    } catch (e) {
-      console.warn('Failed to read response body:', e);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeout)
+      
+      const responseText = await response.text()
+      const endTime = Date.now()
+      const duration = endTime - startTime
+      
+      // Check if status code is in success codes
+      const isSuccess = job.success_codes.includes(response.status)
+      const status = isSuccess ? 'success' : 'failed'
+      
+      // Update job
+      await supabase
+        .from('cron_jobs')
+        .update({
+          last_run: new Date().toISOString(),
+          last_status: status,
+          last_response: responseText.substring(0, 1000), // Limit response size
+          last_duration: duration
+        })
+        .eq('id', jobId)
+      
+      // Update execution record
+      await supabase
+        .from('cron_job_executions')
+        .update({
+          status: status,
+          completed_at: new Date().toISOString(),
+          duration: duration,
+          response: responseText.substring(0, 1000), // Limit response size
+          status_code: response.status
+        })
+        .eq('id', executionId)
+      
+      await logToDatabase(
+        'cron-request', 
+        isSuccess ? 'info' : 'warning', 
+        `Job ${jobId} completed with status ${status}, code ${response.status}, duration ${duration}ms`
+      )
+      
+    } catch (error) {
+      clearTimeout(timeout)
+      const endTime = Date.now()
+      const duration = endTime - startTime
+      
+      // Handle request errors
+      await supabase
+        .from('cron_jobs')
+        .update({
+          last_run: new Date().toISOString(),
+          last_status: 'error',
+          last_duration: duration
+        })
+        .eq('id', jobId)
+        
+      // Update execution record with error
+      await supabase
+        .from('cron_job_executions')
+        .update({
+          status: 'error',
+          completed_at: new Date().toISOString(),
+          duration: duration,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        .eq('id', executionId)
+      
+      await logToDatabase('cron-request', 'error', `Job ${jobId} failed: ${error instanceof Error ? error.message : String(error)}`)
     }
     
-    // Check if response code is in the success codes
-    const isSuccess = config.successCodes.includes(response.status);
-    
-    return {
-      success: isSuccess,
-      statusCode: response.status,
-      responseTime,
-      responseBody
-    };
   } catch (error) {
-    console.error('HTTP request failed:', error);
-    return {
-      success: false,
-      responseTime: 0,
-      responseBody: error instanceof Error ? error.message : String(error)
-    };
+    await logToDatabase('cron-request', 'error', `Unhandled error for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
+
+// Endpoint handler
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+  
+  try {
+    // Manual trigger of a job
+    if (req.method === 'POST') {
+      const body = await req.json()
+      const { jobId } = body
+      
+      if (!jobId) {
+        return new Response(
+          JSON.stringify({ error: 'Job ID is required' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        )
+      }
+      
+      // Execute the job in the background
+      executeJob(jobId).catch(console.error)
+      
+      return new Response(
+        JSON.stringify({ message: 'Job triggered successfully' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Scheduled trigger (cron scheduler)
+    if (req.method === 'GET') {
+      // Log function invocation
+      await logToDatabase('cron-request', 'info', 'Scheduled function triggered')
+      
+      // Find all enabled jobs
+      const { data: jobs, error } = await supabase
+        .from('cron_jobs')
+        .select('*')
+        .eq('enabled', true)
+      
+      if (error) {
+        await logToDatabase('cron-request', 'error', `Failed to fetch jobs: ${error.message}`)
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch jobs' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
+      
+      if (!jobs || jobs.length === 0) {
+        return new Response(
+          JSON.stringify({ message: 'No jobs to process' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      const now = new Date()
+      let jobsToRun = 0
+      
+      // Process each job
+      for (const job of jobs) {
+        // Skip jobs without next run time or schedule
+        if (!job.schedule) continue
+        
+        // Check if job is due or overdue
+        if (!job.next_run || new Date(job.next_run) <= now) {
+          jobsToRun++
+          // Run the job asynchronously (don't await)
+          executeJob(job.id).catch(console.error)
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ message: `Processed ${jobs.length} jobs, executed ${jobsToRun} due jobs` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
+    )
+  } catch (error) {
+    await logToDatabase('cron-request', 'error', `Unhandled server error: ${error instanceof Error ? error.message : String(error)}`)
+    
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
+  }
+})
