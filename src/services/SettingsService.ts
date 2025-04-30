@@ -67,7 +67,7 @@ export const getEmailSettings = async (): Promise<EmailSettings> => {
       return defaultEmailSettings;
     }
 
-    return data?.value as EmailSettings || defaultEmailSettings;
+    return (data?.value as any) as EmailSettings || defaultEmailSettings;
   } catch (error) {
     console.error("Error in getEmailSettings:", error);
     return defaultEmailSettings;
@@ -85,7 +85,7 @@ export const saveEmailSettings = async (settings: EmailSettings): Promise<boolea
       .upsert(
         {
           key: "email_settings",
-          value: settings,
+          value: settings as any,
           updated_at: new Date().toISOString(),
           updated_by: userId
         },
@@ -121,7 +121,7 @@ export const getBrandingSettings = async (): Promise<BrandingSettings> => {
       return defaultBrandingSettings;
     }
 
-    return data?.value as BrandingSettings || defaultBrandingSettings;
+    return (data?.value as any) as BrandingSettings || defaultBrandingSettings;
   } catch (error) {
     console.error("Error in getBrandingSettings:", error);
     return defaultBrandingSettings;
@@ -139,7 +139,7 @@ export const saveBrandingSettings = async (settings: BrandingSettings): Promise<
       .upsert(
         {
           key: "branding_settings",
-          value: settings,
+          value: settings as any,
           updated_at: new Date().toISOString(),
           updated_by: userId
         },

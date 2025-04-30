@@ -16,7 +16,7 @@ export async function fetchCronJobs(): Promise<CronJob[]> {
     updated_at: new Date(job.updated_at),
     last_run: job.last_run ? new Date(job.last_run) : undefined,
     next_run: job.next_run ? new Date(job.next_run) : undefined
-  }));
+  })) as CronJob[];
 }
 
 export async function fetchCronJob(id: string): Promise<CronJob> {
@@ -34,7 +34,7 @@ export async function fetchCronJob(id: string): Promise<CronJob> {
     updated_at: new Date(data.updated_at),
     last_run: data.last_run ? new Date(data.last_run) : undefined,
     next_run: data.next_run ? new Date(data.next_run) : undefined
-  };
+  } as CronJob;
 }
 
 export async function createCronJob(job: Omit<CronJob, 'id' | 'created_at' | 'updated_at'>): Promise<CronJob> {
@@ -55,14 +55,25 @@ export async function createCronJob(job: Omit<CronJob, 'id' | 'created_at' | 'up
     updated_at: new Date(data.updated_at),
     last_run: data.last_run ? new Date(data.last_run) : undefined,
     next_run: data.next_run ? new Date(data.next_run) : undefined
-  };
+  } as CronJob;
 }
 
 export async function updateCronJob(id: string, job: Partial<Omit<CronJob, 'id' | 'created_at' | 'created_by'>>): Promise<void> {
+  // Convert any Date objects to ISO strings for Supabase
+  const processedJob: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(job)) {
+    if (value instanceof Date) {
+      processedJob[key] = value.toISOString();
+    } else {
+      processedJob[key] = value;
+    }
+  }
+  
   const { error } = await supabase
     .from('cron_jobs')
     .update({
-      ...job,
+      ...processedJob,
       updated_at: new Date().toISOString()
     })
     .eq('id', id);
@@ -219,7 +230,7 @@ export async function fetchCronJobExecutions(jobId: string): Promise<CronJobExec
     ...execution,
     started_at: new Date(execution.started_at),
     completed_at: execution.completed_at ? new Date(execution.completed_at) : undefined
-  }));
+  })) as CronJobExecution[];
 }
 
 export async function fetchLatestEdgeFunctionLog(): Promise<EdgeFunctionLog | null> {
@@ -237,7 +248,7 @@ export async function fetchLatestEdgeFunctionLog(): Promise<EdgeFunctionLog | nu
     return {
       ...data,
       timestamp: new Date(data.timestamp)
-    };
+    } as EdgeFunctionLog;
   } catch (error) {
     console.error('Error fetching edge function logs:', error);
     return null;
