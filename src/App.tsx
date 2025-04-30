@@ -21,6 +21,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Import = lazy(() => import("./pages/Import"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const CronJobs = lazy(() => import("./pages/CronJobs"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +114,11 @@ function App() {
                   <Route path="/checks/:id/edit" element={
                     <RequireAuth>
                       <CheckEdit />
+                    </RequireAuth>
+                  } />
+                  <Route path="/cron-jobs" element={
+                    <RequireAuth>
+                      <CronJobs />
                     </RequireAuth>
                   } />
                   <Route path="/ping/:id" element={<PingHandler />} />

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, CheckEnvironment } from "@/types/check";
+import { Check, CheckEnvironment, HttpConfig } from "@/types/check";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import ProjectSelector from "@/components/projects/ProjectSelector";
 import { useEffect, useState } from "react";
+import HttpConfigForm from "../cron/HttpConfigForm";
 
 interface CheckFormProps {
   onSubmit: (data: Partial<Check>) => void;
@@ -23,6 +24,16 @@ interface CheckFormProps {
 }
 
 const environmentOptions: CheckEnvironment[] = ["produkcia", "test", "manuál"];
+
+// Define the schema for HttpConfig
+const httpConfigSchema = z.object({
+  url: z.string().url("Musí byť platná URL").optional(),
+  method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]).optional(),
+  successCodes: z.array(z.number()).optional(),
+  params: z.record(z.string()).optional(),
+  headers: z.record(z.string()).optional(),
+  body: z.string().optional(),
+}).optional();
 
 const formSchema = z.object({
   name: z.string().min(1, "Názov je povinný"),
@@ -33,6 +44,7 @@ const formSchema = z.object({
   environments: z.array(z.string()).optional(),
   cronExpression: z.string().optional(),
   projectId: z.string().optional(),
+  httpConfig: httpConfigSchema,
 });
 
 const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) => {
@@ -53,6 +65,14 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       environments: defaultValues?.environments || [],
       cronExpression: defaultValues?.cronExpression || "",
       projectId: defaultValues?.projectId || "",
+      httpConfig: defaultValues?.httpConfig || {
+        url: "",
+        method: "GET",
+        successCodes: [200],
+        params: {},
+        headers: {},
+        body: ""
+      },
     },
   });
   
@@ -98,11 +118,40 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
       values.cronExpression = "";
     }
     
-    onSubmit({
-      ...values,
-      tags,
-      environments: values.environments as CheckEnvironment[]
-    });
+    // Ensure we have valid httpConfig data if URL is provided
+    if (values.httpConfig?.url) {
+      try {
+        const url = new URL(values.httpConfig.url);
+        
+        // Process httpConfig to ensure it's in the correct format
+        const httpConfig: HttpConfig = {
+          url: values.httpConfig.url,
+          method: values.httpConfig.method || 'GET',
+          successCodes: values.httpConfig.successCodes || [200],
+          headers: values.httpConfig.headers || {},
+          params: values.httpConfig.params || {},
+          body: values.httpConfig.body || '',
+        };
+        
+        onSubmit({
+          ...values,
+          tags,
+          environments: values.environments as CheckEnvironment[],
+          httpConfig
+        });
+      } catch (error) {
+        toast.error("Neplatná URL v HTTP konfigurácii");
+        return;
+      }
+    } else {
+      // Submit without httpConfig if not provided
+      onSubmit({
+        ...values,
+        tags,
+        environments: values.environments as CheckEnvironment[],
+        httpConfig: undefined
+      });
+    }
 
     toast.success(isEdit ? "Kontrola úspešne aktualizovaná" : "Kontrola úspešne vytvorená");
     
@@ -313,6 +362,9 @@ const CheckForm = ({ onSubmit, defaultValues, isEdit = false }: CheckFormProps) 
                 </FormItem>
               )}
             />
+
+            {/* HTTP Configuration */}
+            <HttpConfigForm disabled={false} />
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button 

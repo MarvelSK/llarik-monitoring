@@ -8,6 +8,15 @@ export interface CheckPing {
   status: 'success' | 'failure' | 'start' | 'timeout';
 }
 
+export interface HttpConfig {
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+  successCodes: number[];
+  params?: Record<string, string>;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
 export interface Check {
   id: string;
   name: string;
@@ -24,4 +33,5 @@ export interface Check {
   createdAt: Date;
   lastDuration?: number; // in seconds, for showing execution time
   projectId?: string;
+  httpConfig?: HttpConfig;
 }
