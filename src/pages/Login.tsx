@@ -38,6 +38,9 @@ const Login = () => {
         response = await supabase.auth.signUp({
           email: values.email,
           password: values.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
         });
         
         if (response.error) throw response.error;
